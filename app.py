@@ -463,58 +463,35 @@ def handle_products():
 @app.route('/products/last', methods=['GET'])
 def get_last_product():
     try:
-        # Ordena por el ID de forma descendente para obtener el último registro ingresado
-        last_product = ProductoTerminado.query.order_by(ProductoTerminado.id.desc()).first()
-        if last_product:
-            return jsonify(model_to_dict(last_product))
-        else:
-            # Si no hay productos, devuelve un serial base para que el frontend pueda calcular el siguiente
-            return jsonify({'serial': '7300'})
+        last_product = db.session.query(ProductoTerminado).order_by(desc(ProductoTerminado.id)).first()
+        return jsonify(model_to_dict(last_product) if last_product else {'serial': '7300'})
     except Exception as e:
-        logger.error(f"Error al obtener el último producto: {e}")
-        return jsonify({"message": "Error interno del servidor"}), 500
+        logger.error(f"Error en /products/last: {e}")
+        return jsonify({"message": "Error interno"}), 500
 
 
 @app.route('/products/bulk', methods=['DELETE'])
 def delete_products_bulk():
-    data = request.get_json()
-    ids_to_delete = data.get('ids', [])
-    if not ids_to_delete:
-        return jsonify({'success': False, 'message': 'No se proporcionaron IDs.'}), 400
-
+    ids = request.get_json().get('ids', [])
+    if not ids: return jsonify({'success': False, 'message': 'No se proporcionaron IDs.'}), 400
     try:
-        products_to_delete = ProductoTerminado.query.filter(ProductoTerminado.id.in_(ids_to_delete)).all()
-        
-        for item in products_to_delete:
-            # Lógica para reponer el stock de materiales
+        products = ProductoTerminado.query.filter(ProductoTerminado.id.in_(ids)).all()
+        for p in products:
             try:
-                materials_to_return = json.loads(item.materials_used) if isinstance(item.materials_used, str) and item.materials_used else []
-                for mat_item in materials_to_return:
-                    material = LlegadaMaterial.query.get(mat_item['id'])
-                    if material:
-                        material.quantity_value += float(mat_item['quantity_used'])
-            except (json.JSONDecodeError, TypeError) as e:
-                logger.warning(f"No se pudo procesar 'materials_used' para el producto ID {item.id}: {e}")
-
-            # Lógica para reponer el stock de telas
-            try:
-                fabrics_to_return = json.loads(item.fabrics_used) if isinstance(item.fabrics_used, str) and item.fabrics_used else []
-                for fab_item in fabrics_to_return:
-                    tela = LlegadaTela.query.get(fab_item['id'])
-                    if tela:
-                        tela.cantidad_value += float(fab_item['quantity_used'])
-            except (json.JSONDecodeError, TypeError) as e:
-                logger.warning(f"No se pudo procesar 'fabrics_used' para el producto ID {item.id}: {e}")
-            
-            db.session.delete(item)
-
+                for mat in json.loads(p.materials_used or '[]'):
+                    m = LlegadaMaterial.query.get(mat['id'])
+                    if m: m.quantity_value += float(mat['quantity_used'])
+                for fab in json.loads(p.fabrics_used or '[]'):
+                    f = LlegadaTela.query.get(fab['id'])
+                    if f: f.cantidad_value += float(fab['quantity_used'])
+            except Exception as e:
+                logger.warning(f"No se pudo reponer stock para producto ID {p.id}: {e}")
+            db.session.delete(p)
         db.session.commit()
-        return jsonify({'success': True, 'message': f'{len(products_to_delete)} producto(s) eliminado(s) y stock repuesto.'})
-
+        return jsonify({'success': True, 'message': f'{len(products)} producto(s) eliminado(s).'})
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error en la eliminación masiva de productos: {e}")
-        return jsonify({'success': False, 'message': 'Error al eliminar productos y reponer stock.'}), 500
+        return jsonify({'success': False, 'message': 'Error al eliminar productos.'}), 500
 
 
 @app.route('/products/<string:product_id>', methods=['PUT', 'DELETE'])

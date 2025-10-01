@@ -1,12 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Text, JSON
 
-# Inicializa la extensión de base de datos. 
-# No está vinculada a ninguna aplicación Flask todavía.
 db = SQLAlchemy()
-
-# --- MODELOS DE BASE DE DATOS ---
-# Cada clase es una tabla en la base de datos.
 
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
@@ -121,10 +116,16 @@ class HistorialTela(db.Model):
     type = db.Column(db.String(50))
     quantity_change = db.Column(db.Float)
     details = db.Column(Text)
+    # Campos adicionales para consistencia de datos en historial
+    tipo_de_tela = db.Column(db.String(150))
+    referencia_de_tela = db.Column(db.String(150))
+    proveedor = db.Column(db.String(150))
 
 class ProductoTerminado(db.Model):
     __tablename__ = 'productos_terminados'
-    id = db.Column(db.String(100), primary_key=True)
+    # --- INICIO DE LA CORRECCIÓN CRÍTICA ---
+    id = db.Column(db.Integer, primary_key=True)
+    # --- FIN DE LA CORRECCIÓN CRÍTICA ---
     lote = db.Column(db.String(100))
     fecha = db.Column(db.Date)
     referencia = db.Column(db.String(150))
