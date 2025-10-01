@@ -6,6 +6,8 @@
     <title>Gestión de Referencias - DAMAR</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- Librería para leer archivos Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
             --primary-dark: #2C3E50; --secondary-light: #ECF0F1; --accent: #3498DB;
@@ -142,6 +144,8 @@
                     </div>
                      <div class="buttons-container">
                         <button id="addBtn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Agregar</button>
+                        <button id="uploadExcelBtn" class="btn btn-secondary"><i class="fa-solid fa-file-excel"></i> Subir desde Excel</button>
+                        <input type="file" id="excelFileInput" class="hidden" accept=".xlsx, .xls">
                      </div>
                 </section>
                 
@@ -205,6 +209,8 @@
             addBtn: document.getElementById('addBtn'),
             editBtn: document.getElementById('editBtn'),
             deleteBtn: document.getElementById('deleteBtn'),
+            uploadExcelBtn: document.getElementById('uploadExcelBtn'),
+            excelFileInput: document.getElementById('excelFileInput'),
             allReferencesTableBody: document.getElementById('allReferencesTableBody'),
             allReferencesSearch: document.getElementById('allReferencesSearch'),
             editModal: document.getElementById('editModal'),
@@ -226,7 +232,7 @@
             toast.className = `toast ${type}`;
             toast.textContent = message;
             container.appendChild(toast);
-            setTimeout(() => toast.remove(), 4000);
+            setTimeout(() => toast.remove(), 5000);
         };
         
         async function apiRequest(endpoint, method = 'GET', data = null) {
@@ -241,7 +247,6 @@
                 if (!response.ok) throw new Error(responseData.message || `Error ${response.status}`);
                 return responseData;
             } catch (error) {
-                showToast(error.message, 'error');
                 console.error("API Request Error:", error);
                 throw error;
             }
@@ -332,6 +337,7 @@
                 updateTableDisplay();
                 await loadAllData(); 
             } catch (error) {
+                showToast('Error al cargar datos iniciales.', 'error');
                 dom.dataTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Error al cargar datos.</td></tr>`;
             }
         }
@@ -341,6 +347,7 @@
                 allReferencesData = await apiRequest('/dynamic-codes/all-references');
                 renderAllReferencesTable();
             } catch (error) {
+                showToast('Error al cargar el historial de referencias.', 'error');
                 dom.allReferencesTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Error al cargar datos.</td></tr>`;
             }
         }
@@ -417,11 +424,12 @@
             try {
                 const endpoint = `/dynamic-codes/${type}/${category}/${itemId}`;
                 await apiRequest(endpoint, 'PUT', payload);
-                
                 showToast('Registro actualizado.', 'success');
                 closeEditModal();
                 await loadInitialData();
-            } catch (error) {}
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
         }
 
         async function deleteSelectedItems() {
@@ -439,7 +447,9 @@
                 await apiRequest(endpoint, 'DELETE', { ids: idsToDelete });
                 showToast('Registros eliminados.', 'success');
                 await loadInitialData();
-            } catch (error) {}
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
         }
         
         dom.addBtn.addEventListener('click', async () => {
@@ -464,8 +474,64 @@
                 dom.costoVentaInput.value = '';
                 dom.costoConfeccionInput.value = '';
                 await loadInitialData();
-            } catch (error) {}
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
         });
+        
+        const handleFileUpload = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    
+                    // Convertir a JSON, asumiendo el orden de columnas y saltando la primera fila
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+                        header: ["code", "description", "costo_venta", "costo_confeccion"],
+                        range: 1 // Omitir la primera fila (índice 0)
+                    });
+                    
+                    const validData = jsonData.filter(row => row.code); // Solo procesar filas con una referencia
+                    if (validData.length === 0) {
+                        return showToast('No se encontraron datos válidos para subir en el archivo.', 'error');
+                    }
+
+                    showToast(`Subiendo ${validData.length} registros...`, 'success');
+                    
+                    const category = dom.categorySelect.value;
+                    const endpoint = `/dynamic-codes/references/${category}`;
+                    
+                    const uploadPromises = validData.map(row => apiRequest(endpoint, 'POST', row).catch(err => ({ error: err, row })));
+                    
+                    const results = await Promise.allSettled(uploadPromises);
+                    
+                    const successCount = results.filter(r => r.status === 'fulfilled').length;
+                    const errorCount = results.length - successCount;
+                    
+                    let finalMessage = `${successCount} de ${results.length} registros subidos correctamente.`;
+                    if (errorCount > 0) {
+                        finalMessage += ` ${errorCount} registros fallaron.`;
+                    }
+                    showToast(finalMessage, errorCount > 0 ? 'error' : 'success');
+                    
+                    await loadInitialData();
+
+                } catch (error) {
+                    showToast('Error al procesar el archivo Excel.', 'error');
+                    console.error("Error processing Excel file:", error);
+                } finally {
+                    // Limpiar el input para poder subir el mismo archivo de nuevo
+                    dom.excelFileInput.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        };
 
         // --- Event Listeners ---
         dom.categorySelect.addEventListener('change', updateTableDisplay);
@@ -479,6 +545,9 @@
         dom.cancelEdit.addEventListener('click', closeEditModal);
         dom.saveEdit.addEventListener('click', saveEditedItem);
         dom.editModal.addEventListener('click', (e) => { if (e.target === dom.editModal) closeEditModal(); });
+        
+        dom.uploadExcelBtn.addEventListener('click', () => dom.excelFileInput.click());
+        dom.excelFileInput.addEventListener('change', handleFileUpload);
         
         // --- Carga Inicial ---
         loadInitialData();
