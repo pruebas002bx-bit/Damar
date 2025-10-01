@@ -26,8 +26,11 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL no está configurada.")
+
+# CORRECCIÓN DE ERROR: Usar DATABASE_URL en lugar de la variable no definida 'DATABASE'.
+# Esto evita el error de concatenación de tipos si la inicialización fallaba en el flujo.
 if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE.replace("postgres://", "postgresql://", 1)
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -446,7 +449,7 @@ def handle_products():
                 
                 if not material or material.quantity_value < quantity_used:
                     # Si falla, hacemos rollback de la sesión ANTES de retornar el error.
-                    # CORRECCIÓN APLICADA AQUÍ: Convertir item_mat['id'] a str
+                    # Manteniendo la conversión a str para evitar errores de concatenación.
                     db.session.rollback()
                     return jsonify({'success': False, 'message': f"Stock insuficiente para material ID {str(item_mat['id'])}"}), 400
                 material.quantity_value -= quantity_used
@@ -459,7 +462,7 @@ def handle_products():
 
                 if not tela or tela.cantidad_value < quantity_used_fab:
                     # Si falla, hacemos rollback de la sesión ANTES de retornar el error.
-                    # CORRECCIÓN APLICADA AQUÍ: Convertir item_fab['id'] a str
+                    # Manteniendo la conversión a str para evitar errores de concatenación.
                     db.session.rollback()
                     return jsonify({'success': False, 'message': f"Stock insuficiente para tela ID {str(item_fab['id'])}"}), 400
                 tela.cantidad_value -= quantity_used_fab
