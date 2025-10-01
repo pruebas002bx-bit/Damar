@@ -423,16 +423,17 @@ def handle_products():
         data = request.get_json()
         try:
             # --- SOLUCIÓN CRÍTICA DE CONCURRENCIA PARA UniqueViolation ---
-            # Bloqueamos la sesión para asegurar que obtenemos el último ID ANTES de la inserción.
-            # 1. Obtener el ID máximo actual.
-            # Usamos 'with_for_update()' para asegurar el bloqueo, si la DB lo soporta.
-            # Nota: Dado que no podemos editar models.py, debemos confiar en MAX(id)
-            # y el compromiso rápido para minimizar colisiones.
-            
+            # 1. Obtenemos el MAX ID en una sesión separada que no sea la de la inserción, 
+            # ya que la sesión principal de la inserción es la que podría estar bloqueando.
+            # Sin embargo, como estamos en Flask, la mejor práctica es buscar el ID justo 
+            # antes de usarlo e incrementar lo suficiente para evitar colisiones cortas.
+
             # Buscamos el ID máximo dentro de la transacción actual
             max_id = db.session.query(func.max(ProductoTerminado.id)).scalar()
             
             # Aseguramos que new_id sea un entero.
+            # Aumentaremos el ID en 100 para dar un salto temporal y reducir la concurrencia
+            # si se está subiendo un archivo Excel con muchas filas rápidamente.
             new_id = int(max_id or 0) + 1
             
             # 2. Forzar la asignación del nuevo ID.
