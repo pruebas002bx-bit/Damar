@@ -411,6 +411,7 @@ def get_fabrics_history():
     items = HistorialTela.query.order_by(HistorialTela.timestamp.desc()).all()
     return jsonify([model_to_dict(item) for item in items])
 
+
 @app.route('/products', methods=['GET', 'POST'])
 def handle_products():
     if request.method == 'GET':
@@ -419,11 +420,14 @@ def handle_products():
     if request.method == 'POST':
         data = request.get_json()
         try:
-            # CORRECCIÓN 1: Eliminamos la lógica de 'del data['id']'.
-            # Dejamos que SQLAlchemy y la base de datos manejen la autogeneración del 'id'.
-            # La tabla de la base de datos debe estar configurada correctamente (SERIAL/AUTOINCREMENT).
+            # CORRECCIÓN 1: Limpiamos explícitamente el 'id' si viene en los datos del Excel.
+            # La base de datos debe generar el ID. Si el error NotNullViolation persiste,
+            # significa que la tabla 'productos_terminados' no es SERIAL/AUTOINCREMENT.
             if 'id' in data:
                 del data['id']
+            # También limpiamos 'lote' si viene nulo, ya que los logs indican que la base de datos lo espera.
+            if 'lote' in data and data['lote'] is None:
+                del data['lote']
 
             materials_used = data.get('materials_used', [])
             if isinstance(materials_used, str): materials_used = json.loads(materials_used)
@@ -442,7 +446,7 @@ def handle_products():
             
             # CORRECCIÓN 2: Se usa la variable de iteración correcta 'item_fab' en lugar de 'fab_item'.
             for item_fab in fabrics_used:
-                tela = LlegadaTela.query.get(item_fab['id']) # <-- CORRECCIÓN APLICADA AQUÍ
+                tela = LlegadaTela.query.get(item_fab['id'])
                 # Asegurarse de que los valores sean float antes de comparar o restar
                 quantity_used_fab = float(item_fab['quantity_used']) if item_fab.get('quantity_used') else 0
 
@@ -901,4 +905,3 @@ with app.app_context():
 # --- Ejecución Principal ---
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
-
