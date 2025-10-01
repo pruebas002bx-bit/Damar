@@ -501,13 +501,43 @@
                     const worksheet = workbook.Sheets[sheetName];
                     
                     const jsonData = XLSX.utils.sheet_to_json(worksheet, {
-                        header: ["code", "description", "costo_venta", "costo_confeccion"],
-                        range: 1
+                        raw: false // Importante para obtener fechas y números como texto
                     });
                     
-                    const validData = jsonData.filter(row => row.code && String(row.code).trim() !== '');
+                    if (jsonData.length === 0) {
+                        return showToast('El archivo Excel está vacío o no tiene datos.', 'error');
+                    }
+
+                    const headers = Object.keys(jsonData[0]);
+                    const columnMap = {
+                        code: headers.find(h => h.trim().toLowerCase().includes('referencia')),
+                        description: headers.find(h => h.trim().toLowerCase().includes('barras')),
+                        costo_venta: headers.find(h => h.trim().toLowerCase().includes('venta')),
+                        costo_confeccion: headers.find(h => h.trim().toLowerCase().includes('confección') || h.trim().toLowerCase().includes('confeccion')),
+                    };
+
+                    if (!columnMap.code) {
+                        return showToast('No se encontró una columna que contenga "Referencia" en el archivo Excel. Es obligatoria.', 'error');
+                    }
+
+                    const validData = jsonData.map(row => {
+                        const costoVentaRaw = row[columnMap.costo_venta];
+                        const costoConfeccionRaw = row[columnMap.costo_confeccion];
+                        
+                        const costoVenta = costoVentaRaw ? parseFloat(String(costoVentaRaw).replace(/[^0-9.,-]/g, '').replace(',', '.')) : null;
+                        const costoConfeccion = costoConfeccionRaw ? parseFloat(String(costoConfeccionRaw).replace(/[^0-9.,-]/g, '').replace(',', '.')) : null;
+
+                        return {
+                            code: row[columnMap.code] ? String(row[columnMap.code]).trim() : null,
+                            description: row[columnMap.description] ? String(row[columnMap.description]).trim() : null,
+                            costo_venta: !isNaN(costoVenta) ? costoVenta : null,
+                            costo_confeccion: !isNaN(costoConfeccion) ? costoConfeccion : null,
+                        };
+                    }).filter(row => row.code);
+
+
                     if (validData.length === 0) {
-                        return showToast('No se encontraron datos válidos (con referencia) para subir.', 'error');
+                        return showToast('No se encontraron filas con una "Referencia" válida para subir.', 'error');
                     }
 
                     showToast(`Iniciando subida de ${validData.length} registros...`, 'success');
@@ -520,13 +550,7 @@
 
                     for (const row of validData) {
                         try {
-                            const payload = {
-                                code: row.code,
-                                description: row.description || null,
-                                costo_venta: row.costo_venta || null,
-                                costo_confeccion: row.costo_confeccion || null,
-                            };
-                            await apiRequest(endpoint, 'POST', payload);
+                            await apiRequest(endpoint, 'POST', row);
                             successCount++;
                         } catch (error) {
                             errorCount++;
