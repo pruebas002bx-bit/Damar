@@ -93,6 +93,7 @@ def handle_login():
 
 # --- Usuarios ---
 @app.route('/usuarios', methods=['GET', 'POST'])
+@app.route('/users', methods=['GET', 'POST'])
 def handle_usuarios():
     if request.method == 'GET':
         items = Usuario.query.all()
@@ -112,6 +113,7 @@ def handle_usuarios():
         return jsonify({'success': True, 'message': 'Usuario agregado correctamente.'}), 201
 
 @app.route('/usuarios/<string:username>', methods=['PUT', 'DELETE'])
+@app.route('/users/<string:username>', methods=['PUT', 'DELETE'])
 def handle_usuario(username):
     if request.method == 'PUT':
         data = request.get_json()
@@ -301,8 +303,6 @@ def delete_bancos():
     if num_deleted > 0: return jsonify({'success': True, 'message': f'{num_deleted} movimiento(s) eliminado(s).'})
     return jsonify({'success': False, 'message': 'No se encontraron movimientos.'}), 404
 
-# --- Y así sucesivamente para cada modelo... (aquí se completan todos) ---
-
 # --- LlegadaMaterial ---
 @app.route('/materials', methods=['GET', 'POST'])
 def handle_materials():
@@ -376,11 +376,12 @@ def handle_products():
         return jsonify([model_to_dict(item) for item in items])
     if request.method == 'POST':
         data = request.get_json()
-        
-        # Lógica de deducción de stock
         try:
             materials_used = data.get('materials_used', [])
+            if isinstance(materials_used, str): materials_used = json.loads(materials_used)
+            
             fabrics_used = data.get('fabrics_used', [])
+            if isinstance(fabrics_used, str): fabrics_used = json.loads(fabrics_used)
 
             for item_mat in materials_used:
                 material = LlegadaMaterial.query.get(item_mat['id'])
@@ -404,7 +405,6 @@ def handle_products():
             logger.error(f"Error registrando producto: {e}")
             return jsonify({'success': False, 'message': 'Error interno al registrar producto.'}), 500
 
-
 @app.route('/products/<string:product_id>', methods=['PUT', 'DELETE'])
 def handle_product(product_id):
     item = ProductoTerminado.query.get(product_id)
@@ -418,7 +418,6 @@ def handle_product(product_id):
         return jsonify({'success': True, 'message': 'Producto actualizado.'})
 
     if request.method == 'DELETE':
-        # Lógica para reponer stock
         try:
             materials_to_return = item.materials_used or []
             fabrics_to_return = item.fabrics_used or []
@@ -439,6 +438,19 @@ def handle_product(product_id):
             logger.error(f"Error eliminando producto: {e}")
             return jsonify({'success': False, 'message': 'Error al eliminar y reponer stock.'}), 500
 
+# --- PagosSatelites ---
+@app.route('/payments', methods=['GET', 'POST'])
+def handle_payments():
+    if request.method == 'GET':
+        items = PagoSatelite.query.all()
+        return jsonify([model_to_dict(item) for item in items])
+    if request.method == 'POST':
+        data = request.get_json()
+        new_item = PagoSatelite(**data)
+        db.session.add(new_item)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Pago registrado.'}), 201
+        
 # --- Ventas ---
 @app.route('/sales', methods=['GET', 'POST'])
 def handle_sales():
@@ -449,6 +461,8 @@ def handle_sales():
         data = request.get_json()
         try:
             products_sold = data.get('products_sold', [])
+            if isinstance(products_sold, str): products_sold = json.loads(products_sold)
+
             for p_sold in products_sold:
                 producto = ProductoTerminado.query.get(p_sold['id'])
                 if not producto or producto.cantidad < float(p_sold['quantity']):
@@ -464,6 +478,30 @@ def handle_sales():
             logger.error(f"Error en venta: {e}")
             return jsonify({'success': False, 'message': 'Error al registrar venta.'}), 500
 
+# --- Dynamic Codes (Referencias y Códigos de Barras) ---
+@app.route('/dynamic-codes/<string:type>/<string:category>', methods=['GET', 'POST'])
+def handle_dynamic_codes(type, category):
+    if request.method == 'GET':
+        items = DynamicCode.query.filter_by(type=type, category=category).all()
+        return jsonify([model_to_dict(item) for item in items])
+    if request.method == 'POST':
+        data = request.get_json()
+        new_item = DynamicCode(type=type, category=category, **data)
+        db.session.add(new_item)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Código agregado.'}), 201
+
+@app.route('/dynamic-codes/all-references', methods=['GET'])
+def get_all_references():
+    items = DynamicCode.query.filter_by(type='reference').all()
+    return jsonify([model_to_dict(item) for item in items])
+
+@app.route('/dynamic-codes/all-barcodes', methods=['GET'])
+def get_all_barcodes():
+    items = DynamicCode.query.filter_by(type='barcode').all()
+    return jsonify([model_to_dict(item) for item in items])
+
+
 # --- RUTAS DE LÓGICA DE NEGOCIO Y DASHBOARD ---
 
 # --- KPIs ---
@@ -472,31 +510,24 @@ def get_kpis():
     try:
         kpis = {}
         
-        # Deuda clientes
         deuda_c = db.session.query(func.sum(Cliente.valor - Cliente.abono)).scalar()
         kpis['deuda_clientes'] = float(deuda_c or 0)
 
-        # Deuda proveedores
         deuda_p = db.session.query(func.sum(Proveedor.valor - Proveedor.abono)).scalar()
         kpis['deuda_proveedores'] = float(deuda_p or 0)
 
-        # Total ventas
         total_v = db.session.query(func.sum(Venta.total_sale)).scalar()
         kpis['total_ventas'] = float(total_v or 0)
 
-        # Valor inventario telas
         val_telas = db.session.query(func.sum(LlegadaTela.cantidad_value * LlegadaTela.unit_value)).scalar()
         kpis['valor_inventario_telas'] = float(val_telas or 0)
 
-        # Valor inventario materiales
         val_mats = db.session.query(func.sum(LlegadaMaterial.quantity_value * LlegadaMaterial.unit_value)).scalar()
         kpis['valor_inventario_materiales'] = float(val_mats or 0)
 
-        # Valor en producción
         val_prod = db.session.query(func.sum(AsignacionSatelite.total_price)).filter(AsignacionSatelite.status == 'Asignado').scalar()
         kpis['valor_en_produccion'] = float(val_prod or 0)
         
-        # Total empleados
         kpis['total_empleados'] = Empleado.query.count()
 
         return jsonify(kpis)
@@ -548,6 +579,55 @@ def get_chart_production_by_satellite():
         logger.error(f"Error en chart/production-by-satellite: {e}")
         return jsonify({"error": "Error al procesar producción por satélite"}), 500
         
+@app.route('/api/charts/fabrics-by-value', methods=['GET'])
+def get_chart_fabrics_by_value():
+    try:
+        top_fabrics = db.session.query(
+            LlegadaTela.tipo_de_tela,
+            func.sum(LlegadaTela.cantidad_value * LlegadaTela.unit_value).label('total_value')
+        ).group_by(LlegadaTela.tipo_de_tela).order_by(func.sum(LlegadaTela.cantidad_value * LlegadaTela.unit_value).desc()).limit(5).all()
+        
+        return jsonify({
+            'labels': [r.tipo_de_tela for r in top_fabrics],
+            'data': [float(r.total_value or 0) for r in top_fabrics]
+        })
+    except Exception as e:
+        logger.error(f"Error en chart/fabrics-by-value: {e}")
+        return jsonify({"error": "Error al procesar valor de telas"}), 500
+
+@app.route('/api/charts/inventory-by-supplier', methods=['GET'])
+def get_chart_inventory_by_supplier():
+    try:
+        # Consulta para telas
+        fabrics_value = db.session.query(
+            LlegadaTela.proveedor,
+            func.sum(LlegadaTela.cantidad_value * LlegadaTela.unit_value).label('total')
+        ).group_by(LlegadaTela.proveedor).subquery()
+        
+        # Consulta para materiales
+        materials_value = db.session.query(
+            LlegadaMaterial.supplier.label('proveedor'),
+            func.sum(LlegadaMaterial.quantity_value * LlegadaMaterial.unit_value).label('total')
+        ).group_by(LlegadaMaterial.supplier).subquery()
+        
+        # Unión de ambas consultas
+        from sqlalchemy import union_all
+        all_inventory = union_all(fabrics_value.select(), materials_value.select()).alias('all_inventory')
+        
+        # Agrupación final y suma
+        results = db.session.query(
+            all_inventory.c.proveedor,
+            func.sum(all_inventory.c.total).label('grand_total')
+        ).group_by(all_inventory.c.proveedor).order_by(func.sum(all_inventory.c.total).desc()).limit(10).all()
+
+        return jsonify({
+            'labels': [r.proveedor for r in results],
+            'data': [float(r.grand_total or 0) for r in results]
+        })
+    except Exception as e:
+        logger.error(f"Error en chart/inventory-by-supplier: {e}")
+        return jsonify({"error": "Error al procesar inventario por proveedor"}), 500
+
 # --- Creación de las tablas ---
 # Este bloque se asegura de que las tablas existan en la base de datos
 # antes de que la aplicación empiece a aceptar peticiones.
