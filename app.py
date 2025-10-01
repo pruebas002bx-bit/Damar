@@ -27,8 +27,7 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL no está configurada.")
 
-# CORRECCIÓN DE ERROR: Usar DATABASE_URL en lugar de la variable no definida 'DATABASE'.
-# Esto evita el error de concatenación de tipos si la inicialización fallaba en el flujo.
+# CORRECCIÓN DE ERROR (Revisado): Aseguramos que la URL usa 'postgresql://' en lugar de 'postgres://'.
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -427,7 +426,8 @@ def handle_products():
             # Si el ID no es auto-incrementable en la DB, lo generamos manualmente.
             # 1. Obtener el ID máximo actual.
             max_id = db.session.query(func.max(ProductoTerminado.id)).scalar()
-            new_id = (max_id or 0) + 1
+            # Aseguramos que new_id sea un entero.
+            new_id = int(max_id or 0) + 1
             
             # 2. Forzar la asignación del nuevo ID.
             data['id'] = new_id
@@ -435,6 +435,21 @@ def handle_products():
             # Limpiamos 'lote' si viene nulo, ya que los logs indican que la base de datos lo espera.
             if 'lote' in data and data['lote'] is None:
                 del data['lote']
+            
+            # Limpiamos 'fecha' si viene nulo (ya que los logs de la consola JS indican que se envía como cadena "29072025")
+            if 'fecha' in data and data['fecha'] is None:
+                del data['fecha']
+            
+            # Convertir valores numéricos que vienen del formulario/excel como string a sus tipos correctos
+            # Esto es vital para que SQLAlchemy no intente mezclar tipos.
+            for key in ['medida_trazo', 'trazos', 'cantidad', 'valor_confeccion', 'ganancia_percent', 'valor_total', 'valor_venta']:
+                if key in data and isinstance(data[key], str):
+                    try:
+                        # Intentar convertir a float, que cubre enteros también.
+                        data[key] = float(data[key])
+                    except ValueError:
+                        # Si no es convertible, dejarlo como está (puede ser un problema en la DB después, pero evita el error de tipo Python aquí)
+                        pass 
 
             materials_used = data.get('materials_used', [])
             if isinstance(materials_used, str): materials_used = json.loads(materials_used)
@@ -449,7 +464,6 @@ def handle_products():
                 
                 if not material or material.quantity_value < quantity_used:
                     # Si falla, hacemos rollback de la sesión ANTES de retornar el error.
-                    # Manteniendo la conversión a str para evitar errores de concatenación.
                     db.session.rollback()
                     return jsonify({'success': False, 'message': f"Stock insuficiente para material ID {str(item_mat['id'])}"}), 400
                 material.quantity_value -= quantity_used
@@ -462,7 +476,6 @@ def handle_products():
 
                 if not tela or tela.cantidad_value < quantity_used_fab:
                     # Si falla, hacemos rollback de la sesión ANTES de retornar el error.
-                    # Manteniendo la conversión a str para evitar errores de concatenación.
                     db.session.rollback()
                     return jsonify({'success': False, 'message': f"Stock insuficiente para tela ID {str(item_fab['id'])}"}), 400
                 tela.cantidad_value -= quantity_used_fab
