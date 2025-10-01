@@ -4,7 +4,7 @@ import json
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from sqlalchemy import func, case
-from datetime import datetime
+from datetime import datetime, date
 
 # --- 1. Importaciones desde models.py ---
 # Se importan todos los "planos" de nuestras tablas.
@@ -45,8 +45,9 @@ def model_to_dict(model_instance):
     d = {}
     for column in model_instance.__table__.columns:
         value = getattr(model_instance, column.name)
-        # Formatear fechas y datetimes para que sean compatibles con JSON
-        if isinstance(value, (datetime, datetime.date)):
+        # --- CORRECCIÓN ---
+        # Usar datetime.datetime y datetime.date en lugar del módulo datetime
+        if isinstance(value, (datetime, date)):
             d[column.name] = value.isoformat()
         else:
             d[column.name] = value
@@ -63,6 +64,11 @@ def index():
 @app.route('/<path:filename>')
 def serve_static(filename):
     return send_from_directory('.', filename)
+    
+# --- RUTA DE HEALTH CHECK (para index.html) ---
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({'status': 'ok'}), 200
 
 # --- RUTA DE LOGIN ---
 @app.route('/login', methods=['POST'])
@@ -140,6 +146,7 @@ def handle_usuario(username):
 
 # --- Empleados ---
 @app.route('/empleados', methods=['GET', 'POST'])
+@app.route('/employees', methods=['GET', 'POST']) # Alias para compatibilidad
 def handle_empleados():
     if request.method == 'GET':
         items = Empleado.query.all()
@@ -153,7 +160,6 @@ def handle_empleados():
         if Empleado.query.filter_by(cedula=data['cedula']).first():
             return jsonify({'success': False, 'message': f'El empleado con cédula {data["cedula"]} ya existe.'}), 409
         
-        # Eliminar 'codigo_empleado' si viene vacío para que la DB lo genere
         if 'codigo_empleado' in data and not data['codigo_empleado']:
             del data['codigo_empleado']
 
@@ -163,6 +169,7 @@ def handle_empleados():
         return jsonify({'success': True, 'message': 'Empleado agregado.'}), 201
 
 @app.route('/empleados/<string:cedula>', methods=['PUT'])
+@app.route('/employees/<string:cedula>', methods=['PUT'])
 def handle_empleado(cedula):
     item = Empleado.query.filter_by(cedula=cedula).first()
     if not item:
@@ -177,6 +184,7 @@ def handle_empleado(cedula):
     return jsonify({'success': True, 'message': 'Empleado actualizado.'})
 
 @app.route('/empleados', methods=['DELETE'])
+@app.route('/employees', methods=['DELETE'])
 def delete_empleados():
     data = request.get_json()
     cedulas_to_delete = data.get('cedulas', [])
@@ -335,7 +343,6 @@ def delete_materials():
     db.session.commit()
     return jsonify({'success': True, 'message': 'Material(es) eliminado(s).'})
 
-
 # --- LlegadaTelas ---
 @app.route('/fabrics', methods=['GET', 'POST'])
 def handle_fabrics():
@@ -367,6 +374,12 @@ def delete_fabrics():
     LlegadaTela.query.filter(LlegadaTela.id.in_(ids_to_delete)).delete(synchronize_session=False)
     db.session.commit()
     return jsonify({'success': True, 'message': 'Tela(s) eliminada(s).'})
+    
+# --- Historial Tela ---
+@app.route('/inventory/fabrics-history', methods=['GET'])
+def get_fabrics_history():
+    items = HistorialTela.query.all()
+    return jsonify([model_to_dict(item) for item in items])
 
 # --- ProductosTerminados ---
 @app.route('/products', methods=['GET', 'POST'])
@@ -420,7 +433,10 @@ def handle_product(product_id):
     if request.method == 'DELETE':
         try:
             materials_to_return = item.materials_used or []
+            if isinstance(materials_to_return, str): materials_to_return = json.loads(materials_to_return)
+            
             fabrics_to_return = item.fabrics_used or []
+            if isinstance(fabrics_to_return, str): fabrics_to_return = json.loads(fabrics_to_return)
 
             for mat_item in materials_to_return:
                 material = LlegadaMaterial.query.get(mat_item['id'])
@@ -478,6 +494,83 @@ def handle_sales():
             logger.error(f"Error en venta: {e}")
             return jsonify({'success': False, 'message': 'Error al registrar venta.'}), 500
 
+# --- Rutas que Faltaban ---
+@app.route('/cuts', methods=['GET', 'POST'])
+def handle_cuts():
+    if request.method == 'GET':
+        items = ProgramacionCorte.query.all()
+        return jsonify([model_to_dict(item) for item in items])
+    if request.method == 'POST':
+        data = request.get_json()
+        new_item = ProgramacionCorte(**data)
+        db.session.add(new_item)
+        db.session.commit()
+        return jsonify(model_to_dict(new_item)), 201
+
+@app.route('/assignments', methods=['GET', 'POST'])
+def handle_assignments():
+    if request.method == 'GET':
+        items = AsignacionSatelite.query.all()
+        return jsonify([model_to_dict(item) for item in items])
+    if request.method == 'POST':
+        data = request.get_json()
+        new_item = AsignacionSatelite(**data)
+        db.session.add(new_item)
+        db.session.commit()
+        return jsonify(model_to_dict(new_item)), 201
+
+@app.route('/deliveries', methods=['GET', 'POST'])
+def handle_deliveries():
+    if request.method == 'GET':
+        items = EntregaSatelite.query.all()
+        return jsonify([model_to_dict(item) for item in items])
+    if request.method == 'POST':
+        data = request.get_json()
+        new_item = EntregaSatelite(**data)
+        db.session.add(new_item)
+        db.session.commit()
+        return jsonify(model_to_dict(new_item)), 201
+        
+@app.route('/inventory/summary', methods=['GET'])
+def get_inventory_summary():
+    summary = db.session.query(
+        LlegadaMaterial.material_name,
+        LlegadaMaterial.size_value,
+        LlegadaMaterial.size_unit,
+        LlegadaMaterial.quantity_type,
+        func.sum(LlegadaMaterial.quantity_value).label('total_quantity')
+    ).group_by(
+        LlegadaMaterial.material_name,
+        LlegadaMaterial.size_value,
+        LlegadaMaterial.size_unit,
+        LlegadaMaterial.quantity_type
+    ).all()
+    return jsonify([{
+        'material_name': r.material_name, 'size_value': r.size_value, 'size_unit': r.size_unit,
+        'quantity_type': r.quantity_type, 'total_quantity': float(r.total_quantity or 0)
+    } for r in summary])
+
+@app.route('/inventory/history', methods=['GET'])
+def get_inventory_history():
+    # Esta ruta puede ser más compleja, por ahora devuelve todos los ingresos
+    items = LlegadaMaterial.query.with_entities(
+        LlegadaMaterial.entry_date.label('date'),
+        LlegadaMaterial.material_name,
+        LlegadaMaterial.quantity_value,
+        LlegadaMaterial.quantity_type,
+        LlegadaMaterial.supplier
+    ).all()
+    results = [dict(row) for row in items]
+    for r in results: r['type'] = 'Ingreso'
+    return jsonify(results)
+
+@app.route('/inventory/fabrics', methods=['GET'])
+def get_inventory_fabrics():
+    # Esta ruta puede ser compleja, por ahora devuelve el inventario actual de telas
+    items = LlegadaTela.query.all()
+    return jsonify([model_to_dict(item) for item in items])
+
+
 # --- Dynamic Codes (Referencias y Códigos de Barras) ---
 @app.route('/dynamic-codes/<string:type>/<string:category>', methods=['GET', 'POST'])
 def handle_dynamic_codes(type, category):
@@ -486,7 +579,16 @@ def handle_dynamic_codes(type, category):
         return jsonify([model_to_dict(item) for item in items])
     if request.method == 'POST':
         data = request.get_json()
-        new_item = DynamicCode(type=type, category=category, **data)
+        # Asegurarse de que no falten campos requeridos
+        code_data = {
+            'type': type,
+            'category': category,
+            'code': data.get('code'),
+            'description': data.get('description'),
+            'costo_venta': data.get('costo_venta'),
+            'costo_confeccion': data.get('costo_confeccion')
+        }
+        new_item = DynamicCode(**code_data)
         db.session.add(new_item)
         db.session.commit()
         return jsonify({'success': True, 'message': 'Código agregado.'}), 201
