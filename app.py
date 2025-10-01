@@ -5,7 +5,8 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from sqlalchemy import func, desc
 import datetime
-from psycopg2.errors import UniqueViolation as PgUniqueViolation # Importación específica
+from psycopg2.errors import UniqueViolation as PgUniqueViolation 
+from sqlalchemy.exc import IntegrityError # Importación de error de SQLAlchemy
 
 # --- Importaciones desde models.py ---
 from models import (
@@ -429,18 +430,14 @@ def handle_products():
             
         try:
             # --- SOLUCIÓN CRÍTICA DE CONCURRENCIA PARA UniqueViolation ---
-            # Método 1: Búsqueda del último ID sin bloqueo (para evitar FeatureNotSupported)
-            # y usamos un salto mínimo (+1) que es más limpio que +100.
+            # 1. Obtener el ID máximo actual SIN BLOQUEO (para evitar FeatureNotSupported)
+            max_id_query = db.session.query(func.max(ProductoTerminado.id))
+            max_id = max_id_query.scalar()
             
-            # Se usa .scalar() que no permite .with_for_update(), lo cual es correcto
-            # ya que PostgreSQL no lo soporta en agregados.
-            max_id = db.session.query(func.max(ProductoTerminado.id)).scalar()
+            # 2. Asignar nuevo ID con un gran salto (+100) para mitigar el UniqueViolation en concurrencia.
+            new_id = int(max_id or 0) + 100 
             
-            # Asignar nuevo ID (salto de +1 para seguir secuencia).
-            # Si esto falla por concurrencia, capturaremos la UniqueViolation.
-            new_id = int(max_id or 0) + 1
-            
-            # Forzar la asignación del nuevo ID.
+            # 3. Forzar la asignación del nuevo ID.
             data['id'] = new_id
 
             # Limpiamos 'lote' y 'fecha' si vienen nulos
@@ -454,8 +451,10 @@ def handle_products():
             for key in ['medida_trazo', 'trazos', 'cantidad', 'valor_confeccion', 'ganancia_percent', 'valor_total', 'valor_venta']:
                 if key in data and isinstance(data[key], str):
                     try:
+                        # Intentamos convertir a float (para evitar errores de tipo en la BD)
                         data[key] = float(data[key])
                     except ValueError:
+                        # Si falla, puede ser un valor vacío, lo dejamos como string
                         pass
             
             materials_used = data.get('materials_used', [])
@@ -467,7 +466,8 @@ def handle_products():
             # --- DEDUCCIÓN DE MATERIALES ---
             for item_mat in materials_used:
                 material = LlegadaMaterial.query.get(item_mat['id'])
-                quantity_used = float(item_mat['quantity_used']) if item_mat.get('quantity_used') else 0
+                # Usamos float() para asegurar la compatibilidad matemática
+                quantity_used = float(item_mat.get('quantity_used', 0))
                 
                 if not material or material.quantity_value < quantity_used:
                     db.session.rollback()
@@ -476,8 +476,9 @@ def handle_products():
             
             # --- DEDUCCIÓN DE TELAS ---
             for item_fab in fabrics_used:
+                # CORRECCIÓN: Aseguramos el uso de la variable correcta item_fab
                 tela = LlegadaTela.query.get(item_fab['id'])
-                quantity_used_fab = float(item_fab['quantity_used']) if item_fab.get('quantity_used') else 0
+                quantity_used_fab = float(item_fab.get('quantity_used', 0))
 
                 if not tela or tela.cantidad_value < quantity_used_fab:
                     db.session.rollback()
@@ -494,25 +495,34 @@ def handle_products():
             db.session.commit()
             return jsonify({'success': True, 'message': 'Producto registrado y stock actualizado.'}), 201
 
-        # Manejo de error de clave única (ID o Serial)
-        except PgUniqueViolation as e:
+        # Manejo de errores de clave única (IntegrityError de SQLAlchemy)
+        except IntegrityError as e:
             db.session.rollback()
-            detail = str(e.orig).split('Key ')[-1]
-            # Detecta si es por ID (UniqueViolation) o Serial (UniqueViolation)
-            if 'productos_terminados_pkey' in str(e):
-                message = f"Error de concurrencia: La clave primaria (ID) ya está en uso. Intente de nuevo."
-            elif 'productos_terminados_serial_key' in str(e):
-                # Esto ocurre si el campo 'serial' tiene una restricción UNIQUE.
-                message = f"Error: El número de serial {data.get('serial', 'desconocido')} ya existe."
-            else:
-                message = f"Error de clave única. Detalles: {detail}"
+            # Intenta determinar si la violación es por ID (PKEY) o Serial (Unique Key)
+            message = "Error de clave única (ID o Serial). El registro ya existe. Revise su hoja de cálculo."
+            if "productos_terminados_pkey" in str(e):
+                message = f"Error de ID: El ID {data.get('id', 'generado')} ya existe. Por favor, vuelva a intentar la subida para generar un nuevo ID."
+            elif "productos_terminados_serial_key" in str(e):
+                message = f"Error de Serial: El número de serial {data.get('serial', 'desconocido')} ya existe."
                 
-            logger.error(f"Error registrando producto: {e}")
-            # Devolvemos 409 Conflict para errores de unicidad
+            logger.error(f"Error registrando producto (IntegrityError): {e}")
             return jsonify({'success': False, 'message': message}), 409 
+            
+        except PgUniqueViolation as e:
+            # Captura directa del error de PostgreSQL
+            db.session.rollback()
+            message = "Error de clave única (ID o Serial). El registro ya existe. Revise su hoja de cálculo."
+            if "productos_terminados_pkey" in str(e):
+                message = f"Error de ID: El ID {data.get('id', 'generado')} ya existe. Por favor, vuelva a intentar la subida para generar un nuevo ID."
+            elif "productos_terminados_serial_key" in str(e):
+                message = f"Error de Serial: El número de serial {data.get('serial', 'desconocido')} ya existe."
+                
+            logger.error(f"Error registrando producto (PgUniqueViolation): {e}")
+            return jsonify({'success': False, 'message': message}), 409
             
         except Exception as e:
             db.session.rollback()
+            # Mantenemos la captura de errores general para otros posibles fallos.
             logger.error(f"Error registrando producto: {e}")
             return jsonify({'success': False, 'message': 'Error interno al registrar producto.'}), 500
 
