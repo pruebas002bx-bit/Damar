@@ -60,7 +60,6 @@
             <h1 class="title">Gestión de Referencias de Productos</h1>
             <p class="subtitle">Cree, modifique y consulte las referencias de los productos y sus costos asociados.</p>
         </header>
-
         <main>
             <section class="card">
                 <div class="form-grid">
@@ -85,8 +84,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Materiales</label>
-                        <ul id="materialsList" class="materials-list">
-                           </ul>
+                        <ul id="materialsList" class="materials-list"></ul>
                     </div>
                 </div>
                  <div class="buttons-container">
@@ -96,7 +94,6 @@
                     <button id="clearBtn" class="btn btn-secondary"><i class="fa-solid fa-eraser"></i> Limpiar</button>
                 </div>
             </section>
-
             <section class="card">
                 <div class="table-container">
                     <table class="data-table">
@@ -113,7 +110,6 @@
             </section>
         </main>
     </div>
-
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         const API_URL = 'https://damar-app.onrender.com';
@@ -143,7 +139,8 @@
         };
 
         async function apiRequest(endpoint, method = 'GET', data = null) {
-            [dom.addBtn, dom.updateBtn, dom.deleteBtn, dom.clearBtn].forEach(b => b.disabled = true);
+            const allButtons = [dom.addBtn, dom.updateBtn, dom.deleteBtn, dom.clearBtn];
+            allButtons.forEach(b => b.disabled = true);
             try {
                 const options = {
                     method,
@@ -152,6 +149,7 @@
                 };
                 if (data) options.body = JSON.stringify(data);
                 const response = await fetch(`${API_URL}${endpoint}`, options);
+                if (response.status === 204) return null;
                 const responseData = await response.json();
                 if (!response.ok) throw new Error(responseData.message || 'Error en la operación');
                 return responseData;
@@ -159,47 +157,44 @@
                 showToast(error.message, 'error');
                 throw error;
             } finally {
-                [dom.addBtn, dom.updateBtn, dom.deleteBtn, dom.clearBtn].forEach(b => b.disabled = false);
+                allButtons.forEach(b => b.disabled = false);
             }
         }
 
-        const renderReferencesTable = (references) => {
+        const renderReferencesTable = (references = []) => {
             dom.tableBody.innerHTML = '';
+            if (references.length === 0) return;
             references.forEach(ref => {
                 const tr = document.createElement('tr');
                 tr.dataset.id = ref.id;
                 tr.innerHTML = `
                     <td>${ref.nombre}</td>
                     <td>${ref.categoria}</td>
-                    <td>${formatCurrency(ref.costo_total)}</td>
-                `;
+                    <td>${formatCurrency(ref.costo_total)}</td>`;
                 tr.addEventListener('click', () => selectReference(ref.id, tr));
                 dom.tableBody.appendChild(tr);
             });
         };
 
         const loadReferences = async () => {
+            dom.tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center;"><div class="loading-spinner"></div></td></tr>`;
             try {
-                // CORRECCIÓN: La API devuelve { "references": [...] }, no una lista directa.
                 const response = await apiRequest('/references');
-                const references = response.references || response;
-                renderReferencesTable(references);
+                renderReferencesTable(response.references);
             } catch (error) {
-                console.error('Error cargando referencias:', error);
+                dom.tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center;">Error al cargar referencias.</td></tr>`;
             }
         };
 
         const loadMaterials = async () => {
             try {
                 const response = await apiRequest('/materials');
-                const materials = response.materials || response;
                 dom.materialsList.innerHTML = '';
-                materials.forEach(mat => {
+                (response.materials || []).forEach(mat => {
                     const li = document.createElement('li');
                     li.innerHTML = `
                         <label for="mat-${mat.id}">${mat.nombre} (${formatCurrency(mat.precio)})</label>
-                        <input type="checkbox" id="mat-${mat.id}" value="${mat.id}" data-price="${mat.precio}">
-                    `;
+                        <input type="checkbox" id="mat-${mat.id}" value="${mat.id}" data-price="${mat.precio}">`;
                     dom.materialsList.appendChild(li);
                 });
             } catch (error) {
@@ -241,15 +236,8 @@
 
         const getFormData = () => {
             const selectedMaterials = Array.from(dom.materialsList.querySelectorAll('input:checked'))
-                .map(cb => ({
-                    id: parseInt(cb.value),
-                    // CORRECCIÓN: El nombre de la propiedad es 'nombre', no 'name'.
-                    nombre: cb.parentElement.querySelector('label').textContent.split(' (')[0],
-                    precio: parseFloat(cb.dataset.price)
-                }));
-            
+                .map(cb => ({ id: parseInt(cb.value), precio: parseFloat(cb.dataset.price) }));
             const cost = selectedMaterials.reduce((sum, mat) => sum + mat.precio, 0);
-
             return {
                 nombre: dom.name.value.trim(),
                 categoria: dom.category.value,
@@ -261,36 +249,30 @@
 
         dom.addBtn.addEventListener('click', async () => {
             const data = getFormData();
-            if (!data.nombre) return showToast('El nombre de la referencia es obligatorio.', 'error');
-            try {
-                await apiRequest('/references', 'POST', data);
-                showToast('Referencia agregada con éxito.');
-                clearForm();
-                loadReferences();
-            } catch(error) {}
+            if (!data.nombre) return showToast('El nombre es obligatorio.', 'error');
+            await apiRequest('/references', 'POST', data);
+            showToast('Referencia agregada.');
+            clearForm();
+            loadReferences();
         });
 
         dom.updateBtn.addEventListener('click', async () => {
             if (!selectedReferenceId) return;
             const data = getFormData();
-            if (!data.nombre) return showToast('El nombre de la referencia es obligatorio.', 'error');
-            try {
-                await apiRequest(`/references/${selectedReferenceId}`, 'PUT', data);
-                showToast('Referencia actualizada con éxito.');
-                clearForm();
-                loadReferences();
-            } catch(error) {}
+            if (!data.nombre) return showToast('El nombre es obligatorio.', 'error');
+            await apiRequest(`/references/${selectedReferenceId}`, 'PUT', data);
+            showToast('Referencia actualizada.');
+            clearForm();
+            loadReferences();
         });
 
         dom.deleteBtn.addEventListener('click', async () => {
-            if (!selectedReferenceId) return showToast('Seleccione una referencia para eliminar.', 'error');
-            if (confirm(`¿Seguro que desea eliminar la referencia "${dom.name.value}"?`)) {
-                try {
-                    await apiRequest(`/references/${selectedReferenceId}`, 'DELETE');
-                    showToast('Referencia eliminada con éxito.');
-                    clearForm();
-                    loadReferences();
-                } catch(error) {}
+            if (!selectedReferenceId) return showToast('Seleccione una referencia.', 'error');
+            if (confirm(`¿Eliminar "${dom.name.value}"?`)) {
+                await apiRequest(`/references/${selectedReferenceId}`, 'DELETE');
+                showToast('Referencia eliminada.');
+                clearForm();
+                loadReferences();
             }
         });
 

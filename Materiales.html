@@ -51,15 +51,12 @@
     </style>
 </head>
 <body>
-
     <div id="toastContainer" class="toast-container"></div>
-    
     <div class="container">
         <header class="header">
             <h1 class="title">Gestión de Materiales</h1>
             <p class="subtitle">Añada, edite o elimine los materiales utilizados en la producción.</p>
         </header>
-
         <main>
             <section class="card">
                 <div class="form-grid">
@@ -79,7 +76,6 @@
                     <button id="clearBtn" class="btn btn-secondary"><i class="fa-solid fa-eraser"></i> Limpiar</button>
                 </div>
             </section>
-
             <section class="card">
                 <div class="table-container">
                     <table class="data-table">
@@ -95,7 +91,6 @@
             </section>
         </main>
     </div>
-
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         const API_URL = 'https://damar-app.onrender.com/materials';
@@ -110,9 +105,8 @@
         const tableBody = document.getElementById('materialsTableBody');
         const allButtons = [addBtn, updateBtn, deleteBtn, clearBtn];
 
-        // CORRECCIÓN: Se añade la función para dar formato de moneda a los precios.
         const formatCurrency = (value) => (parseFloat(value) || 0).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
-        const parseCurrency = (value) => String(value).replace(/[^0-9]/g, '');
+        const parseCurrency = (value) => String(value).replace(/[^0-9,]/g, '').replace(',', '.');
 
         const showToast = (message, type = 'success') => {
             const container = document.getElementById('toastContainer');
@@ -123,9 +117,7 @@
             setTimeout(() => toast.remove(), 4000);
         };
 
-        const setLoading = (isLoading) => {
-            allButtons.forEach(btn => btn.disabled = isLoading);
-        };
+        const setLoading = (isLoading) => allButtons.forEach(btn => btn.disabled = isLoading);
 
         async function apiRequest(endpoint = '', method = 'GET', data = null) {
             setLoading(true);
@@ -137,6 +129,7 @@
                 };
                 if (data) options.body = JSON.stringify(data);
                 const response = await fetch(`${API_URL}${endpoint}`, options);
+                if (response.status === 204) return null; // No content on delete
                 const responseData = await response.json();
                 if (!response.ok) throw new Error(responseData.message || 'Error en la operación');
                 return responseData;
@@ -148,19 +141,16 @@
             }
         }
 
-        const renderTable = (materials) => {
+        const renderTable = (materials = []) => {
             tableBody.innerHTML = '';
             if (materials.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="2" class="feedback-state"><i class="fa-solid fa-box-open"></i> No hay materiales registrados.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="2" class="feedback-state"><i class="fa-solid fa-box-open"></i> No hay materiales.</td></tr>`;
                 return;
             }
             materials.forEach(material => {
                 const tr = document.createElement('tr');
                 tr.dataset.id = material.id;
-                tr.innerHTML = `
-                    <td>${material.nombre}</td>
-                    <td>${formatCurrency(material.precio)}</td>
-                `;
+                tr.innerHTML = `<td>${material.nombre}</td><td>${formatCurrency(material.precio)}</td>`;
                 tr.addEventListener('click', () => selectMaterial(material, tr));
                 tableBody.appendChild(tr);
             });
@@ -169,12 +159,10 @@
         const loadMaterials = async () => {
             tableBody.innerHTML = `<tr><td colspan="2" class="feedback-state"><div class="loading-spinner"></div></td></tr>`;
             try {
-                // CORRECCIÓN: La API devuelve { "materials": [...] }, no una lista directa.
                 const response = await apiRequest();
-                const materials = response.materials || response;
-                renderTable(materials);
+                renderTable(response.materials); // Access the list inside the 'materials' key
             } catch (error) {
-                 tableBody.innerHTML = `<tr><td colspan="2" class="feedback-state"><i class="fa-solid fa-circle-exclamation"></i> Error al cargar materiales.</td></tr>`;
+                 tableBody.innerHTML = `<tr><td colspan="2" class="feedback-state"><i class="fa-solid fa-circle-exclamation"></i> Error al cargar.</td></tr>`;
             }
         };
 
@@ -184,65 +172,50 @@
             priceInput.value = '';
             addBtn.style.display = 'inline-flex';
             updateBtn.style.display = 'none';
-            document.querySelectorAll('.data-table tr.selected').forEach(row => row.classList.remove('selected'));
+            document.querySelectorAll('.data-table tr.selected').forEach(r => r.classList.remove('selected'));
         };
 
-        const selectMaterial = (material, rowElement) => {
+        const selectMaterial = (material, row) => {
             selectedMaterialId = material.id;
             nameInput.value = material.nombre;
             priceInput.value = parseFloat(material.precio) || 0;
             addBtn.style.display = 'none';
             updateBtn.style.display = 'inline-flex';
-            document.querySelectorAll('.data-table tr.selected').forEach(row => row.classList.remove('selected'));
-            rowElement.classList.add('selected');
+            document.querySelectorAll('.data-table tr.selected').forEach(r => r.classList.remove('selected'));
+            row.classList.add('selected');
         };
 
         addBtn.addEventListener('click', async () => {
             const nombre = nameInput.value.trim();
-            const precio = parseFloat(parseCurrency(priceInput.value)) || 0;
-            if (!nombre) return showToast('El nombre del material es obligatorio.', 'error');
-
-            try {
-                await apiRequest('', 'POST', { nombre, precio });
-                showToast('Material agregado con éxito.');
-                clearForm();
-                loadMaterials();
-            } catch (error) {}
+            const precio = parseFloat(priceInput.value) || 0;
+            if (!nombre) return showToast('El nombre es obligatorio.', 'error');
+            await apiRequest('', 'POST', { nombre, precio });
+            showToast('Material agregado.');
+            clearForm();
+            loadMaterials();
         });
 
         updateBtn.addEventListener('click', async () => {
-            if (!selectedMaterialId) return;
             const nombre = nameInput.value.trim();
-            const precio = parseFloat(parseCurrency(priceInput.value)) || 0;
-            if (!nombre) return showToast('El nombre del material es obligatorio.', 'error');
-
-            try {
-                await apiRequest(`/${selectedMaterialId}`, 'PUT', { nombre, precio });
-                showToast('Material actualizado con éxito.');
-                clearForm();
-                loadMaterials();
-            } catch (error) {}
+            const precio = parseFloat(priceInput.value) || 0;
+            if (!selectedMaterialId || !nombre) return showToast('Seleccione un material y complete el nombre.', 'error');
+            await apiRequest(`/${selectedMaterialId}`, 'PUT', { nombre, precio });
+            showToast('Material actualizado.');
+            clearForm();
+            loadMaterials();
         });
 
         deleteBtn.addEventListener('click', async () => {
-            if (!selectedMaterialId) return showToast('Seleccione un material para eliminar.', 'error');
-            if (confirm(`¿Está seguro de que desea eliminar el material "${nameInput.value}"?`)) {
-                try {
-                    await apiRequest(`/${selectedMaterialId}`, 'DELETE');
-                    showToast('Material eliminado con éxito.');
-                    clearForm();
-                    loadMaterials();
-                } catch (error) {}
+            if (!selectedMaterialId) return showToast('Seleccione un material.', 'error');
+            if (confirm(`¿Eliminar "${nameInput.value}"?`)) {
+                await apiRequest(`/${selectedMaterialId}`, 'DELETE');
+                showToast('Material eliminado.');
+                clearForm();
+                loadMaterials();
             }
         });
 
         clearBtn.addEventListener('click', clearForm);
-        
-        priceInput.addEventListener('input', () => {
-            let value = parseCurrency(priceInput.value);
-            priceInput.value = value ? parseFloat(value).toLocaleString('es-CO') : '';
-        });
-
         loadMaterials();
     });
     </script>
