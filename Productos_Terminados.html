@@ -245,12 +245,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const lastSerial = lastProduct ? parseInt(lastProduct.serial) : 7300;
             return isNaN(lastSerial) ? 7301 : lastSerial + 1;
         } catch {
-            // Fallback en caso de que la API falle o no haya productos
             const serials = products_master.map(p => parseInt(p.serial)).filter(s => !isNaN(s));
             return serials.length > 0 ? Math.max(...serials) + 1 : 7301;
         }
     }
-
 
     function calculateQuantity() {
         const trazos = parseFloat(dom.trazos.value) || 0;
@@ -337,7 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function collectFormData() {
         const data = {
-            id: selectedProductId, // Incluir ID para la edición
+            id: selectedProductId, 
             lote: dom.fecha.value.trim(),
             fecha: new Date().toISOString().split('T')[0],
             referencia: dom.referencia.value.trim(),
@@ -346,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
             trazos: parseInt(dom.trazos.value) || 0,
             cantidad: parseInt(dom.cantidad.value) || 0,
             tipo_tela: dom.tipoTela.value.trim(),
-            satellite: dom.satellite?.value.trim(),
+            satellite: null,
             serial: dom.serial.value.trim(),
             observacion: dom.observacion.value.trim(),
             valor_confeccion: 0, ganancia_percent: 0, valor_total: 0, valor_venta: 0,
@@ -391,6 +389,35 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.deletePasswordModal.classList.add('active');
     }
 
+    function parseExcelDate(dateInput) {
+        if (!dateInput) return new Date();
+
+        // Handle JS dates from xlsx library with cellDates:true
+        if (dateInput instanceof Date) {
+            if (!isNaN(dateInput.getTime())) {
+                return dateInput;
+            }
+        }
+        
+        let dateStr = String(dateInput);
+
+        // Handle DDMMYYYY or DDMMYYYY.0 format
+        dateStr = dateStr.split('.')[0];
+        if (dateStr.length === 8) {
+            const day = dateStr.substring(0, 2);
+            const month = dateStr.substring(2, 4);
+            const year = dateStr.substring(4, 8);
+            const parsedDate = new Date(`${year}-${month}-${day}T12:00:00Z`); // Use UTC to avoid timezone shifts
+            if (!isNaN(parsedDate.getTime())) return parsedDate;
+        }
+        
+        // Fallback for other formats
+        const parsedDate = new Date(dateInput);
+        if (!isNaN(parsedDate.getTime())) return parsedDate;
+
+        return new Date(); // Final fallback
+    }
+
     const handleExcelUpload = (event) => {
         const file = event.target.files[0];
         if (!file) return;
@@ -399,7 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.onload = async (e) => {
             try {
                 const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array', cellDates: true, dateNF:'dd/mm/yyyy' });
+                const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false });
@@ -412,16 +439,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (const row of jsonData) {
                     try {
                         let fabricsUsed, materialsUsed;
-                        try {
-                            fabricsUsed = JSON.parse(row.fabrics_used || '[]');
-                        } catch { fabricsUsed = []; }
-                        try {
-                            materialsUsed = JSON.parse(row.materials_used || '[]');
-                        } catch { materialsUsed = []; }
+                        try { fabricsUsed = JSON.parse(row.fabrics_used || '[]'); } catch { fabricsUsed = []; }
+                        try { materialsUsed = JSON.parse(row.materials_used || '[]'); } catch { materialsUsed = []; }
 
                         const payload = {
                             lote: row.lote,
-                            fecha: row.fecha ? new Date(row.fecha).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                            fecha: parseExcelDate(row.fecha).toISOString().split('T')[0],
                             referencia: row.referencia,
                             codigo_barras: row.codigo_barras,
                             medida_trazo: parseFloat(row.medida_trazo) || 0,
@@ -440,8 +463,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             has_sample: String(row.has_sample).toLowerCase() === 'true',
                             sample_code: row.sample_code,
                         };
-                        
-                        // ID debe ser único, no podemos mandarlo desde Excel
                         
                         await apiRequest('/products', 'POST', payload);
                         successCount++;
@@ -465,12 +486,11 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsArrayBuffer(file);
     };
 
-
     async function loadData() {
         try {
             [materials_master, fabrics_master, products_master, references_master] = await Promise.all([
                 apiRequest('/materials'), 
-                apiRequest('/inventory/fabrics'), // Usamos la nueva ruta de inventario
+                apiRequest('/inventory/fabrics'), 
                 apiRequest('/products'),
                 apiRequest('/dynamic-codes/all-references')
             ]);
@@ -539,7 +559,6 @@ document.addEventListener('DOMContentLoaded', () => {
             dom.deletePasswordModal.classList.remove('active');
             dom.passwordInput.value = '';
             try {
-                // La ruta correcta para borrado en masa es /products/bulk
                 await apiRequest('/products/bulk', 'DELETE', { ids: idsPendingDeletion });
                 showToast('Productos eliminados.', 'success');
                 await loadData();
