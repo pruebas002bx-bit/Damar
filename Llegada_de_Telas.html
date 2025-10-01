@@ -339,7 +339,8 @@
 
         const formatCurrency = (value) => (parseFloat(value) || 0).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
         const parseCurrency = (value) => String(value).replace(/[^0-9]/g, '');
-
+        
+        // --- INICIO DE LA CORRECCIÓN ---
         async function apiRequest(endpoint, method = 'GET', data = null, isJson = true) {
             setButtonsLoading(true);
             try {
@@ -353,10 +354,29 @@
                     }
                 }
                 const response = await fetch(`${API_URL}${endpoint}`, options);
-                if (response.headers.get("content-type")?.includes("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) return response.blob();
-                const responseData = await response.json();
-                if (!response.ok) throw new Error(responseData.message || `Error del servidor: ${response.status}`);
+
+                // Manejo especial para descargas de archivos
+                if (response.headers.get("content-type")?.includes("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) {
+                    return response.blob();
+                }
+
+                // Se lee la respuesta como texto para poder limpiarla antes de procesarla
+                const responseText = await response.text();
+                let responseData;
+                try {
+                    // Se reemplaza el valor inválido "NaN" por el válido "null" antes de procesar el JSON.
+                    // Esto soluciona el error "Unexpected token 'N', ... is not valid JSON".
+                    responseData = JSON.parse(responseText.replace(/:NaN/g, ':null'));
+                } catch (e) {
+                    // Si falla el parseo, se lanza un error mostrando la respuesta cruda.
+                    throw new Error(`Error al procesar la respuesta del servidor: ${responseText}`);
+                }
+
+                if (!response.ok) {
+                    throw new Error(responseData.message || `Error del servidor: ${response.status}`);
+                }
                 return responseData;
+
             } catch (error) {
                 showToast(error.message, 'error');
                 throw error;
@@ -364,6 +384,7 @@
                 setButtonsLoading(false);
             }
         }
+        // --- FIN DE LA CORRECCIÓN ---
 
         function collectFormData() {
             return {
@@ -391,7 +412,7 @@
 
         function clearForm() {
             selectedRecordId = null; dom.form.reset(); dom.fechaInput.valueAsDate = new Date();
-            dom.cantidadTypeSelect.value = 'Metraje'; dom.sizeUnitSelect.value = 'cm';
+            dom.sizeUnitSelect.value = 'Metraje'; dom.cantidadTypeSelect.value = 'cm';
             clearUploadZone(dom.colorZone, dom.colorInput); clearUploadZone(dom.qrZone, dom.qrInput);
             clearUploadZone(dom.pdfZone, dom.pdfInput);
             document.querySelectorAll('.data-table tr.selected').forEach(row => row.classList.remove('selected'));

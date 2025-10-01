@@ -208,11 +208,12 @@
                 } else if (!data || data.length === 0) {
                     content = `<tr><td colspan="3" class="feedback-state">No hay usuarios registrados.</td></tr>`;
                 } else {
-                    data.forEach((user, index) => {
-                        content += `<tr onclick="selectUserRow(this, '${user.Usuario}', '${user.Rol}')">
-                                      <td>${user.Usuario}</td>
-                                      <td>${user.Contraseña}</td>
-                                      <td>${user.Rol}</td>
+                    // CORRECCIÓN: Se cambiaron las propiedades a minúsculas para que coincidan con la API.
+                    data.forEach((user) => {
+                        content += `<tr onclick="selectUserRow(this, '${user.usuario}', '${user.rol}')">
+                                      <td>${user.usuario}</td>
+                                      <td>${user.contraseña}</td>
+                                      <td>${user.rol}</td>
                                     </tr>`;
                     });
                 }
@@ -222,7 +223,9 @@
             const loadUsers = async () => {
                 renderTable('loading');
                 try {
-                    const users = await apiRequest('/users');
+                    const response = await apiRequest('/users');
+                    // CORRECCIÓN: Se verifica si los datos vienen en una propiedad "users" o directamente.
+                    const users = response.users || response;
                     renderTable('success', '', users);
                 } catch (error) {
                     renderTable('error', 'No se pudieron cargar los usuarios.');
@@ -240,6 +243,7 @@
                 Array.from(tableBody.children).forEach(row => row.classList.remove('selected'));
             };
 
+            // CORRECCIÓN: Se ajustó la función para que los parámetros coincidan con los datos.
             window.selectUserRow = (rowElement, usuario, rol) => {
                 selectedUsername = usuario;
                 userInput.value = usuario;
@@ -254,12 +258,13 @@
             };
 
             document.getElementById('addBtn').addEventListener('click', async () => {
+                // CORRECCIÓN: Se envían las propiedades en minúscula a la API.
                 const data = { 
-                    Usuario: userInput.value.trim(), 
-                    Contraseña: passwordInput.value.trim(), 
-                    Rol: roleSelect.value 
+                    usuario: userInput.value.trim(), 
+                    contraseña: passwordInput.value.trim(), 
+                    rol: roleSelect.value 
                 };
-                if (!data.Usuario || !data.Contraseña || !data.Rol) {
+                if (!data.usuario || !data.contraseña || !data.rol) {
                     return showToast('Usuario, contraseña y rol son obligatorios.', 'error');
                 }
                 try {
@@ -273,12 +278,13 @@
             document.getElementById('editBtn').addEventListener('click', async () => {
                 if (!selectedUsername) return showToast('Seleccione un usuario para editar.', 'error');
                 
-                const data = { Rol: roleSelect.value };
+                // CORRECCIÓN: Se envían las propiedades en minúscula a la API.
+                const data = { rol: roleSelect.value };
                 const newPassword = passwordInput.value.trim();
                 if (newPassword) {
-                    data.Contraseña = newPassword;
+                    data.contraseña = newPassword;
                 }
-                if (!data.Rol) return showToast('Debe seleccionar un nuevo rol.', 'error');
+                if (!data.rol) return showToast('Debe seleccionar un nuevo rol.', 'error');
 
                 try {
                     const result = await apiRequest(`/users/${selectedUsername}`, 'PUT', data);

@@ -183,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentDate = new Date();
     let selectedDate = null;
     let selectedCutId = null;
-    let pendingAction = null; // Guardará 'edit' o 'delete'
+    let pendingAction = null; 
 
     const dom = {
         title: document.getElementById('calendar-title'), monthSelect: document.getElementById('month-select'), yearSelect: document.getElementById('year-select'),
@@ -193,7 +193,6 @@ document.addEventListener('DOMContentLoaded', () => {
         addBtn: document.getElementById('addBtn'), editBtn: document.getElementById('editBtn'), deleteBtn: document.getElementById('deleteBtn'),
         clearBtn: document.getElementById('clearBtn'), dailyCutsBody: document.getElementById('dailyCutsBody'),
         completeDayBtn: document.getElementById('completeDayBtn'),
-        // Elementos de la modal
         passwordModal: document.getElementById('passwordModal'),
         passwordInput: document.getElementById('passwordInput'),
         passwordSubmitBtn: document.getElementById('passwordSubmitBtn'),
@@ -209,15 +208,29 @@ document.addEventListener('DOMContentLoaded', () => {
         container.appendChild(toast);
         setTimeout(() => toast.remove(), 4000);
     };
-
+    
+    // --- INICIO DE LA CORRECCIÓN ---
     async function apiRequest(endpoint, method = 'GET', data = null) {
         [dom.addBtn, dom.editBtn, dom.deleteBtn, dom.completeDayBtn].forEach(b => b.disabled = true);
         try {
             const options = { method, headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, mode: 'cors' };
             if (data) options.body = JSON.stringify(data);
+            
             const response = await fetch(`${API_URL}${endpoint}`, options);
-            const responseData = await response.json();
-            if (!response.ok) throw new Error(responseData.message || `Error del servidor: ${response.status}`);
+
+            const responseText = await response.text();
+            let responseData;
+            try {
+                // Se reemplaza el valor inválido "NaN" por el válido "null" antes de procesar.
+                // Esto soluciona el error que podría dejar el calendario en blanco.
+                responseData = JSON.parse(responseText.replace(/:NaN/g, ':null'));
+            } catch (e) {
+                throw new Error(`Error al procesar la respuesta del servidor: ${responseText}`);
+            }
+
+            if (!response.ok) {
+                 throw new Error(responseData.message || `Error del servidor: ${response.status}`);
+            }
             return responseData;
         } catch (error) {
             showToast(error.message, 'error');
@@ -226,6 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
             [dom.addBtn, dom.editBtn, dom.deleteBtn, dom.completeDayBtn].forEach(b => b.disabled = false);
         }
     }
+    // --- FIN DE LA CORRECCIÓN ---
 
     function renderCalendar(year, month) {
         currentDate = new Date(year, month);
@@ -374,9 +388,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {}
     }
     
-    // --- INICIO DE CORRECCIÓN: Lógica de Edición y Eliminación con Contraseña ---
-
-    // La función que realmente ejecuta la edición
     async function executeEdit() {
         const updatedData = {
             reference: dom.ref.value, quantity: dom.qty.value, colors: dom.colors.value,
@@ -395,22 +406,22 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {}
     }
     
-    // La función que realmente ejecuta la eliminación
+    // --- INICIO DE LA CORRECCIÓN ---
     async function executeDelete() {
-        if (confirm("¿Está seguro de que desea eliminar este corte?")) {
-            try {
-                const result = await apiRequest(`/cuts/${selectedCutId}`, 'DELETE');
-                cuts_master_data[selectedDate] = cuts_master_data[selectedDate].filter(c => String(c.id) !== String(selectedCutId));
-                if (cuts_master_data[selectedDate].length === 0) delete cuts_master_data[selectedDate];
-                clearForm();
-                renderCalendar(currentDate.getFullYear(), currentDate.getMonth());
-                renderDailyCuts();
-                showToast(result.message, 'success');
-            } catch (error) {}
-        }
+        // Se eliminó el "confirm()" del navegador, ya que la acción se confirma
+        // al ingresar la contraseña en la ventana modal.
+        try {
+            const result = await apiRequest(`/cuts/${selectedCutId}`, 'DELETE');
+            cuts_master_data[selectedDate] = cuts_master_data[selectedDate].filter(c => String(c.id) !== String(selectedCutId));
+            if (cuts_master_data[selectedDate].length === 0) delete cuts_master_data[selectedDate];
+            clearForm();
+            renderCalendar(currentDate.getFullYear(), currentDate.getMonth());
+            renderDailyCuts();
+            showToast(result.message, 'success');
+        } catch (error) {}
     }
+    // --- FIN DE LA CORRECCIÓN ---
 
-    // Función que abre la modal para editar
     function editCut() {
         if (selectedCutId === null) { 
             showToast("Seleccione un corte para editar.", 'error'); 
@@ -421,7 +432,6 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.passwordModal.classList.add('active');
     }
     
-    // Función que abre la modal para eliminar
     function deleteCut() {
         if (selectedCutId === null) { 
             showToast("Seleccione un corte para eliminar.", 'error'); 
@@ -432,8 +442,6 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.passwordModal.classList.add('active');
     }
 
-    // --- FIN DE LA CORRECCIÓN ---
-    
     async function loadInitialData() {
         try {
             const allCuts = await apiRequest('/cuts');
@@ -489,12 +497,11 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.yearSelect.addEventListener('change', (e) => renderCalendar(parseInt(e.target.value), parseInt(dom.monthSelect.value)));
         
         dom.addBtn.addEventListener('click', addCut); 
-        dom.editBtn.addEventListener('click', editCut); // Llama a la función que abre la modal
-        dom.deleteBtn.addEventListener('click', deleteCut); // Llama a la función que abre la modal
+        dom.editBtn.addEventListener('click', editCut);
+        dom.deleteBtn.addEventListener('click', deleteCut);
         dom.clearBtn.addEventListener('click', clearForm);
         dom.completeDayBtn.addEventListener('click', toggleCompleteDay);
         
-        // Listeners para la modal de contraseña
         dom.passwordCancelBtn.addEventListener('click', () => {
             dom.passwordModal.classList.remove('active');
             pendingAction = null;
