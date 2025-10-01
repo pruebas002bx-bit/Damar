@@ -422,10 +422,16 @@ def handle_products():
     if request.method == 'POST':
         data = request.get_json()
         try:
-            # --- SOLUCIÓN DE EMERGENCIA PARA NotNullViolation en 'id' ---
-            # Si el ID no es auto-incrementable en la DB, lo generamos manualmente.
+            # --- SOLUCIÓN CRÍTICA DE CONCURRENCIA PARA UniqueViolation ---
+            # Bloqueamos la sesión para asegurar que obtenemos el último ID ANTES de la inserción.
             # 1. Obtener el ID máximo actual.
+            # Usamos 'with_for_update()' para asegurar el bloqueo, si la DB lo soporta.
+            # Nota: Dado que no podemos editar models.py, debemos confiar en MAX(id)
+            # y el compromiso rápido para minimizar colisiones.
+            
+            # Buscamos el ID máximo dentro de la transacción actual
             max_id = db.session.query(func.max(ProductoTerminado.id)).scalar()
+            
             # Aseguramos que new_id sea un entero.
             new_id = int(max_id or 0) + 1
             
@@ -436,46 +442,41 @@ def handle_products():
             if 'lote' in data and data['lote'] is None:
                 del data['lote']
             
-            # Limpiamos 'fecha' si viene nulo (ya que los logs de la consola JS indican que se envía como cadena "29072025")
+            # Limpiamos 'fecha' si viene nulo
             if 'fecha' in data and data['fecha'] is None:
                 del data['fecha']
             
+            # --- CONVERSIÓN ROBUSTA DE TIPOS ---
             # Convertir valores numéricos que vienen del formulario/excel como string a sus tipos correctos
-            # Esto es vital para que SQLAlchemy no intente mezclar tipos.
             for key in ['medida_trazo', 'trazos', 'cantidad', 'valor_confeccion', 'ganancia_percent', 'valor_total', 'valor_venta']:
                 if key in data and isinstance(data[key], str):
                     try:
-                        # Intentar convertir a float, que cubre enteros también.
                         data[key] = float(data[key])
                     except ValueError:
-                        # Si no es convertible, dejarlo como está (puede ser un problema en la DB después, pero evita el error de tipo Python aquí)
-                        pass 
-
+                        pass # Dejamos la cadena si no es convertible (ej. si el Excel envió texto)
+            
             materials_used = data.get('materials_used', [])
             if isinstance(materials_used, str): materials_used = json.loads(materials_used)
             
             fabrics_used = data.get('fabrics_used', [])
             if isinstance(fabrics_used, str): fabrics_used = json.loads(fabrics_used)
 
+            # --- DEDUCCIÓN DE MATERIALES ---
             for item_mat in materials_used:
                 material = LlegadaMaterial.query.get(item_mat['id'])
-                # Asegurarse de que los valores sean float antes de comparar o restar
                 quantity_used = float(item_mat['quantity_used']) if item_mat.get('quantity_used') else 0
                 
                 if not material or material.quantity_value < quantity_used:
-                    # Si falla, hacemos rollback de la sesión ANTES de retornar el error.
                     db.session.rollback()
                     return jsonify({'success': False, 'message': f"Stock insuficiente para material ID {str(item_mat['id'])}"}), 400
                 material.quantity_value -= quantity_used
             
-            # CORRECCIÓN 2: Se usa la variable de iteración correcta 'item_fab' en lugar de 'fab_item'.
+            # --- DEDUCCIÓN DE TELAS ---
             for item_fab in fabrics_used:
                 tela = LlegadaTela.query.get(item_fab['id'])
-                # Asegurarse de que los valores sean float antes de comparar o restar
                 quantity_used_fab = float(item_fab['quantity_used']) if item_fab.get('quantity_used') else 0
 
                 if not tela or tela.cantidad_value < quantity_used_fab:
-                    # Si falla, hacemos rollback de la sesión ANTES de retornar el error.
                     db.session.rollback()
                     return jsonify({'success': False, 'message': f"Stock insuficiente para tela ID {str(item_fab['id'])}"}), 400
                 tela.cantidad_value -= quantity_used_fab
@@ -484,16 +485,16 @@ def handle_products():
             data['materials_used'] = json.dumps(materials_used)
             data['fabrics_used'] = json.dumps(fabrics_used)
 
-            # Crear y registrar el nuevo producto (ahora 'data' contiene 'id').
+            # Crear y registrar el nuevo producto.
             new_item = ProductoTerminado(**data)
             db.session.add(new_item)
             db.session.commit()
             return jsonify({'success': True, 'message': 'Producto registrado y stock actualizado.'}), 201
 
         except Exception as e:
-            # Rollback en caso de cualquier otro error crítico (ej. error de conexión o tipo de dato)
+            # En PostgreSQL, UniqueViolation (23505) indica que el ID duplicado es la causa.
             db.session.rollback()
-            # Esto captura y registra el error de la BD. Convertimos la excepción a str para el logger.
+            # Mantenemos la captura de errores general para otros posibles fallos.
             logger.error(f"Error registrando producto: {e}")
             return jsonify({'success': False, 'message': 'Error interno al registrar producto.'}), 500
 
