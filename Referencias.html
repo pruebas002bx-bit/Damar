@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Referencias de Productos - DAMAR</title>
+    <title>Gestión de Referencias - DAMAR</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
@@ -41,49 +41,19 @@
         .toast.success { background-color: var(--success); }
         .toast.error { background-color: var(--danger); }
         @keyframes slideIn { to { transform: translateX(0); } }
-
-        .info-panel {
-            max-width: 900px; margin: 1.5rem auto 0 auto; padding: 1.5rem; background-color: #eaf5fc;
-            border-radius: var(--border-radius-md); border-left: 5px solid var(--accent); text-align: left;
-        }
-        .info-panel p { margin-bottom: 0; line-height: 1.6; font-size: 1rem; color: var(--text-dark); }
-        
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); display: none; z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: white; border-radius: var(--border-radius-lg); padding: 2rem; max-width: 500px; width: 90%; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); margin-bottom: 1.5rem; }
+        .modal-title { font-size: 1.5rem; }
+        .close-btn { background: none; border: none; font-size: 1.8rem; cursor: pointer; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; }
         .tab-nav { display: flex; border-bottom: 2px solid var(--border-color); margin-bottom: 2rem; }
         .tab-btn { padding: 12px 20px; font-size: 1rem; font-weight: 600; cursor: pointer; border: none; background-color: transparent; color: var(--text-dark); border-bottom: 3px solid transparent; transition: all 0.3s ease; }
         .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
         .tab-panel { display: none; }
         .tab-panel.active { display: block; animation: fadeIn 0.4s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5);
-            display: none; z-index: 1000; justify-content: center; align-items: center;
-        }
-        .modal-overlay.show { display: flex; }
-        .modal {
-            background: white; border-radius: var(--border-radius-lg); padding: 2rem; max-width: 500px;
-            width: 90%; max-height: 90vh; overflow-y: auto;
-        }
-        .modal-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);
-        }
-        .modal-title { font-size: 1.5rem; font-weight: 600; color: var(--primary-dark); }
-        .close-btn {
-            background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-dark);
-            padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
-        }
-        .modal-body { margin-bottom: 2rem; }
-        .modal-footer { display: flex; gap: 1rem; justify-content: flex-end; }
-        
-        .missing-value {
-            color: var(--danger);
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9em;
-        }
     </style>
 </head>
 <body>
@@ -96,14 +66,9 @@
                 <button class="close-btn" id="closeModal">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="form-group hidden">
-                    <label class="form-label" for="editType">Tipo</label>
-                    <input type="text" id="editType" class="form-input" readonly>
-                </div>
-                <div class="form-group hidden">
-                    <label class="form-label" for="editCategory">Categoría</label>
-                    <input type="text" id="editCategory" class="form-input" readonly>
-                </div>
+                <input type="hidden" id="editItemId">
+                <input type="hidden" id="editItemType">
+                <input type="hidden" id="editItemCategory">
                 <div class="form-group">
                     <label class="form-label" for="editCode">Referencia</label>
                     <input type="text" id="editCode" class="form-input" required>
@@ -132,34 +97,26 @@
 
     <div class="container">
         <header class="content-header">
-            <h1 class="content-title">Gestión de Referencias de Productos</h1>
-            <div class="info-panel">
-                <p>
-                    Desde aquí puedes agregar, editar y eliminar todas las <strong>Referencias de Productos</strong>. Los valores que agregues aquí se usarán como sugerencias en otros módulos, como <strong>Programación de Cortes</strong>.
-                </p>
-            </div>
+            <h1 class="content-title">Gestión de Referencias</h1>
         </header>
         <main>
             <nav class="tab-nav">
                 <button class="tab-btn active" data-tab="agregar-panel">Gestionar Referencias</button>
-                <button class="tab-btn" data-tab="ver-todas-panel">Ver Historial Completo</button>
+                <button class="tab-btn" data-tab="ver-todas-panel">Ver Todas las Referencias</button>
             </nav>
 
             <div id="agregar-panel" class="tab-panel active">
                 <section class="card">
-                    <div class="form-section hidden">
+                     <div class="form-section">
                         <div class="form-group">
-                            <label class="form-label" for="typeSelect">1. Tipo de Código</label>
-                            <select id="typeSelect" class="form-select">
-                                <option value="references" selected>Referencia</option>
+                            <label class="form-label" for="categorySelect">Tipo de Referencia</label>
+                            <select id="categorySelect" class="form-select">
+                                <option value="ref_products" selected>Producto</option>
+                                <option value="ref_materials">Material</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label" for="categoryInput">2. Categoría</label>
-                            <input type="text" id="categoryInput" class="form-input" value="ref_products" readonly>
-                        </div>
                     </div>
-                    <div id="mainForm">
+                    <div id="mainForm" style="margin-top: 1.5rem;">
                         <div class="form-section">
                             <div class="form-group">
                                 <label class="form-label" id="mainLabel" for="mainInput">Nueva Referencia</label>
@@ -185,9 +142,7 @@
                     </div>
                      <div class="buttons-container">
                         <button id="addBtn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Agregar</button>
-                        <button id="editBtn" class="btn btn-warning" disabled><i class="fa-solid fa-edit"></i> Editar Seleccionado</button>
-                        <button id="deleteBtn" class="btn btn-danger" disabled><i class="fa-solid fa-trash"></i> Eliminar Seleccionados</button>
-                    </div>
+                     </div>
                 </section>
                 
                 <section class="card" id="tableSection">
@@ -199,27 +154,22 @@
                             <tbody id="dataTableBody"></tbody>
                         </table>
                     </div>
+                     <div class="buttons-container" style="justify-content: flex-end;">
+                        <button id="editBtn" class="btn btn-warning" disabled><i class="fa-solid fa-edit"></i> Editar Seleccionado</button>
+                        <button id="deleteBtn" class="btn btn-danger" disabled><i class="fa-solid fa-trash"></i> Eliminar Seleccionados</button>
+                    </div>
                 </section>
             </div>
 
             <div id="ver-todas-panel" class="tab-panel">
                 <section class="card">
-                    <h3 style="margin-bottom: 1.5rem;">Historial de Todos los Códigos</h3>
-                    <div class="view-all-section">
-                        <div class="form-section" style="margin-bottom: 1.5rem;">
-                            <input type="text" id="allReferencesSearch" class="form-input" placeholder="Buscar por referencia, código de barras...">
-                        </div>
-                        <div class="buttons-container" style="border: none; padding: 0; margin: 1rem 0;">
-                            <button id="refreshAllBtn" class="btn btn-secondary"><i class="fa-solid fa-refresh"></i> Actualizar</button>
-                            <button id="editSelectedBtn" class="btn btn-warning" disabled><i class="fa-solid fa-edit"></i> Editar Seleccionado</button>
-                            <button id="deleteSelectedBtn" class="btn btn-danger" disabled><i class="fa-solid fa-trash"></i> Eliminar Seleccionados</button>
-                        </div>
-                    </div>
+                    <h3 style="margin-bottom: 1.5rem;">Historial de Todas las Referencias</h3>
+                     <input type="text" id="allReferencesSearch" class="form-input" placeholder="Buscar por referencia, código de barras, categoría..." style="margin-bottom: 1.5rem; max-width: 400px;">
                     <div class="table-container">
                         <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th><input type="checkbox" id="selectAllAllReferences"></th>
+                                    <th>Categoría</th>
                                     <th>Referencia</th>
                                     <th>Código de Barras</th>
                                     <th>Costo Venta</th>
@@ -237,19 +187,18 @@
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         const API_URL = 'https://damar-app.onrender.com';
-        let masterData = [];
+        let productRefs = [];
+        let materialRefs = [];
         let allReferencesData = [];
-        let currentType = 'references';
-        let currentCategory = 'ref_products';
-        let editingItem = null;
 
         const dom = {
             tabs: document.querySelectorAll('.tab-btn'),
+            categorySelect: document.getElementById('categorySelect'),
             mainInput: document.getElementById('mainInput'),
             barcodeInput: document.getElementById('barcodeInput'),
             costoVentaInput: document.getElementById('costoVentaInput'),
             costoConfeccionInput: document.getElementById('costoConfeccionInput'),
-            tableSection: document.getElementById('tableSection'),
+            tableTitle: document.getElementById('tableTitle'),
             dataTableHeader: document.getElementById('dataTableHeader'),
             dataTableBody: document.getElementById('dataTableBody'),
             searchInput: document.getElementById('searchInput'),
@@ -258,14 +207,11 @@
             deleteBtn: document.getElementById('deleteBtn'),
             allReferencesTableBody: document.getElementById('allReferencesTableBody'),
             allReferencesSearch: document.getElementById('allReferencesSearch'),
-            refreshAllBtn: document.getElementById('refreshAllBtn'),
-            editSelectedBtn: document.getElementById('editSelectedBtn'),
-            deleteSelectedBtn: document.getElementById('deleteSelectedBtn'),
-            selectAllAllReferences: document.getElementById('selectAllAllReferences'),
             editModal: document.getElementById('editModal'),
             closeModal: document.getElementById('closeModal'),
-            editType: document.getElementById('editType'),
-            editCategory: document.getElementById('editCategory'),
+            editItemId: document.getElementById('editItemId'),
+            editItemType: document.getElementById('editItemType'),
+            editItemCategory: document.getElementById('editItemCategory'),
             editCode: document.getElementById('editCode'),
             editDescription: document.getElementById('editDescription'),
             editCostoVenta: document.getElementById('editCostoVenta'),
@@ -278,7 +224,7 @@
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
-            toast.innerHTML = `<i class="fa ${type === 'success' ? 'fa-check-circle' : 'fa-times-circle'}"></i> ${message}`;
+            toast.textContent = message;
             container.appendChild(toast);
             setTimeout(() => toast.remove(), 4000);
         };
@@ -288,6 +234,9 @@
                 const options = { method, headers: { 'Content-Type': 'application/json' }, mode: 'cors' };
                 if (data) options.body = JSON.stringify(data);
                 const response = await fetch(`${API_URL}${endpoint}`, options);
+                
+                if (response.status === 204) return null;
+                
                 const responseData = await response.json();
                 if (!response.ok) throw new Error(responseData.message || `Error ${response.status}`);
                 return responseData;
@@ -300,10 +249,17 @@
         
         function formatCostCell(value) {
             const numValue = parseFloat(value);
-            if (isNaN(numValue) || numValue === 0) {
-                return `<span class="missing-value"><i class="fa-solid fa-triangle-exclamation"></i> Sin Asignar</span>`;
+            if (isNaN(numValue) || !numValue) {
+                return `<span style="color: #95a5a6;">N/A</span>`;
             }
             return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(numValue);
+        }
+        
+        function updateTableDisplay() {
+            const category = dom.categorySelect.value;
+            const isProducts = category === 'ref_products';
+            dom.tableTitle.textContent = `Listado de Referencias de ${isProducts ? 'Productos' : 'Materiales'}`;
+            renderTable();
         }
 
         dom.tabs.forEach(tab => {
@@ -313,17 +269,23 @@
                 document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
                 tab.classList.add('active');
                 document.getElementById(target).classList.add('active');
-                if (target === 'ver-todas-panel') loadAllData();
+                if (target === 'ver-todas-panel') {
+                    loadAllData();
+                } else {
+                    updateTableDisplay();
+                }
             });
         });
 
-        function updateSimpleTableButtons() {
+        function updateActionButtons() {
             const checkedBoxes = dom.dataTableBody.querySelectorAll('input[type="checkbox"]:checked');
             dom.editBtn.disabled = checkedBoxes.length !== 1;
             dom.deleteBtn.disabled = checkedBoxes.length === 0;
         }
 
         function renderTable() {
+            const category = dom.categorySelect.value;
+            const data = category === 'ref_products' ? productRefs : materialRefs;
             const filter = dom.searchInput.value.toLowerCase();
             
             dom.dataTableHeader.innerHTML = `
@@ -335,12 +297,8 @@
                     <th>Costo Confección</th>
                 </tr>
             `;
-            document.getElementById('selectAllCheckbox').addEventListener('change', e => {
-                 dom.dataTableBody.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = e.target.checked);
-                 updateSimpleTableButtons();
-            });
 
-            const filteredData = masterData.filter(item => 
+            const filteredData = data.filter(item => 
                 (item.code || '').toLowerCase().includes(filter) || 
                 (item.description || '').toLowerCase().includes(filter)
             );
@@ -349,44 +307,38 @@
             filteredData.forEach(item => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>
-                        <input type="checkbox" 
-                               data-id="${item.id}" 
-                               data-code="${item.code || ''}" 
-                               data-description="${item.description || ''}"
-                               data-costo-venta="${item.costo_venta || ''}"
-                               data-costo-confeccion="${item.costo_confeccion || ''}">
-                    </td>
+                    <td><input type="checkbox" data-id="${item.id}"></td>
                     <td>${item.code || ''}</td>
-                    <td>${item.description || ''}</td>
+                    <td>${item.description || 'N/A'}</td>
                     <td>${formatCostCell(item.costo_venta)}</td>
                     <td>${formatCostCell(item.costo_confeccion)}</td>
                 `;
                 dom.dataTableBody.appendChild(tr);
             });
-            updateSimpleTableButtons();
+            
+            document.getElementById('selectAllCheckbox').addEventListener('change', e => {
+                 dom.dataTableBody.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = e.target.checked);
+                 updateActionButtons();
+            });
+            updateActionButtons();
         }
 
-        async function loadData() {
-            const endpoint = `/dynamic-codes/${currentType}/${currentCategory}`;
+        async function loadInitialData() {
             try {
-                masterData = await apiRequest(endpoint);
-                renderTable();
+                [productRefs, materialRefs] = await Promise.all([
+                    apiRequest('/dynamic-codes/references/ref_products'),
+                    apiRequest('/dynamic-codes/references/ref_materials'),
+                ]);
+                updateTableDisplay();
+                await loadAllData(); 
             } catch (error) {
                 dom.dataTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Error al cargar datos.</td></tr>`;
             }
         }
-
+        
         async function loadAllData() {
             try {
-                const [references, barcodes] = await Promise.all([
-                    apiRequest('/dynamic-codes/all-references'),
-                    apiRequest('/dynamic-codes/all-barcodes')
-                ]);
-                allReferencesData = [
-                    ...references.map(item => ({...item, type: 'Referencia'})),
-                    ...barcodes.map(item => ({...item, type: 'Código de Barras'}))
-                ];
+                allReferencesData = await apiRequest('/dynamic-codes/all-references');
                 renderAllReferencesTable();
             } catch (error) {
                 dom.allReferencesTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Error al cargar datos.</td></tr>`;
@@ -397,52 +349,60 @@
             const searchFilter = dom.allReferencesSearch.value.toLowerCase();
             
             const filteredData = allReferencesData.filter(item => {
+                const categoryText = item.category === 'ref_products' ? 'producto' : 'material';
                 return !searchFilter || 
                        (item.code || '').toLowerCase().includes(searchFilter) || 
-                       (item.description || '').toLowerCase().includes(searchFilter);
+                       (item.description || '').toLowerCase().includes(searchFilter) ||
+                       categoryText.includes(searchFilter);
             });
             
             dom.allReferencesTableBody.innerHTML = '';
             filteredData.forEach(item => {
                 const tr = document.createElement('tr');
-                if (item.category === 'ref_products' || item.category === 'productos') {
-                    tr.innerHTML = `
-                        <td><input type="checkbox" data-id="${item.id}" data-type="${item.type}" data-category="${item.category}" data-code="${item.code}" data-description="${item.description || ''}" data-costo-venta="${item.costo_venta || ''}" data-costo-confeccion="${item.costo_confeccion || ''}"></td>
-                        <td>${item.code || ''}</td>
-                        <td>${item.description || ''}</td>
-                        <td>${formatCostCell(item.costo_venta)}</td>
-                        <td>${formatCostCell(item.costo_confeccion)}</td>
-                    `;
-                    dom.allReferencesTableBody.appendChild(tr);
-                }
+                const categoryCell = item.category === 'ref_products' 
+                    ? `<span style="background-color: #3498db; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8em;">Producto</span>`
+                    : `<span style="background-color: #f39c12; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8em;">Material</span>`;
+                tr.innerHTML = `
+                    <td>${categoryCell}</td>
+                    <td>${item.code || ''}</td>
+                    <td>${item.description || 'N/A'}</td>
+                    <td>${formatCostCell(item.costo_venta)}</td>
+                    <td>${formatCostCell(item.costo_confeccion)}</td>
+                `;
+                dom.allReferencesTableBody.appendChild(tr);
             });
-            updateAllReferencesButtons();
         }
+        
+        function openEditModal() {
+            const checkedBox = dom.dataTableBody.querySelector('input[type="checkbox"]:checked');
+            if (!checkedBox) return;
+            
+            const category = dom.categorySelect.value;
+            const data = category === 'ref_products' ? productRefs : materialRefs;
+            const itemToEdit = data.find(item => item.id == checkedBox.dataset.id);
+            
+            if (!itemToEdit) return;
 
-        function updateAllReferencesButtons() {
-            const checkedBoxes = dom.allReferencesTableBody.querySelectorAll('input[type="checkbox"]:checked');
-            dom.editSelectedBtn.disabled = checkedBoxes.length !== 1;
-            dom.deleteSelectedBtn.disabled = checkedBoxes.length === 0;
-        }
-
-        function openEditModal(item) {
-            editingItem = item;
-            dom.editType.value = "Referencia";
-            dom.editCategory.value = "ref_products";
-            dom.editCode.value = item.code;
-            dom.editDescription.value = item.description || '';
-            dom.editCostoVenta.value = item.costo_venta || '';
-            dom.editCostoConfeccion.value = item.costo_confeccion || '';
+            dom.editItemId.value = itemToEdit.id;
+            dom.editItemType.value = 'references';
+            dom.editItemCategory.value = category;
+            dom.editCode.value = itemToEdit.code;
+            dom.editDescription.value = itemToEdit.description || '';
+            dom.editCostoVenta.value = itemToEdit.costo_venta || '';
+            dom.editCostoConfeccion.value = itemToEdit.costo_confeccion || '';
             dom.editModal.classList.add('show');
         }
 
         function closeEditModal() {
-            editingItem = null;
             dom.editModal.classList.remove('show');
         }
 
         async function saveEditedItem() {
-            if (!editingItem) return;
+            const itemId = dom.editItemId.value;
+            const type = dom.editItemType.value;
+            const category = dom.editItemCategory.value;
+
+            if (!itemId || !type || !category) return;
             
             const newCode = dom.editCode.value.trim();
             if (!newCode) return showToast('La Referencia es obligatoria.', 'error');
@@ -450,48 +410,35 @@
             const payload = {
                 code: newCode,
                 description: dom.editDescription.value.trim(),
-                costo_venta: dom.editCostoVenta.value || '0',
-                costo_confeccion: dom.editCostoConfeccion.value || '0'
+                costo_venta: dom.editCostoVenta.value || null,
+                costo_confeccion: dom.editCostoConfeccion.value || null
             };
 
             try {
-                const endpoint = `/dynamic-codes/references/ref_products/${editingItem.id}`;
+                const endpoint = `/dynamic-codes/${type}/${category}/${itemId}`;
                 await apiRequest(endpoint, 'PUT', payload);
                 
                 showToast('Registro actualizado.', 'success');
                 closeEditModal();
-                loadAllData();
-                loadData();
+                await loadInitialData();
             } catch (error) {}
         }
 
-        async function deleteSelectedItems(isFromAllView) {
-            const container = isFromAllView ? dom.allReferencesTableBody : dom.dataTableBody;
-            const checkedBoxes = container.querySelectorAll('input[type="checkbox"]:checked');
-            
+        async function deleteSelectedItems() {
+            const checkedBoxes = Array.from(dom.dataTableBody.querySelectorAll('input[type="checkbox"]:checked'));
             if (checkedBoxes.length === 0) return showToast('Seleccione registros para eliminar.', 'error');
+            
             if (!confirm(`¿Seguro que desea eliminar ${checkedBoxes.length} registro(s)?`)) return;
 
+            const category = dom.categorySelect.value;
+            const type = 'references';
+            const idsToDelete = checkedBoxes.map(cb => parseInt(cb.dataset.id));
+
             try {
-                const itemsToDelete = {};
-                checkedBoxes.forEach(checkbox => {
-                    const category = checkbox.dataset.category;
-                    const id = checkbox.dataset.id;
-                    const key = `references-${category}`;
-                    if (!itemsToDelete[key]) itemsToDelete[key] = { ids: [] };
-                    itemsToDelete[key].ids.push(id);
-                });
-                
-                const deletePromises = Object.keys(itemsToDelete).map(key => {
-                    const [type, category] = key.split('-');
-                    return apiRequest(`/dynamic-codes/${type}/${category}`, 'DELETE', { ids: itemsToDelete[key].ids });
-                });
-                
-                await Promise.all(deletePromises);
-                
+                const endpoint = `/dynamic-codes/${type}/${category}`;
+                await apiRequest(endpoint, 'DELETE', { ids: idsToDelete });
                 showToast('Registros eliminados.', 'success');
-                loadAllData();
-                loadData();
+                await loadInitialData();
             } catch (error) {}
         }
         
@@ -499,13 +446,14 @@
             const code = dom.mainInput.value.trim();
             if (!code) return showToast('El campo Nueva Referencia es obligatorio.', 'error');
             
-            const endpoint = `/dynamic-codes/${currentType}/${currentCategory}`;
+            const category = dom.categorySelect.value;
+            const endpoint = `/dynamic-codes/references/${category}`;
             
             const payload = {
                 code: code,
                 description: dom.barcodeInput.value.trim(),
-                costo_venta: dom.costoVentaInput.value || '0',
-                costo_confeccion: dom.costoConfeccionInput.value || '0'
+                costo_venta: dom.costoVentaInput.value || null,
+                costo_confeccion: dom.costoConfeccionInput.value || null
             };
 
             try {
@@ -515,52 +463,27 @@
                 dom.barcodeInput.value = '';
                 dom.costoVentaInput.value = '';
                 dom.costoConfeccionInput.value = '';
-                loadData();
-                loadAllData();
+                await loadInitialData();
             } catch (error) {}
         });
 
-        dom.editBtn.addEventListener('click', () => {
-            const checkedBox = dom.dataTableBody.querySelector('input[type="checkbox"]:checked');
-            if (checkedBox) openEditModal({ ...checkedBox.dataset });
-        });
-
-        dom.deleteBtn.addEventListener('click', () => deleteSelectedItems(false));
+        // --- Event Listeners ---
+        dom.categorySelect.addEventListener('change', updateTableDisplay);
+        dom.editBtn.addEventListener('click', openEditModal);
+        dom.deleteBtn.addEventListener('click', deleteSelectedItems);
         dom.searchInput.addEventListener('input', renderTable);
-        dom.dataTableBody.addEventListener('change', (e) => { if(e.target.type === 'checkbox') updateSimpleTableButtons(); });
-        
         dom.allReferencesSearch.addEventListener('input', renderAllReferencesTable);
-        dom.refreshAllBtn.addEventListener('click', loadAllData);
+        dom.dataTableBody.addEventListener('change', (e) => { if(e.target.type === 'checkbox') updateActionButtons(); });
         
-        dom.selectAllAllReferences.addEventListener('change', e => {
-            dom.allReferencesTableBody.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = e.target.checked);
-            updateAllReferencesButtons();
-        });
-        dom.allReferencesTableBody.addEventListener('change', e => { if (e.target.type === 'checkbox') updateAllReferencesButtons(); });
-
-        dom.editSelectedBtn.addEventListener('click', () => {
-            const checkedBox = dom.allReferencesTableBody.querySelector('input[type="checkbox"]:checked');
-            if (checkedBox) openEditModal({ ...checkedBox.dataset });
-        });
-
-        dom.deleteSelectedBtn.addEventListener('click', () => deleteSelectedItems(true));
-
         dom.closeModal.addEventListener('click', closeEditModal);
         dom.cancelEdit.addEventListener('click', closeEditModal);
         dom.saveEdit.addEventListener('click', saveEditedItem);
         dom.editModal.addEventListener('click', (e) => { if (e.target === dom.editModal) closeEditModal(); });
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && dom.editModal.classList.contains('show')) closeEditModal();
-            if (e.key === 'Enter' && dom.editModal.classList.contains('show') && document.activeElement.tagName !== 'TEXTAREA') {
-                e.preventDefault();
-                saveEditedItem();
-            }
-        });
         
-        // --- Initial Load ---
-        loadData();
-        loadAllData();
+        // --- Carga Inicial ---
+        loadInitialData();
     });
     </script>
 </body>
 </html>
+

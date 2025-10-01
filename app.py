@@ -1,5 +1,3 @@
-# app.py CORREGIDO
-
 import os
 import logging
 import json
@@ -698,6 +696,9 @@ def handle_dynamic_code_item(type, category, item_id):
     if not item:
         return jsonify({'success': False, 'message': 'Registro no encontrado.'}), 404
     
+    if item.type != type or item.category != category:
+        return jsonify({'success': False, 'message': 'La categoría del item no coincide.'}), 400
+        
     data = request.get_json()
     item.code = data.get('code', item.code)
     item.description = data.get('description', item.description)
@@ -707,15 +708,16 @@ def handle_dynamic_code_item(type, category, item_id):
     db.session.commit()
     return jsonify({'success': True, 'message': 'Registro actualizado.'})
 
+# --- CORRECCIÓN CLAVE ---
 @app.route('/dynamic-codes/all-references', methods=['GET'])
 def get_all_references():
-    items = DynamicCode.query.filter(DynamicCode.category.in_(['ref_products', 'productos'])).all()
+    items = DynamicCode.query.filter_by(type='reference').all()
     return jsonify([model_to_dict(item) for item in items])
 
+# --- CORRECCIÓN CLAVE ---
 @app.route('/dynamic-codes/all-barcodes', methods=['GET'])
 def get_all_barcodes():
-    items = DynamicCode.query.filter_by(type='barcode').all()
-    return jsonify([model_to_dict(item) for item in items])
+    return jsonify([])
 
 # --- RUTAS DE LÓGICA DE NEGOCIO Y DASHBOARD ---
 
@@ -812,23 +814,19 @@ def get_chart_fabrics_by_value():
 @app.route('/api/charts/inventory-by-supplier', methods=['GET'])
 def get_chart_inventory_by_supplier():
     try:
-        # Consulta para telas
         fabrics_value = db.session.query(
             LlegadaTela.proveedor,
             func.sum(LlegadaTela.cantidad_value * LlegadaTela.unit_value).label('total')
         ).group_by(LlegadaTela.proveedor).subquery()
         
-        # Consulta para materiales
         materials_value = db.session.query(
             LlegadaMaterial.supplier.label('proveedor'),
             func.sum(LlegadaMaterial.quantity_value * LlegadaMaterial.unit_value).label('total')
         ).group_by(LlegadaMaterial.supplier).subquery()
         
-        # Unión de ambas consultas
         from sqlalchemy import union_all
         all_inventory = union_all(fabrics_value.select(), materials_value.select()).alias('all_inventory')
         
-        # Agrupación final y suma
         results = db.session.query(
             all_inventory.c.proveedor,
             func.sum(all_inventory.c.total).label('grand_total')
@@ -851,3 +849,4 @@ with app.app_context():
 # --- Ejecución Principal ---
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+
