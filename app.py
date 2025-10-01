@@ -5,6 +5,7 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from sqlalchemy import func, desc
 import datetime
+from psycopg2.errors import UniqueViolation as PgUniqueViolation # Importación específica
 
 # --- Importaciones desde models.py ---
 from models import (
@@ -421,38 +422,41 @@ def handle_products():
         return jsonify([model_to_dict(item) for item in items])
     if request.method == 'POST':
         data = request.get_json()
+        
+        # Si el ID ya viene en los datos (ej. PUT mal direccionado), lo ignoramos para la inserción.
+        if 'id' in data:
+            del data['id']
+            
         try:
             # --- SOLUCIÓN CRÍTICA DE CONCURRENCIA PARA UniqueViolation ---
-            # 1. Obtener el ID máximo actual SIN BLOQUEO para evitar el error FeatureNotSupported.
-            # 2. Reemplazamos with_for_update() que causó el error por una simple consulta MAX.
-            max_id_query = db.session.query(func.max(ProductoTerminado.id))
-            # -----------------------------------------------------------
-            # CORRECCIÓN FINAL: Ejecutamos la consulta para obtener el valor.
-            max_id = max_id_query.scalar()
+            # Método 1: Búsqueda del último ID sin bloqueo (para evitar FeatureNotSupported)
+            # y usamos un salto mínimo (+1) que es más limpio que +100.
             
-            # 3. Asignar nuevo ID con un gran salto (+100) para mitigar el UniqueViolation en concurrencia.
-            # Este es el método más seguro cuando la BD no es SERIAL/AUTOINCREMENT y hay tráfico concurrente.
-            new_id = int(max_id or 0) + 100 
+            # Se usa .scalar() que no permite .with_for_update(), lo cual es correcto
+            # ya que PostgreSQL no lo soporta en agregados.
+            max_id = db.session.query(func.max(ProductoTerminado.id)).scalar()
             
-            # 4. Forzar la asignación del nuevo ID.
+            # Asignar nuevo ID (salto de +1 para seguir secuencia).
+            # Si esto falla por concurrencia, capturaremos la UniqueViolation.
+            new_id = int(max_id or 0) + 1
+            
+            # Forzar la asignación del nuevo ID.
             data['id'] = new_id
 
-            # Limpiamos 'lote' si viene nulo
+            # Limpiamos 'lote' y 'fecha' si vienen nulos
             if 'lote' in data and data['lote'] is None:
                 del data['lote']
             
-            # Limpiamos 'fecha' si viene nulo
             if 'fecha' in data and data['fecha'] is None:
                 del data['fecha']
             
             # --- CONVERSIÓN ROBUSTA DE TIPOS ---
-            # Convertir valores numéricos que vienen del formulario/excel como string a sus tipos correctos
             for key in ['medida_trazo', 'trazos', 'cantidad', 'valor_confeccion', 'ganancia_percent', 'valor_total', 'valor_venta']:
                 if key in data and isinstance(data[key], str):
                     try:
                         data[key] = float(data[key])
                     except ValueError:
-                        pass # Dejamos la cadena si no es convertible (ej. si el Excel envió texto)
+                        pass
             
             materials_used = data.get('materials_used', [])
             if isinstance(materials_used, str): materials_used = json.loads(materials_used)
@@ -490,9 +494,25 @@ def handle_products():
             db.session.commit()
             return jsonify({'success': True, 'message': 'Producto registrado y stock actualizado.'}), 201
 
+        # Manejo de error de clave única (ID o Serial)
+        except PgUniqueViolation as e:
+            db.session.rollback()
+            detail = str(e.orig).split('Key ')[-1]
+            # Detecta si es por ID (UniqueViolation) o Serial (UniqueViolation)
+            if 'productos_terminados_pkey' in str(e):
+                message = f"Error de concurrencia: La clave primaria (ID) ya está en uso. Intente de nuevo."
+            elif 'productos_terminados_serial_key' in str(e):
+                # Esto ocurre si el campo 'serial' tiene una restricción UNIQUE.
+                message = f"Error: El número de serial {data.get('serial', 'desconocido')} ya existe."
+            else:
+                message = f"Error de clave única. Detalles: {detail}"
+                
+            logger.error(f"Error registrando producto: {e}")
+            # Devolvemos 409 Conflict para errores de unicidad
+            return jsonify({'success': False, 'message': message}), 409 
+            
         except Exception as e:
             db.session.rollback()
-            # Mantenemos la captura de errores general para otros posibles fallos.
             logger.error(f"Error registrando producto: {e}")
             return jsonify({'success': False, 'message': 'Error interno al registrar producto.'}), 500
 
