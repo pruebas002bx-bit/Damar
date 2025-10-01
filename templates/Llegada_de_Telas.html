@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Entrada de Telas - DAMAR</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-dark: #2C3E50; --secondary-light: #ECF0F1; --accent: #3498DB;
+            --text-dark: #34495E; --text-light: white; --hover-accent: #2980B9;
+            --success: #27AE60; --warning: #F39C12; --danger: #E74C3C;
+            --info: #3498db; --info-light: #eaf5fc;
+            --border-color: #dfe4ea; --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --shadow: 0 10px 30px rgba(44, 62, 80, 0.1); --shadow-hover: 0 15px 35px rgba(44, 62, 80, 0.15);
+            --font-family: 'Poppins', sans-serif;
+            --border-radius-lg: 12px; --border-radius-md: 8px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: var(--font-family); background-color: var(--secondary-light);
+            color: var(--text-dark); line-height: 1.6; animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .container { max-width: 1400px; margin: 2rem auto; padding: 0 1.5rem; }
+        .card {
+            background-color: white; border-radius: var(--border-radius-lg); padding: 2.5rem;
+            margin-bottom: 2rem; box-shadow: var(--shadow); border: 1px solid var(--border-color);
+        }
+        .content-header { text-align: center; margin-bottom: 2.5rem; }
+        .content-title { font-size: 2.5rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 0.5rem; }
+        .content-subtitle { font-size: 1.1rem; color: var(--text-dark); max-width: 700px; margin: 0 auto; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem 2rem; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-label { font-weight: 600; margin-bottom: 0.6rem; color: var(--primary-dark); font-size: 0.9rem; }
+        .form-input, .form-select {
+            width: 100%; padding: 12px 16px; border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-md); background-color: #fdfdfe; color: var(--text-dark);
+            font-size: 1rem; font-family: var(--font-family); transition: all 0.3s ease;
+        }
+        .form-input:focus, .form-select:focus { outline: none; border-color: var(--accent); background-color: white; box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15); }
+        .input-group { display: flex; gap: 0.5rem; }
+        .upload-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 1rem; }
+        .upload-zone {
+            border: 2px dashed var(--border-color); border-radius: var(--border-radius-md); padding: 1rem;
+            text-align: center; cursor: pointer; transition: background-color 0.3s, border-color 0.3s;
+            position: relative; background-size: cover; background-position: center; min-height: 150px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .upload-zone:hover { border-color: var(--accent); background-color: #f8f9fa; }
+        .upload-zone .upload-icon { font-size: 2rem; color: var(--accent); margin-bottom: 0.5rem; }
+        .upload-zone .upload-text { font-weight: 500; color: #6c757d; }
+        .upload-zone .file-info { display: none; font-size: 0.85rem; color: var(--text-dark); word-break: break-all; }
+        .remove-file-btn {
+            position: absolute; top: 5px; right: 5px; background: var(--danger); color: white;
+            border: none; border-radius: 50%; width: 25px; height: 25px;
+            font-size: 1rem; line-height: 25px; cursor: pointer; opacity: 0; transition: opacity 0.3s;
+        }
+        .upload-zone:hover .remove-file-btn { opacity: 1; }
+        .upload-zone.has-file .upload-default-content { display: none; }
+        .upload-zone.has-file .file-info { display: block; background-color: rgba(255,255,255,0.8); padding: 5px; border-radius: 4px; }
+        .upload-zone.has-file .remove-file-btn { opacity: 1; }
+        .upload-zone.has-file { border-style: solid; }
+        .buttons-container { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 2rem; justify-content: center;}
+        .btn {
+            border: none; border-radius: var(--border-radius-md); padding: 12px 24px; font-size: 0.95rem; font-weight: 600;
+            cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+            gap: 0.75rem; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+        .btn:disabled { background-color: #bdc3c7; cursor: not-allowed; opacity: 0.6; }
+        .btn-primary { background: var(--gradient-primary); color: white; }
+        .btn-success { background-color: var(--success); color: white; }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-secondary { background-color: #bdc3c7; color: var(--text-dark); }
+        .btn-info { background-color: var(--info); color: white; }
+        .search-controls { display: flex; gap: 1rem; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; }
+        .search-wrapper { position: relative; flex-grow: 1; }
+        .search-icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #909db1; }
+        .search-input { width: 100%; padding-left: 3rem; }
+        .table-container { overflow-x: auto; }
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .data-table th, .data-table td { padding: 14px 18px; vertical-align: middle; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+        .data-table thead th { background-color: #f8f9fa; color: var(--primary-dark); font-size: 13px; font-weight: 600; text-transform: uppercase; }
+        .data-table tbody tr { transition: background-color 0.2s ease; }
+        .data-table tbody tr:hover { background-color: #f5f5f5; cursor: pointer; }
+        .data-table tr.selected { background-color: rgba(52, 152, 219, 0.1) !important; box-shadow: inset 4px 0 0 0 var(--accent); }
+        .data-table .file-icon { font-size: 1.5rem; color: #bdc3c7; }
+        .data-table .file-icon.active { color: var(--accent); }
+        .data-table .color-cell { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--border-color); background-size: cover; background-position: center; cursor: pointer; }
+        .feedback-state { text-align: center; padding: 4rem 1rem; font-size: 1.1rem; color: #6c757d; }
+        .feedback-state i { font-size: 2.5rem; display: block; margin-bottom: 1rem; color: var(--accent); }
+        .loading-spinner { width: 50px; height: 50px; border: 4px solid var(--border-color); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1050; }
+        .toast { display: flex; align-items: center; padding: 15px 20px; border-radius: var(--border-radius-md); color: white; font-weight: 500; margin-bottom: 10px; box-shadow: var(--shadow); transform: translateX(120%); animation: slideIn 0.5s forwards; }
+        .toast.success { background-color: var(--success); }
+        .toast.error { background-color: var(--danger); }
+        .toast.info { background-color: var(--info); }
+        .toast i { margin-right: 10px; font-size: 1.2rem; }
+        @keyframes slideIn { to { transform: translateX(0); } }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s ease; }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-content { background: white; padding: 2rem; border-radius: var(--border-radius-lg); width: 90%; max-width: 500px; text-align: center; transform: scale(0.9); transition: all 0.3s ease; }
+        .modal-overlay.active .modal-content { transform: scale(1); }
+        .modal-content h3 { margin-bottom: 1rem; color: var(--primary-dark); }
+        .modal-content p { margin-bottom: 2rem; color: var(--text-dark); }
+        .modal-buttons { display: flex; justify-content: center; gap: 1rem; }
+        #imageModal.active { opacity: 1; visibility: visible; }
+        #imageModal .modal-content { max-width: 90vw; max-height: 90vh; padding: 0; background: transparent; }
+        #imageModal img { width: 100%; height: 100%; object-fit: contain; }
+        .hidden { display: none; }
+        @media (max-width: 768px) {
+            .container { margin: 1rem auto; padding: 0 1rem; }
+            .card { padding: 1.5rem; }
+            .content-title { font-size: 2rem; }
+            .form-grid, .upload-grid { grid-template-columns: 1fr; }
+            .buttons-container, .search-controls { flex-direction: column; align-items: stretch; }
+            .btn, .form-input, .form-select { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toastContainer" class="toast-container"></div>
+    <div id="confirmModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modalTitle">Confirmar Acción</h3>
+            <p id="modalMessage">¿Estás seguro?</p>
+            <div class="modal-buttons">
+                <button id="modalCancelBtn" class="btn btn-secondary">Cancelar</button>
+                <button id="modalConfirmBtn" class="btn btn-danger">Confirmar</button>
+            </div>
+        </div>
+    </div>
+    <div id="imageModal" class="modal-overlay">
+        <div class="modal-content">
+            <img id="fullImage" src="" alt="Vista ampliada">
+        </div>
+    </div>
+
+    <div class="container">
+        <header class="content-header">
+            <h1 class="content-title">Registro de Entrada de Telas</h1>
+            <p class="content-subtitle">Administre la información detallada de cada rollo de tela que ingresa al inventario.</p>
+        </header>
+        
+        <main>
+            <section class="card">
+                <form id="fabricForm">
+                    <div class="form-grid">
+                        <div class="form-group"><label class="form-label" for="fechaInput">Fecha Ingreso</label><input type="date" id="fechaInput" class="form-input"></div>
+                        <div class="form-group"><label class="form-label" for="facturaInput">Nº Factura</label><input type="text" id="facturaInput" class="form-input" placeholder="Ej: F-12345"></div>
+                        <div class="form-group"><label class="form-label" for="serialInput">Serial (Rollo)</label><input type="text" id="serialInput" class="form-input" placeholder="Identificador único del rollo"></div>
+                        <div class="form-group">
+                            <label class="form-label" for="barrasInput">Cód. Barras</label>
+                            <input type="text" id="barrasInput" class="form-input" placeholder="Escriba o seleccione un código" list="barcodesDatalist">
+                            <datalist id="barcodesDatalist"></datalist>
+                        </div>
+                        <div class="form-group"><label class="form-label" for="tipoTelaInput">Tipo de Tela</label><input type="text" id="tipoTelaInput" class="form-input" placeholder="Ej: Algodón Licrado"></div>
+                        <div class="form-group">
+                            <label class="form-label" for="refTelaInput">Referencia de Tela</label>
+                            <input type="text" id="refTelaInput" class="form-input" placeholder="Escriba o seleccione una referencia" list="referencesDatalist">
+                            <datalist id="referencesDatalist"></datalist>
+                        </div>
+                        <div class="form-group"><label class="form-label" for="proveedorInput">Proveedor</label><input type="text" id="proveedorInput" class="form-input" placeholder="Nombre del proveedor"></div>
+                        <div class="form-group"><label class="form-label" for="valorFacturaInput">Valor Factura (COP)</label><input type="text" id="valorFacturaInput" class="form-input" placeholder="0"></div>
+                         <div class="form-group">
+                            <label class="form-label" for="cantidadValueInput">Tamaño</label>
+                            <div class="input-group">
+                               <input type="number" id="cantidadValueInput" class="form-input" placeholder="Valor">
+                               <select id="cantidadTypeSelect" class="form-select">
+                                    <option>cm</option>
+                                    <option>mm</option>
+                                    <option>m</option>
+                                    <option>lunas</option>
+                               </select>
+                            </div>
+                        </div>
+                         <div class="form-group">
+                            <label class="form-label" for="sizeValueInput">Cantidad</label>
+                             <div class="input-group">
+                               <input type="number" id="sizeValueInput" class="form-input" placeholder="Valor">
+                               <select id="sizeUnitSelect" class="form-select">
+                                    <option>Metraje</option>
+                                    <option>Kilos</option>
+                                    <option>Unidades</option>
+                               </select>
+                            </div>
+                        </div>
+                         <div class="form-group">
+                            <label class="form-label" for="valorUnidadInput">Valor por Unidad (COP)</label>
+                            <input type="text" id="valorUnidadInput" class="form-input" placeholder="0">
+                        </div>
+
+                        <div class="upload-grid">
+                            <label class="upload-zone" id="colorZone">
+                                <input type="file" id="colorInput" class="hidden" accept="image/*">
+                                <div class="upload-default-content">
+                                    <i class="fa-solid fa-palette upload-icon"></i>
+                                    <span class="upload-text">Imagen de Color</span>
+                                </div>
+                                <span class="file-info"></span>
+                                <button type="button" class="remove-file-btn hidden">&times;</button>
+                            </label>
+                            <label class="upload-zone" id="qrZone">
+                                <input type="file" id="qrInput" class="hidden" accept="image/*">
+                                <div class="upload-default-content">
+                                    <i class="fa-solid fa-qrcode upload-icon"></i>
+                                    <span class="upload-text">Imagen QR</span>
+                                </div>
+                                <span class="file-info"></span>
+                                <button type="button" class="remove-file-btn hidden">&times;</button>
+                            </label>
+                            <label class="upload-zone" id="pdfZone">
+                                 <input type="file" id="pdfInput" class="hidden" accept=".pdf">
+                                <div class="upload-default-content">
+                                    <i class="fa-solid fa-file-pdf upload-icon"></i>
+                                    <span class="upload-text">Factura (PDF)</span>
+                                </div>
+                                <span class="file-info"></span>
+                                <button type="button" class="remove-file-btn hidden">&times;</button>
+                            </label>
+                        </div>
+                    </div>
+                </form>
+                <div class="buttons-container">
+                    <button id="addBtn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Registrar Tela</button>
+                    <button id="editBtn" class="btn btn-success"><i class="fa-solid fa-pen-to-square"></i> Guardar Cambios</button>
+                    <button id="deleteBtn" class="btn btn-danger"><i class="fa-solid fa-trash-can"></i> Eliminar</button>
+                    <button id="clearBtn" class="btn btn-secondary"><i class="fa-solid fa-eraser"></i> Limpiar</button>
+                </div>
+            </section>
+            
+            <section class="card">
+                <div class="search-controls">
+                    <div class="search-wrapper">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="searchInput" class="form-input search-input" placeholder="Buscar por Serial, Tipo o Referencia...">
+                    </div>
+                    <button id="clearSearchBtn" class="btn btn-secondary"><i class="fa-solid fa-xmark"></i></button>
+                    <input type="file" id="excelUploadInput" class="hidden" accept=".xlsx, .xls">
+                    <button id="uploadBtn" class="btn btn-info"><i class="fa-solid fa-file-arrow-up"></i> Cargar Excel</button>
+                    <button id="downloadBtn" class="btn btn-info"><i class="fa-solid fa-file-arrow-down"></i> Descargar Excel</button>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="selectAllCheckbox"></th>
+                                <th>Serial</th><th>Tipo Tela</th><th>Referencia</th><th>Cantidad</th><th>Tamaño</th>
+                                <th>Proveedor</th><th>Fecha</th><th>Color</th><th>Factura</th><th>QR</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fabricsTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const API_URL = window.parent.API_BASE_URL || 'https://harvey-unspoilt-judie.ngrok-free.dev';
+        let masterData = [];
+        let displayedData = [];
+        let selectedRecordId = null;
+
+        const dom = {
+            form: document.getElementById('fabricForm'),
+            fechaInput: document.getElementById('fechaInput'),
+            facturaInput: document.getElementById('facturaInput'),
+            serialInput: document.getElementById('serialInput'),
+            barrasInput: document.getElementById('barrasInput'),
+            tipoTelaInput: document.getElementById('tipoTelaInput'),
+            refTelaInput: document.getElementById('refTelaInput'),
+            proveedorInput: document.getElementById('proveedorInput'),
+            valorFacturaInput: document.getElementById('valorFacturaInput'),
+            cantidadValueInput: document.getElementById('cantidadValueInput'),
+            cantidadTypeSelect: document.getElementById('cantidadTypeSelect'),
+            sizeValueInput: document.getElementById('sizeValueInput'),
+            sizeUnitSelect: document.getElementById('sizeUnitSelect'),
+            valorUnidadInput: document.getElementById('valorUnidadInput'),
+            colorInput: document.getElementById('colorInput'),
+            qrInput: document.getElementById('qrInput'),
+            pdfInput: document.getElementById('pdfInput'),
+            colorZone: document.getElementById('colorZone'),
+            qrZone: document.getElementById('qrZone'),
+            pdfZone: document.getElementById('pdfZone'),
+            tableBody: document.getElementById('fabricsTableBody'),
+            searchInput: document.getElementById('searchInput'),
+            selectAllCheckbox: document.getElementById('selectAllCheckbox'),
+            addBtn: document.getElementById('addBtn'),
+            editBtn: document.getElementById('editBtn'),
+            deleteBtn: document.getElementById('deleteBtn'),
+            clearBtn: document.getElementById('clearBtn'),
+            clearSearchBtn: document.getElementById('clearSearchBtn'),
+            imageModal: document.getElementById('imageModal'),
+            fullImage: document.getElementById('fullImage'),
+            uploadBtn: document.getElementById('uploadBtn'),
+            downloadBtn: document.getElementById('downloadBtn'),
+            excelUploadInput: document.getElementById('excelUploadInput'),
+        };
+
+        const showToast = (message, type = 'success') => {
+            const toastContainer = document.getElementById('toastContainer');
+            const iconClass = { success: 'fa-check-circle', error: 'fa-times-circle', info: 'fa-info-circle' }[type];
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fas ${iconClass}"></i> ${message}`;
+            toastContainer.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        };
+
+        const showConfirmation = (message, onConfirm) => {
+            const confirmModal = document.getElementById('confirmModal');
+            document.getElementById('modalMessage').textContent = message;
+            confirmModal.classList.add('active');
+            const close = () => {
+                confirmModal.classList.remove('active');
+                document.getElementById('modalConfirmBtn').onclick = null;
+                document.getElementById('modalCancelBtn').onclick = null;
+            };
+            document.getElementById('modalConfirmBtn').onclick = () => { close(); onConfirm(); };
+            document.getElementById('modalCancelBtn').onclick = close;
+        };
+
+        const setButtonsLoading = (loading) => {
+            [dom.addBtn, dom.editBtn, dom.deleteBtn, dom.uploadBtn, dom.downloadBtn].forEach(btn => btn.disabled = loading);
+        };
+
+        const formatCurrency = (value) => (parseFloat(value) || 0).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
+        const parseCurrency = (value) => String(value).replace(/[^0-9]/g, '');
+
+        async function apiRequest(endpoint, method = 'GET', data = null, isJson = true) {
+            setButtonsLoading(true);
+            try {
+                const options = { method, headers: { 'ngrok-skip-browser-warning': 'true' }, mode: 'cors' };
+                if (data) {
+                    if (isJson) {
+                        options.headers['Content-Type'] = 'application/json';
+                        options.body = JSON.stringify(data);
+                    } else {
+                        options.body = data;
+                    }
+                }
+                const response = await fetch(`${API_URL}${endpoint}`, options);
+                if (response.headers.get("content-type")?.includes("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) return response.blob();
+                const responseData = await response.json();
+                if (!response.ok) throw new Error(responseData.message || `Error del servidor: ${response.status}`);
+                return responseData;
+            } catch (error) {
+                showToast(error.message, 'error');
+                throw error;
+            } finally {
+                setButtonsLoading(false);
+            }
+        }
+
+        function collectFormData() {
+            return {
+                entry_date: dom.fechaInput.value, invoice_number: dom.facturaInput.value.trim(),
+                serial_rollo: dom.serialInput.value.trim(), barcode: dom.barrasInput.value.trim(),
+                tipo_de_tela: dom.tipoTelaInput.value.trim(), referencia_de_tela: dom.refTelaInput.value.trim(),
+                proveedor: dom.proveedorInput.value.trim(),
+                invoice_value: parseFloat(parseCurrency(dom.valorFacturaInput.value)) || 0,
+                unit_value: parseFloat(parseCurrency(dom.valorUnidadInput.value)) || 0,
+                cantidad_value: parseFloat(dom.cantidadValueInput.value) || 0, cantidad_type: dom.cantidadTypeSelect.value,
+                size_value: parseFloat(dom.sizeValueInput.value) || 0, size_unit: dom.sizeUnitSelect.value,
+                color_image_path: dom.colorZone.dataset.filePath || null, qr_image_path: dom.qrZone.dataset.filePath || null,
+                pdf_path: dom.pdfZone.dataset.filePath || null,
+            };
+        }
+
+        function validateForm() {
+            const data = collectFormData();
+            if (!data.serial_rollo || !data.tipo_de_tela || !data.proveedor) {
+                showToast('Los campos Serial, Tipo de Tela y Proveedor son obligatorios.', 'error');
+                return false;
+            }
+            return true;
+        }
+
+        function clearForm() {
+            selectedRecordId = null; dom.form.reset(); dom.fechaInput.valueAsDate = new Date();
+            dom.cantidadTypeSelect.value = 'Metraje'; dom.sizeUnitSelect.value = 'cm';
+            clearUploadZone(dom.colorZone, dom.colorInput); clearUploadZone(dom.qrZone, dom.qrInput);
+            clearUploadZone(dom.pdfZone, dom.pdfInput);
+            document.querySelectorAll('.data-table tr.selected').forEach(row => row.classList.remove('selected'));
+        }
+
+        function renderTable(data) {
+            dom.tableBody.innerHTML = '';
+            if (data.length === 0) {
+                dom.tableBody.innerHTML = `<tr><td colspan="11" class="feedback-state"><i class="fa-solid fa-box-open"></i> No hay registros.</td></tr>`;
+                return;
+            }
+            data.forEach(record => {
+                const tr = document.createElement('tr');
+                tr.dataset.id = record.id;
+                tr.onclick = (e) => { if (e.target.type !== 'checkbox' && !e.target.closest('.color-cell')) selectRecord(tr, record.id); };
+                const colorCell = record.color_image_path ? `<div class="color-cell" style="background-image: url(${record.color_image_path});" onclick="event.stopPropagation(); showImageModal('${record.color_image_path}');"></div>` : '<i class="fa-solid fa-image file-icon"></i>';
+                const pdfCell = record.pdf_path ? `<a href="${record.pdf_path}" target="_blank"><i class="fa-solid fa-file-pdf file-icon active"></i></a>` : '<i class="fa-solid fa-file-pdf file-icon"></i>';
+                const qrCell = record.qr_image_path ? `<i class="fa-solid fa-qrcode file-icon active" onclick="event.stopPropagation(); showImageModal('${record.qr_image_path}');"></i>` : '<i class="fa-solid fa-qrcode file-icon"></i>';
+                tr.innerHTML = `
+                    <td><input type="checkbox" data-id="${record.id}"></td>
+                    <td>${record.serial_rollo || ''}</td> <td>${record.tipo_de_tela || ''}</td> <td>${record.referencia_de_tela || ''}</td>
+                    <td>${record.cantidad_value || 0} ${record.cantidad_type || ''}</td> <td>${record.size_value || 0} ${record.size_unit || ''}</td>
+                    <td>${record.proveedor || ''}</td> <td>${record.entry_date || ''}</td>
+                    <td style="text-align: center;">${colorCell}</td> <td style="text-align: center;">${pdfCell}</td> <td style="text-align: center;">${qrCell}</td>
+                `;
+                dom.tableBody.appendChild(tr);
+            });
+        }
+
+        function applyFiltersAndRender() {
+            const searchTerm = dom.searchInput.value.toLowerCase().trim();
+            displayedData = masterData.filter(r => 
+                !searchTerm || ['serial_rollo', 'tipo_de_tela', 'referencia_de_tela', 'proveedor'].some(key => (r[key] || '').toLowerCase().includes(searchTerm))
+            );
+            renderTable(displayedData);
+        }
+
+        async function loadInitialData() {
+            dom.tableBody.innerHTML = `<tr><td colspan="11" class="feedback-state"><div class="loading-spinner"></div>Cargando...</td></tr>`;
+            try {
+                masterData = await apiRequest('/fabrics');
+                applyFiltersAndRender();
+            } catch (error) {
+                dom.tableBody.innerHTML = `<tr><td colspan="11" class="feedback-state"><i class="fa-solid fa-circle-exclamation"></i> No se pudieron cargar los registros.</td></tr>`;
+            }
+        }
+
+        async function loadReferencesForDatalist() {
+            try {
+                const references = await apiRequest('/dynamic-codes/references/Telas');
+                const datalist = document.getElementById('referencesDatalist');
+                datalist.innerHTML = '';
+                (references || []).forEach(ref => {
+                    if (ref.code) {
+                        const option = document.createElement('option');
+                        option.value = ref.code;
+                        datalist.appendChild(option);
+                    }
+                });
+            } catch (error) {
+                console.error('Error al cargar las referencias de tela:', error);
+            }
+        }
+
+        async function loadBarcodesForDatalist() {
+            try {
+                const barcodes = await apiRequest('/dynamic-codes/barcodes/Telas');
+                const datalist = document.getElementById('barcodesDatalist');
+                datalist.innerHTML = '';
+                (barcodes || []).forEach(bc => {
+                    if (bc.code) {
+                        const option = document.createElement('option');
+                        option.value = bc.code;
+                        datalist.appendChild(option);
+                    }
+                });
+            } catch (error) {
+                console.error('Error al cargar los códigos de barras de tela:', error);
+            }
+        }
+
+        async function addRecord() {
+            if (!validateForm()) return;
+            try {
+                const result = await apiRequest('/fabrics', 'POST', collectFormData());
+                showToast(result.message, 'success');
+                clearForm();
+                await loadInitialData();
+            } catch (error) {}
+        }
+
+        async function editRecord() {
+            if (selectedRecordId === null) { showToast('Seleccione un registro para editar.', 'error'); return; }
+            if (!validateForm()) return;
+            try {
+                const result = await apiRequest(`/fabrics/${selectedRecordId}`, 'PUT', collectFormData());
+                showToast(result.message, 'success');
+                clearForm();
+                await loadInitialData();
+            } catch (error) {}
+        }
+        
+        async function deleteSelectedRecords() {
+            const checkedBoxes = dom.tableBody.querySelectorAll('input[type="checkbox"]:checked');
+            if (checkedBoxes.length === 0) { showToast('Seleccione al menos un registro para eliminar.', 'error'); return; }
+            const idsToDelete = Array.from(checkedBoxes).map(cb => cb.dataset.id);
+            showConfirmation(`¿Está seguro de que desea eliminar ${idsToDelete.length} registro(s)?`, async () => {
+                try {
+                    const result = await apiRequest('/fabrics', 'DELETE', { ids: idsToDelete });
+                    showToast(result.message, 'success');
+                    clearForm();
+                    await loadInitialData();
+                } catch (error) {}
+            });
+        }
+
+        function selectRecord(rowElement, recordId) {
+            selectedRecordId = recordId;
+            const record = masterData.find(f => String(f.id) === String(recordId));
+            if (!record) return;
+            dom.fechaInput.value = record.entry_date; dom.facturaInput.value = record.invoice_number;
+            dom.serialInput.value = record.serial_rollo; dom.barrasInput.value = record.barcode;
+            dom.tipoTelaInput.value = record.tipo_de_tela; dom.refTelaInput.value = record.referencia_de_tela;
+            dom.proveedorInput.value = record.proveedor;
+            dom.valorFacturaInput.value = (parseFloat(record.invoice_value) || 0).toLocaleString('es-CO');
+            dom.cantidadValueInput.value = record.cantidad_value; dom.cantidadTypeSelect.value = record.cantidad_type;
+            dom.sizeValueInput.value = record.size_value; dom.sizeUnitSelect.value = record.size_unit;
+            dom.valorUnidadInput.value = (parseFloat(record.unit_value) || 0).toLocaleString('es-CO');
+            populateUploadZone(dom.colorZone, dom.colorInput, record.color_image_path, true);
+            populateUploadZone(dom.qrZone, dom.qrInput, record.qr_image_path, true);
+            populateUploadZone(dom.pdfZone, dom.pdfInput, record.pdf_path, false);
+            document.querySelectorAll('.data-table tr.selected').forEach(row => row.classList.remove('selected'));
+            rowElement.classList.add('selected');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function setupUploadZone(inputId, zoneId) {
+            const input = document.getElementById(inputId); const zone = document.getElementById(zoneId);
+            const removeBtn = zone.querySelector('.remove-file-btn');
+            zone.onclick = (e) => { if(e.target.tagName !== 'BUTTON') input.click(); };
+            input.onchange = () => {
+                if (input.files.length > 0) {
+                    const file = input.files[0]; const isImage = input.accept.includes('image');
+                    if (isImage) {
+                        const reader = new FileReader();
+                        reader.onload = e => populateUploadZone(zone, input, e.target.result, true);
+                        reader.readAsDataURL(file);
+                    } else { populateUploadZone(zone, input, file.name, false); }
+                }
+            };
+            removeBtn.onclick = (e) => { e.stopPropagation(); clearUploadZone(zone, input); };
+        }
+        
+        function clearUploadZone(zone, input) {
+            input.value = ''; zone.classList.remove('has-file'); zone.style.backgroundImage = 'none';
+            zone.querySelector('.file-info').textContent = ''; zone.querySelector('.remove-file-btn').classList.add('hidden');
+            delete zone.dataset.filePath;
+        }
+
+        function populateUploadZone(zone, input, filePath, isImage) {
+            clearUploadZone(zone, input);
+            if (filePath) {
+                zone.classList.add('has-file');
+                zone.querySelector('.file-info').textContent = filePath.startsWith('data:') ? 'Imagen cargada' : filePath.split('/').pop();
+                zone.querySelector('.remove-file-btn').classList.remove('hidden');
+                if (isImage) zone.style.backgroundImage = `url(${filePath})`;
+                zone.dataset.filePath = filePath;
+            }
+        }
+        
+        window.showImageModal = (src) => {
+            dom.fullImage.src = src; dom.imageModal.classList.add('active');
+        };
+
+        async function handleDownloadExcel() {
+            showToast('Generando archivo Excel...', 'info');
+            try {
+                const blob = await apiRequest('/fabrics/download', 'GET', null, false);
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.style.display = 'none'; a.href = url;
+                a.download = `inventario_telas_${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); a.remove();
+                showToast('Descarga iniciada.', 'success');
+            } catch (error) {}
+        }
+
+        async function handleUploadExcel() {
+            const file = dom.excelUploadInput.files[0]; if (!file) return;
+            showToast('Cargando archivo...', 'info');
+            const formData = new FormData(); formData.append('file', file);
+            try {
+                const result = await apiRequest('/fabrics/upload', 'POST', formData, false);
+                showToast(result.message, 'success'); await loadInitialData();
+            } catch (error) {} finally { dom.excelUploadInput.value = ''; }
+        }
+
+        function init() {
+            dom.addBtn.addEventListener('click', addRecord); dom.editBtn.addEventListener('click', editRecord);
+            dom.deleteBtn.addEventListener('click', deleteSelectedRecords); dom.clearBtn.addEventListener('click', clearForm);
+            dom.searchInput.addEventListener('input', applyFiltersAndRender);
+            dom.clearSearchBtn.addEventListener('click', () => { dom.searchInput.value = ''; applyFiltersAndRender(); });
+            dom.downloadBtn.addEventListener('click', handleDownloadExcel);
+            dom.uploadBtn.addEventListener('click', () => dom.excelUploadInput.click());
+            dom.excelUploadInput.addEventListener('change', handleUploadExcel);
+            setupUploadZone('colorInput', 'colorZone'); setupUploadZone('qrInput', 'qrZone'); setupUploadZone('pdfInput', 'pdfZone');
+            dom.selectAllCheckbox.onchange = (e) => dom.tableBody.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = e.target.checked);
+            dom.imageModal.onclick = () => dom.imageModal.classList.remove('active');
+            [dom.valorFacturaInput, dom.valorUnidadInput].forEach(input => {
+                input.oninput = (e) => {
+                    let value = parseCurrency(e.target.value);
+                    e.target.value = value ? parseFloat(value).toLocaleString('es-CO') : '';
+                };
+            });
+            clearForm(); loadInitialData(); loadReferencesForDatalist(); loadBarcodesForDatalist();
+        }
+        init();
+    });
+    </script>
+</body>
+</html>

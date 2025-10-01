@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Programación de Cortes - DAMAR</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-dark: #2C3E50; --secondary-light: #ECF0F1; --accent: #3498DB;
+            --text-dark: #34495E; --text-light: white; --hover-accent: #2980B9;
+            --success: #27AE60; --warning: #F39C12; --danger: #E74C3C;
+            --border-color: #dfe4ea; --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --shadow: 0 10px 30px rgba(44, 62, 80, 0.1); --shadow-hover: 0 15px 35px rgba(44, 62, 80, 0.15);
+            --font-family: 'Poppins', sans-serif; --border-radius-lg: 12px; --border-radius-md: 8px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-family); background-color: var(--secondary-light); color: var(--text-dark); }
+        .main-container { display: grid; grid-template-columns: 1.7fr 1fr; gap: 2rem; max-width: 1600px; margin: 2rem auto; padding: 0 2rem; }
+        .header { grid-column: 1 / -1; text-align: center; margin-bottom: 1rem; }
+        .header-title { font-size: 2.5rem; font-weight: 700; color: var(--primary-dark); }
+        .card { background-color: white; border-radius: var(--border-radius-lg); padding: 2rem; box-shadow: var(--shadow); }
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; background-color: var(--accent); color: white; padding: 0.75rem 1rem; border-radius: var(--border-radius-md) var(--border-radius-md) 0 0; }
+        .calendar-nav { display: flex; align-items: center; gap: 0.5rem; }
+        .calendar-nav button { background: transparent; border: none; color: white; cursor: pointer; font-size: 1.2rem; }
+        .calendar-nav select { background-color: var(--hover-accent); color: white; border: none; border-radius: 4px; padding: 4px 8px; font-weight: 600; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; background: white; padding-top: 1rem; }
+        .day-name { font-weight: 600; text-align: center; padding-bottom: 0.5rem; font-size: 0.8rem; color: var(--text-dark); }
+        .day-cell { border: 1px solid var(--border-color); border-radius: 4px; min-height: 110px; padding: 5px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; }
+        .day-cell:hover { background-color: #f5f5f5; }
+        .day-cell.other-month { color: #ccc; background-color: #f9f9f9; }
+        .day-cell.today .day-number { color: var(--danger); font-weight: 900; }
+        .day-cell.selected { background-color: var(--accent); color: white; border-color: var(--accent); }
+        .day-cell.selected .event { background-color: var(--hover-accent); }
+        .event { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; padding: 3px 5px; margin-top: 3px; border-radius: 3px; background-color: #e0e6ed; color: var(--text-dark); }
+        .event-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .event.Completado { background-color: var(--success); color: white; }
+        .status-toggle { width: 20px; height: 20px; border-radius: 50%; border: none; cursor: pointer; color: white; background-color: #bdc3c7; flex-shrink: 0; margin-left: 5px; }
+        .event.Completado .status-toggle { background-color: #219d53; }
+        .details-header { background: var(--primary-dark); color: white; padding: 0.75rem 1rem; border-radius: var(--border-radius-md); margin-bottom: 1.5rem; text-align: center; }
+        .details-date { text-align: center; font-weight: 600; color: var(--accent); margin-bottom: 1rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-label { font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 0.5rem; }
+        .form-input { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; }
+        .buttons-container { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin: 1.5rem 0; }
+        .btn {
+            border: none; border-radius: var(--border-radius-md); padding: 12px; font-weight: 600;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+            transition: all 0.2s; text-transform: uppercase; font-size: 0.9rem; letter-spacing: 0.5px;
+        }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-success { background-color: var(--success); color: white; }
+        .btn-primary { background: var(--gradient-primary); color: white; }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-secondary { background-color: var(--secondary-light); color: var(--text-dark); border: 1px solid var(--border-color); }
+        .daily-cuts-header { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        .btn-small { padding: 6px 12px; font-size: 0.8rem; text-transform: none; }
+        .daily-cuts-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .daily-cuts-table th, .daily-cuts-table td { padding: 8px; text-align: left; border-bottom: 1px solid var(--border-color); }
+        .daily-cuts-table thead { background-color: #f8f9fa; }
+        .daily-cuts-table tbody tr { cursor: pointer; }
+        .daily-cuts-table tbody tr:hover { background-color: #f5f5f5; }
+        .daily-cuts-table .selected { background-color: rgba(52, 152, 219, 0.1); }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1050; }
+        .toast { display: flex; align-items: center; padding: 15px 20px; border-radius: var(--border-radius-md); color: white; font-weight: 500; margin-bottom: 10px; box-shadow: var(--shadow); transform: translateX(120%); animation: slideIn 0.5s forwards; }
+        .toast.success { background-color: var(--success); }
+        .toast.error { background-color: var(--danger); }
+        .toast i { margin-right: 10px; font-size: 1.2rem; }
+        @keyframes slideIn { to { transform: translateX(0); } }
+
+        /* Estilos para la Ventana Modal */
+        .modal-overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background-color: rgba(0,0,0,0.6); 
+            display: flex; justify-content: center; align-items: center; 
+            z-index: 1000; 
+            opacity: 0; visibility: hidden; transition: all 0.3s ease; 
+        }
+        .modal-overlay.active { 
+            opacity: 1; visibility: visible; 
+        }
+        .modal-content { 
+            background: white; padding: 2rem; border-radius: var(--border-radius-lg); 
+            transform: scale(0.9); transition: all 0.3s ease;
+            max-width: 400px; text-align: center;
+        }
+        .modal-overlay.active .modal-content { 
+            transform: scale(1); 
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="toastContainer" class="toast-container"></div>
+
+<div id="passwordModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3><i class="fa-solid fa-lock" style="color: var(--warning);"></i> Acción Protegida</h3>
+        <p style="margin: 1rem 0;">Por favor, ingrese la contraseña para continuar.</p>
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            <input type="password" id="passwordInput" class="form-input" placeholder="Contraseña">
+        </div>
+        <div style="display: flex; justify-content: center; gap: 1rem;">
+            <button id="passwordCancelBtn" class="btn btn-secondary">Cancelar</button>
+            <button id="passwordSubmitBtn" class="btn btn-primary">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<div class="main-container">
+    <header class="header">
+        <h1 class="header-title"><i class="fa-solid fa-scissors"></i> Programación de Cortes</h1>
+    </header>
+
+    <section class="card">
+        <div class="calendar-container">
+            <div class="calendar-header">
+                <h2 id="calendar-title">Julio 2025</h2>
+                <div class="calendar-nav">
+                    <button id="prev-month"><i class="fa-solid fa-chevron-left"></i></button>
+                    <select id="month-select"></select>
+                    <select id="year-select"></select>
+                    <button id="next-month"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+            </div>
+            <div class="calendar-grid">
+                <div class="day-name">L</div><div class="day-name">M</div><div class="day-name">M</div>
+                <div class="day-name">J</div><div class="day-name">V</div><div class="day-name">S</div><div class="day-name">D</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="details-container">
+            <div class="details-header">
+                <h3><i class="fa-solid fa-list-check"></i> Detalles del Día</h3>
+            </div>
+            <div class="details-body">
+                <h4 id="details-date">Seleccione una fecha</h4>
+                <div class="form">
+                    <div class="form-group">
+                        <label class="form-label" for="refInput">Referencia:</label>
+                        <input type="text" id="refInput" class="form-input" list="references-datalist">
+                        <datalist id="references-datalist"></datalist>
+                    </div>
+                    <div class="form-group"><label class="form-label" for="qtyInput">Cantidad:</label><input type="number" id="qtyInput" class="form-input"></div>
+                    <div class="form-group"><label class="form-label" for="colorsInput">Colores:</label><input type="text" id="colorsInput" class="form-input"></div>
+                    <div class="form-group"><label class="form-label" for="sizeInput">Talla:</label><input type="text" id="sizeInput" class="form-input"></div>
+                    <div class="form-group"><label class="form-label" for="distributeInput">Distribuir a:</label><input type="text" id="distributeInput" class="form-input"></div>
+                </div>
+                <div class="buttons-container">
+                    <button id="addBtn" class="btn btn-success"><i class="fa-solid fa-plus"></i> Agregar</button>
+                    <button id="editBtn" class="btn btn-primary"><i class="fa-solid fa-pencil"></i> Editar</button>
+                    <button id="deleteBtn" class="btn btn-danger"><i class="fa-solid fa-trash"></i> Eliminar</button>
+                    <button id="clearBtn" class="btn btn-secondary"><i class="fa-solid fa-eraser"></i> Limpiar</button>
+                </div>
+                <div class="daily-cuts-header">
+                    <h4>Cortes del Día</h4>
+                    <button id="completeDayBtn" class="btn btn-small btn-success"><i class="fa-solid fa-check-double"></i> Completar Día</button>
+                </div>
+                <div class="table-container">
+                    <table class="daily-cuts-table">
+                        <thead><tr><th>Ref.</th><th>Cant.</th><th>Talla</th><th>Estado</th></tr></thead>
+                        <tbody id="dailyCutsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const API_URL = 'https://harvey-unspoilt-judie.ngrok-free.dev';
+    let cuts_master_data = {};
+    let currentDate = new Date();
+    let selectedDate = null;
+    let selectedCutId = null;
+    let pendingAction = null; // Guardará 'edit' o 'delete'
+
+    const dom = {
+        title: document.getElementById('calendar-title'), monthSelect: document.getElementById('month-select'), yearSelect: document.getElementById('year-select'),
+        prevBtn: document.getElementById('prev-month'), nextBtn: document.getElementById('next-month'), grid: document.querySelector('.calendar-grid'),
+        detailsDate: document.getElementById('details-date'), ref: document.getElementById('refInput'), qty: document.getElementById('qtyInput'),
+        colors: document.getElementById('colorsInput'), size: document.getElementById('sizeInput'), distribute: document.getElementById('distributeInput'),
+        addBtn: document.getElementById('addBtn'), editBtn: document.getElementById('editBtn'), deleteBtn: document.getElementById('deleteBtn'),
+        clearBtn: document.getElementById('clearBtn'), dailyCutsBody: document.getElementById('dailyCutsBody'),
+        completeDayBtn: document.getElementById('completeDayBtn'),
+        // Elementos de la modal
+        passwordModal: document.getElementById('passwordModal'),
+        passwordInput: document.getElementById('passwordInput'),
+        passwordSubmitBtn: document.getElementById('passwordSubmitBtn'),
+        passwordCancelBtn: document.getElementById('passwordCancelBtn'),
+    };
+    const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+    const showToast = (message, type = 'success') => {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'times-circle'}"></i> ${message}`;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    };
+
+    async function apiRequest(endpoint, method = 'GET', data = null) {
+        [dom.addBtn, dom.editBtn, dom.deleteBtn, dom.completeDayBtn].forEach(b => b.disabled = true);
+        try {
+            const options = { method, headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, mode: 'cors' };
+            if (data) options.body = JSON.stringify(data);
+            const response = await fetch(`${API_URL}${endpoint}`, options);
+            const responseData = await response.json();
+            if (!response.ok) throw new Error(responseData.message || `Error del servidor: ${response.status}`);
+            return responseData;
+        } catch (error) {
+            showToast(error.message, 'error');
+            throw error;
+        } finally {
+            [dom.addBtn, dom.editBtn, dom.deleteBtn, dom.completeDayBtn].forEach(b => b.disabled = false);
+        }
+    }
+
+    function renderCalendar(year, month) {
+        currentDate = new Date(year, month);
+        dom.title.textContent = `${monthNames[month]} ${year}`;
+        dom.monthSelect.value = month; dom.yearSelect.value = year;
+        
+        const dayCells = dom.grid.querySelectorAll('.day-cell');
+        dayCells.forEach(cell => cell.remove());
+        
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        
+        for (let i = 0; i < (firstDay === 0 ? 6 : firstDay - 1); i++) {
+            dom.grid.appendChild(document.createElement('div')).className = 'day-cell other-month';
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const cell = document.createElement('div');
+            cell.className = 'day-cell';
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            cell.dataset.date = dateStr;
+            cell.innerHTML = `<span class="day-number">${day}</span>`;
+
+            const today = new Date();
+            if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) cell.classList.add('today');
+            if (dateStr === selectedDate) cell.classList.add('selected');
+
+            if (cuts_master_data[dateStr]) {
+                cuts_master_data[dateStr].forEach(cut => {
+                    const eventDiv = document.createElement('div');
+                    eventDiv.className = `event ${cut.status}`;
+                    eventDiv.innerHTML = `<span class="event-text">${cut.reference}: ${cut.quantity}</span>
+                                          <button class="status-toggle" title="Marcar como Completado/Programado">✔</button>`;
+                    eventDiv.querySelector('.status-toggle').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        toggleCutStatus(cut);
+                    });
+                    cell.appendChild(eventDiv);
+                });
+            }
+            
+            cell.addEventListener('click', () => selectDay(dateStr));
+            dom.grid.appendChild(cell);
+        }
+    }
+
+    async function toggleCutStatus(cut) {
+        const newStatus = cut.status === 'Programado' ? 'Completado' : 'Programado';
+        try {
+            await apiRequest('/cuts/status', 'PUT', { updates: [{ id: cut.id, status: newStatus }] });
+            cut.status = newStatus;
+            renderCalendar(currentDate.getFullYear(), currentDate.getMonth());
+            if (cut.date === selectedDate) renderDailyCuts();
+        } catch (error) {}
+    }
+    
+    async function toggleCompleteDay() {
+        const cuts = cuts_master_data[selectedDate];
+        if (!cuts || cuts.length === 0) return;
+
+        const allCompleted = cuts.every(c => c.status === 'Completado');
+        const newStatus = allCompleted ? 'Programado' : 'Completado';
+        
+        const updates = cuts.map(c => ({ id: c.id, status: newStatus }));
+        try {
+            await apiRequest('/cuts/status', 'PUT', { updates });
+            cuts.forEach(c => c.status = newStatus);
+            renderCalendar(currentDate.getFullYear(), currentDate.getMonth());
+            renderDailyCuts();
+        } catch (error) {}
+    }
+
+    function selectDay(dateStr) {
+        selectedDate = dateStr;
+        const date = new Date(dateStr + 'T00:00:00');
+        dom.detailsDate.textContent = `${date.getDate()} de ${monthNames[date.getMonth()]} de ${date.getFullYear()}`;
+        clearForm();
+        renderDailyCuts();
+        document.querySelectorAll('.day-cell.selected').forEach(c => c.classList.remove('selected'));
+        const cell = document.querySelector(`.day-cell[data-date="${dateStr}"]`);
+        if (cell) cell.classList.add('selected');
+    }
+    
+    function renderDailyCuts() {
+        dom.dailyCutsBody.innerHTML = '';
+        const cuts = cuts_master_data[selectedDate] || [];
+
+        if (cuts.length > 0) {
+            const allCompleted = cuts.every(c => c.status === 'Completado');
+            dom.completeDayBtn.innerHTML = allCompleted ? '<i class="fa-solid fa-undo"></i> Revertir Día' : '<i class="fa-solid fa-check-double"></i> Completar Día';
+            dom.completeDayBtn.className = `btn btn-small ${allCompleted ? 'btn-secondary' : 'btn-success'}`;
+            dom.completeDayBtn.disabled = false;
+        } else {
+            dom.completeDayBtn.innerHTML = '<i class="fa-solid fa-check-double"></i> Completar Día';
+            dom.completeDayBtn.disabled = true;
+        }
+
+        if (cuts.length === 0) {
+            dom.dailyCutsBody.innerHTML = `<tr><td colspan="4" style="text-align:center;">No hay cortes programados.</td></tr>`;
+            return;
+        }
+        cuts.forEach(cut => {
+            const tr = document.createElement('tr');
+            tr.dataset.id = cut.id;
+            tr.onclick = () => selectCutForEditing(cut.id);
+            if (String(cut.id) === String(selectedCutId)) tr.classList.add('selected');
+            tr.innerHTML = `
+                <td>${cut.reference}</td> <td>${cut.quantity}</td>
+                <td>${cut.size}</td> <td><span class="event ${cut.status}" style="padding: 3px 8px;">${cut.status}</span></td>`;
+            dom.dailyCutsBody.appendChild(tr);
+        });
+    }
+
+    function clearForm() {
+        selectedCutId = null;
+        [dom.ref, dom.qty, dom.colors, dom.size, dom.distribute].forEach(el => el.value = '');
+        document.querySelectorAll('.daily-cuts-table tr.selected').forEach(row => row.classList.remove('selected'));
+    }
+
+    function selectCutForEditing(id) {
+        selectedCutId = id;
+        const cut = cuts_master_data[selectedDate]?.find(c => String(c.id) === String(id));
+        if(cut) {
+            dom.ref.value = cut.reference; dom.qty.value = cut.quantity;
+            dom.colors.value = cut.colors; dom.size.value = cut.size;
+            dom.distribute.value = cut.distribute_to;
+            renderDailyCuts();
+        }
+    }
+
+    async function addCut() {
+        if (!selectedDate || !dom.ref.value) { showToast("Seleccione una fecha y complete la referencia.", 'error'); return; }
+        const newCutData = {
+            date: selectedDate,
+            reference: dom.ref.value, quantity: dom.qty.value, colors: dom.colors.value,
+            size: dom.size.value, distribute_to: dom.distribute.value
+        };
+        try {
+            const result = await apiRequest('/cuts', 'POST', newCutData);
+            if (!cuts_master_data[selectedDate]) cuts_master_data[selectedDate] = [];
+            cuts_master_data[selectedDate].push(result.new_cut);
+            clearForm();
+            renderCalendar(currentDate.getFullYear(), currentDate.getMonth());
+            renderDailyCuts();
+            showToast(result.message, 'success');
+        } catch (error) {}
+    }
+    
+    // --- INICIO DE CORRECCIÓN: Lógica de Edición y Eliminación con Contraseña ---
+
+    // La función que realmente ejecuta la edición
+    async function executeEdit() {
+        const updatedData = {
+            reference: dom.ref.value, quantity: dom.qty.value, colors: dom.colors.value,
+            size: dom.size.value, distribute_to: dom.distribute.value
+        };
+        try {
+            const result = await apiRequest(`/cuts/${selectedCutId}`, 'PUT', updatedData);
+            const cutIndex = cuts_master_data[selectedDate].findIndex(c => String(c.id) === String(selectedCutId));
+            if (cutIndex > -1) {
+                Object.assign(cuts_master_data[selectedDate][cutIndex], result.updated_cut);
+            }
+            clearForm();
+            renderCalendar(currentDate.getFullYear(), currentDate.getMonth());
+            renderDailyCuts();
+            showToast(result.message, 'success');
+        } catch (error) {}
+    }
+    
+    // La función que realmente ejecuta la eliminación
+    async function executeDelete() {
+        if (confirm("¿Está seguro de que desea eliminar este corte?")) {
+            try {
+                const result = await apiRequest(`/cuts/${selectedCutId}`, 'DELETE');
+                cuts_master_data[selectedDate] = cuts_master_data[selectedDate].filter(c => String(c.id) !== String(selectedCutId));
+                if (cuts_master_data[selectedDate].length === 0) delete cuts_master_data[selectedDate];
+                clearForm();
+                renderCalendar(currentDate.getFullYear(), currentDate.getMonth());
+                renderDailyCuts();
+                showToast(result.message, 'success');
+            } catch (error) {}
+        }
+    }
+
+    // Función que abre la modal para editar
+    function editCut() {
+        if (selectedCutId === null) { 
+            showToast("Seleccione un corte para editar.", 'error'); 
+            return; 
+        }
+        pendingAction = 'edit';
+        dom.passwordInput.value = '';
+        dom.passwordModal.classList.add('active');
+    }
+    
+    // Función que abre la modal para eliminar
+    function deleteCut() {
+        if (selectedCutId === null) { 
+            showToast("Seleccione un corte para eliminar.", 'error'); 
+            return; 
+        }
+        pendingAction = 'delete';
+        dom.passwordInput.value = '';
+        dom.passwordModal.classList.add('active');
+    }
+
+    // --- FIN DE LA CORRECCIÓN ---
+    
+    async function loadInitialData() {
+        try {
+            const allCuts = await apiRequest('/cuts');
+            cuts_master_data = {}; // Reset
+            (allCuts || []).forEach(cut => {
+                if (!cuts_master_data[cut.date]) {
+                    cuts_master_data[cut.date] = [];
+                }
+                cuts_master_data[cut.date].push(cut);
+            });
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            selectDay(todayStr);
+            renderCalendar(today.getFullYear(), today.getMonth());
+        } catch (error) {
+            dom.grid.innerHTML = '<p style="text-align:center; color:red;">No se pudieron cargar los datos.</p>';
+        }
+    }
+
+    async function loadAllReferences() {
+        try {
+            const allReferences = await apiRequest('/dynamic-codes/all-references');
+            const referenceDatalist = document.getElementById('references-datalist');
+            if (!referenceDatalist) return;
+            
+            referenceDatalist.innerHTML = ''; 
+
+            const productReferences = (allReferences || []).filter(ref => ref.category === 'ref_products');
+            
+            productReferences.forEach(ref => {
+                if (ref.code && ref.code.trim() !== '') {
+                    const option = document.createElement('option');
+                    option.value = ref.code.trim();
+                    referenceDatalist.appendChild(option);
+                }
+            });
+        } catch (error) {
+            console.error('Error al cargar las referencias de productos:', error);
+            showToast('No se pudieron cargar las sugerencias de referencias.', 'error');
+        }
+    }
+
+    function init() {
+        dom.monthSelect.innerHTML = monthNames.map((name, i) => `<option value="${i}">${name}</option>`).join('');
+        const currentYear = new Date().getFullYear();
+        for (let i = currentYear - 5; i <= currentYear + 5; i++) {
+            dom.yearSelect.innerHTML += `<option value="${i}">${i}</option>`;
+        }
+
+        dom.prevBtn.addEventListener('click', () => renderCalendar(currentDate.getFullYear(), currentDate.getMonth() - 1));
+        dom.nextBtn.addEventListener('click', () => renderCalendar(currentDate.getFullYear(), currentDate.getMonth() + 1));
+        dom.monthSelect.addEventListener('change', (e) => renderCalendar(parseInt(dom.yearSelect.value), parseInt(e.target.value)));
+        dom.yearSelect.addEventListener('change', (e) => renderCalendar(parseInt(e.target.value), parseInt(dom.monthSelect.value)));
+        
+        dom.addBtn.addEventListener('click', addCut); 
+        dom.editBtn.addEventListener('click', editCut); // Llama a la función que abre la modal
+        dom.deleteBtn.addEventListener('click', deleteCut); // Llama a la función que abre la modal
+        dom.clearBtn.addEventListener('click', clearForm);
+        dom.completeDayBtn.addEventListener('click', toggleCompleteDay);
+        
+        // Listeners para la modal de contraseña
+        dom.passwordCancelBtn.addEventListener('click', () => {
+            dom.passwordModal.classList.remove('active');
+            pendingAction = null;
+        });
+
+        dom.passwordSubmitBtn.addEventListener('click', () => {
+            if (dom.passwordInput.value === '3012') {
+                dom.passwordModal.classList.remove('active');
+                if (pendingAction === 'edit') {
+                    executeEdit();
+                } else if (pendingAction === 'delete') {
+                    executeDelete();
+                }
+                pendingAction = null;
+            } else {
+                showToast('Contraseña incorrecta.', 'error');
+            }
+        });
+
+        loadInitialData();
+        loadAllReferences(); 
+    }
+
+    init();
+});
+</script>
+
+</body>
+</html>

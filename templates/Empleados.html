@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Empleados - DAMAR</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --primary-dark: #2C3E50; --secondary-light: #ECF0F1; --accent: #3498DB;
+            --text-dark: #34495E; --text-light: white; --hover-accent: #2980B9;
+            --success: #27AE60; --warning: #F39C12; --danger: #E74C3C;
+            --border-color: #dfe4ea; --gradient-primary: linear-gradient(135deg, #3498DB 0%, #2C3E50 100%);
+            --shadow: 0 10px 30px rgba(44, 62, 80, 0.1); --font-family: 'Poppins', sans-serif;
+            --border-radius-lg: 12px; --border-radius-md: 8px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-family); background-color: var(--secondary-light); color: var(--text-dark); line-height: 1.6; }
+        .container { max-width: 1400px; margin: 2rem auto; padding: 0 1.5rem; }
+        .card { background-color: white; border-radius: var(--border-radius-lg); padding: 2.5rem; margin-bottom: 2rem; box-shadow: var(--shadow); border: 1px solid var(--border-color); }
+        .content-header { text-align: center; margin-bottom: 2.5rem; }
+        .content-title { font-size: 2.5rem; font-weight: 700; color: var(--primary-dark); }
+        .tab-nav { display: flex; border-bottom: 2px solid var(--border-color); margin-bottom: 2rem; flex-wrap: wrap;}
+        .tab-btn { padding: 12px 20px; font-size: 1rem; font-weight: 600; cursor: pointer; border: none; background-color: transparent; color: var(--text-dark); border-bottom: 3px solid transparent; transition: all 0.3s ease; white-space: nowrap; }
+        .tab-btn:hover { background-color: #f5f5f5; color: var(--primary-dark); }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab-panel { display: none; animation: fadeIn 0.4s ease; }
+        .tab-panel.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem 2rem; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-label { font-weight: 600; margin-bottom: 0.6rem; color: var(--primary-dark); font-size: 0.9rem; }
+        .form-input, .form-select { width: 100%; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: var(--border-radius-md); background-color: #fdfdfe; font-size: 1rem; }
+        .form-input:focus, .form-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15); }
+        .hidden { display: none; }
+        .info-label { font-size: 1rem; font-style: italic; color: #6c757d; padding-top: 8px; }
+        .section-title { font-size: 1.2rem; font-weight: 600; color: var(--primary-dark); grid-column: 1 / -1; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-top: 1rem; }
+        .buttons-container { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 2rem; justify-content: center; }
+        .btn { border: none; border-radius: var(--border-radius-md); padding: 12px 24px; font-size: 0.95rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.75rem; transition: transform 0.2s ease, background-color 0.2s; }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); }
+        .btn:disabled { background-color: #bdc3c7; cursor: not-allowed; transform: none; box-shadow: none; opacity: 0.6; }
+        .btn-primary { background-color: var(--accent); color: white; }
+        .btn-primary:hover { background-color: var(--hover-accent); }
+        .btn-success { background-color: #1D6F42; color: white; }
+        .btn-success:hover { background-color: #16A085; }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-danger:hover { background-color: #c0392b; }
+        .btn-secondary { background-color: #bdc3c7; color: var(--text-dark); }
+        .btn-secondary:hover { background-color: #95a5a6; color: white;}
+        .filter-controls { display: flex; gap: 1rem; margin-bottom: 2rem; }
+        .filter-controls .form-input { flex-grow: 1; }
+        .table-container { overflow-x: auto; }
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .data-table th, .data-table td { padding: 14px 18px; border-bottom: 1px solid var(--border-color); }
+        .data-table thead th { background-color: #f8f9fa; color: var(--primary-dark); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .data-table tbody tr { transition: background-color 0.2s ease; }
+        .data-table tbody tr:hover { background-color: #f5f5f5; cursor: pointer; }
+        .data-table tr.selected { background-color: rgba(52, 152, 219, 0.1) !important; box-shadow: inset 4px 0 0 0 var(--accent); }
+        .status-badge { padding: 4px 10px; border-radius: 50px; color: white; font-weight: 600; font-size: 0.8rem; text-align: center; }
+        .status-Activo { background-color: var(--success); }
+        .status-Vencido { background-color: var(--danger); }
+        .status-Por-vencer { background-color: var(--warning); color: var(--text-dark); }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1050; }
+        .toast { display: flex; align-items: center; padding: 15px 20px; border-radius: var(--border-radius-md); color: white; font-weight: 500; margin-bottom: 10px; box-shadow: var(--shadow); transform: translateX(120%); animation: slideIn 0.5s forwards; }
+        .toast.success { background-color: var(--success); }
+        .toast.error { background-color: var(--danger); }
+        .toast i { margin-right: 10px; font-size: 1.2rem; }
+        @keyframes slideIn { to { transform: translateX(0); } }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s ease; }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-content { background: white; padding: 2rem; border-radius: var(--border-radius-lg); width: 90%; max-width: 450px; text-align: center; transform: scale(0.9); transition: all 0.3s ease; }
+        .modal-overlay.active .modal-content { transform: scale(1); }
+        .modal-content h3 { margin-bottom: 1rem; color: var(--primary-dark); }
+        .modal-content p { margin-bottom: 2rem; color: var(--text-dark); }
+        .modal-buttons { display: flex; justify-content: center; gap: 1rem; }
+        @media (max-width: 768px) { .btn { width: 100%; } .form-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div id="toastContainer" class="toast-container"></div>
+<div id="confirmModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 id="modalTitle">Confirmar Acción</h3>
+        <p id="modalMessage">¿Estás seguro?</p>
+        <div class="modal-buttons">
+            <button id="modalCancelBtn" class="btn btn-secondary">Cancelar</button>
+            <button id="modalConfirmBtn" class="btn btn-danger">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <header class="content-header">
+        <h1 class="content-title">Gestión Completa de Empleados</h1>
+    </header>
+    
+    <main>
+        <section class="card">
+            <nav class="tab-nav">
+                <button class="tab-btn active" data-tab="personal">Información Personal</button>
+                <button class="tab-btn" data-tab="laboral">Información Laboral</button>
+                <button class="tab-btn" data-tab="contacto">Contacto</button>
+                <button class="tab-btn" data-tab="seguridad">Seguridad Social</button>
+                <button class="tab-btn" data-tab="emergencia">Contactos Emergencia</button>
+            </nav>
+
+            <div id="personal" class="tab-panel active">
+                <div class="form-grid">
+                    <div class="form-group"><label class="form-label" for="codigoInput">Código Empleado</label><input type="text" id="codigoInput" class="form-input" placeholder="EMP001"></div>
+                    <div class="form-group"><label class="form-label" for="nombreInput">Nombre Completo</label><input type="text" id="nombreInput" class="form-input" placeholder="Nombres y apellidos"></div>
+                    <div class="form-group"><label class="form-label" for="cedulaInput">Número de Cédula</label><input type="text" id="cedulaInput" class="form-input" placeholder="12345678"></div>
+                    <div class="form-group"><label class="form-label" for="rhSelect">RH</label><select id="rhSelect" class="form-select"></select></div>
+                    <div class="form-group"><label class="form-label" for="sexoSelect">Sexo</label><select id="sexoSelect" class="form-select"></select></div>
+                    <div class="form-group"><label class="form-label" for="fechaNacimientoInput">Fecha de Nacimiento</label><input type="date" id="fechaNacimientoInput" class="form-input"></div>
+                    <div class="form-group" style="grid-column: 1 / -1;"><label class="form-label" for="lugarNacimientoInput">Lugar de Nacimiento</label><input type="text" id="lugarNacimientoInput" class="form-input" placeholder="Ciudad, Departamento"></div>
+                </div>
+            </div>
+
+            <div id="laboral" class="tab-panel">
+                <div class="form-grid">
+                    <div class="form-group"><label class="form-label" for="cargoSelect">Cargo</label><select id="cargoSelect" class="form-select"></select></div>
+                    <div class="form-group"><label class="form-label" for="otroCargoInput">Otro Cargo (si aplica)</label><input type="text" id="otroCargoInput" class="form-input hidden" placeholder="Especifique el cargo"></div>
+                    <div class="form-group"><label class="form-label" for="contratoNumInput">Número de Contrato</label><input type="text" id="contratoNumInput" class="form-input" placeholder="CT001"></div>
+                    <div class="form-group"><label class="form-label" for="tipoContratoSelect">Tipo de Contrato</label><select id="tipoContratoSelect" class="form-select"></select></div>
+                    <div class="form-group"><label class="form-label" for="fechaInicioInput">Fecha de Inicio</label><input type="date" id="fechaInicioInput" class="form-input"></div>
+                    <div class="form-group"><label class="form-label" for="fechaFinInput">Fecha Fin Contrato (Opcional)</label><input type="date" id="fechaFinInput" class="form-input"></div>
+                    <div class="form-group"><label class="form-label">Tiempo de Trabajo</label><div id="tiempoTrabajoLabel" class="info-label">Calculado automáticamente</div></div>
+                </div>
+            </div>
+
+            <div id="contacto" class="tab-panel">
+                <div class="form-grid">
+                    <div class="form-group"><label class="form-label" for="telefonoInput">Teléfono</label><input type="tel" id="telefonoInput" class="form-input" placeholder="3001234567"></div>
+                    <div class="form-group"><label class="form-label" for="correoInput">Correo Electrónico</label><input type="email" id="correoInput" class="form-input" placeholder="empleado@ejemplo.com"></div>
+                    <div class="form-group" style="grid-column: 1 / -1;"><label class="form-label" for="direccionInput">Dirección</label><input type="text" id="direccionInput" class="form-input" placeholder="Dirección completa"></div>
+                </div>
+            </div>
+
+            <div id="seguridad" class="tab-panel">
+                <div class="form-grid">
+                    <div class="form-group"><label class="form-label" for="epsInput">EPS</label><input type="text" id="epsInput" class="form-input" placeholder="Nombre de la EPS"></div>
+                    <div class="form-group"><label class="form-label" for="arlInput">ARL</label><input type="text" id="arlInput" class="form-input" placeholder="Nombre de la ARL"></div>
+                    <div class="form-group"><label class="form-label" for="cajaInput">Caja de Compensación</label><input type="text" id="cajaInput" class="form-input" placeholder="Nombre de la Caja"></div>
+                    <div class="form-group"><label class="form-label" for="pensionInput">Fondo de Pensión</label><input type="text" id="pensionInput" class="form-input" placeholder="Fondo de pensión"></div>
+                </div>
+            </div>
+
+            <div id="emergencia" class="tab-panel">
+                <div class="form-grid">
+                    <h3 class="section-title">Contacto de Emergencia 1</h3>
+                    <div class="form-group"><label class="form-label" for="em1NombreInput">Nombre</label><input type="text" id="em1NombreInput" class="form-input"></div>
+                    <div class="form-group"><label class="form-label" for="em1TelefonoInput">Teléfono</label><input type="tel" id="em1TelefonoInput" class="form-input"></div>
+                    <div class="form-group"><label class="form-label" for="em1ParentescoSelect">Parentesco</label><select id="em1ParentescoSelect" class="form-select"></select></div>
+                    
+                    <h3 class="section-title">Contacto de Emergencia 2</h3>
+                    <div class="form-group"><label class="form-label" for="em2NombreInput">Nombre</label><input type="text" id="em2NombreInput" class="form-input"></div>
+                    <div class="form-group"><label class="form-label" for="em2TelefonoInput">Teléfono</label><input type="tel" id="em2TelefonoInput" class="form-input"></div>
+                    <div class="form-group"><label class="form-label" for="em2ParentescoSelect">Parentesco</label><select id="em2ParentescoSelect" class="form-select"></select></div>
+                </div>
+            </div>
+
+            <div class="buttons-container">
+                <button id="addBtn" class="btn btn-primary"><i class="fa-solid fa-user-plus"></i> Agregar Empleado</button>
+                <button id="editBtn" class="btn btn-primary"><i class="fa-solid fa-user-pen"></i> Editar Empleado</button>
+                <button id="deleteBtn" class="btn btn-danger"><i class="fa-solid fa-user-slash"></i> Eliminar Empleado</button>
+                <button id="clearBtn" class="btn btn-secondary"><i class="fa-solid fa-eraser"></i> Limpiar Campos</button>
+                <button id="exportBtn" class="btn btn-success"><i class="fa-solid fa-file-excel"></i> Descargar a Excel</button>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="filter-controls">
+                <input type="text" id="searchInput" class="form-input" placeholder="Buscar por Nombre, Cédula, Código o Cargo...">
+                <button id="clearFilterBtn" class="btn btn-secondary"><i class="fa-solid fa-xmark"></i> Limpiar Filtro</button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Cédula</th>
+                            <th>Cargo</th>
+                            <th>Teléfono</th>
+                            <th>Fecha Inicio</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="employeeTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    let API_URL = 'https://harvey-unspoilt-judie.ngrok-free.dev'; 
+    try {
+        if (window.parent && window.parent.API_BASE_URL) {
+            API_URL = window.parent.API_BASE_URL;
+        }
+    } catch (e) {
+        console.warn('No se pudo acceder a window.parent. Usando URL por defecto.');
+    }
+
+    let selectedCedula = null;
+    let employeesData_local = [];
+    let currentlyDisplayedData = [];
+
+    const rhOptions = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"];
+    const sexoOptions = ["Masculino", "Femenino", "Otro"];
+    const cargoOptions = ["Cortador", "Auxiliar de Corte", "Almacenista", "Auxiliar de Bodega", "Administrador", "Gerente", "Jefe de Ventas", "Asesor de Venta", "Operador", "Supervisor", "Otro"];
+    const tipoContratoOptions = ["Indefinido", "Fijo", "Obra o labor", "Prestación de servicios", "Aprendizaje"];
+    const parentescoOptions = ["Padre", "Madre", "Hermano/a", "Hijo/a", "Cónyuge", "Pareja", "Tío/a", "Primo/a", "Amigo/a", "Otro"];
+
+    const dom = {
+        tabs: document.querySelectorAll('.tab-btn'),
+        panels: document.querySelectorAll('.tab-panel'),
+        tableBody: document.getElementById('employeeTableBody'),
+        searchInput: document.getElementById('searchInput'),
+        addBtn: document.getElementById('addBtn'),
+        editBtn: document.getElementById('editBtn'),
+        deleteBtn: document.getElementById('deleteBtn'),
+        clearBtn: document.getElementById('clearBtn'),
+        exportBtn: document.getElementById('exportBtn'),
+        clearFilterBtn: document.getElementById('clearFilterBtn'),
+        codigoInput: document.getElementById('codigoInput'),
+        nombreInput: document.getElementById('nombreInput'),
+        cedulaInput: document.getElementById('cedulaInput'),
+        rhSelect: document.getElementById('rhSelect'),
+        sexoSelect: document.getElementById('sexoSelect'),
+        fechaNacimientoInput: document.getElementById('fechaNacimientoInput'),
+        lugarNacimientoInput: document.getElementById('lugarNacimientoInput'),
+        cargoSelect: document.getElementById('cargoSelect'),
+        otroCargoInput: document.getElementById('otroCargoInput'),
+        contratoNumInput: document.getElementById('contratoNumInput'),
+        tipoContratoSelect: document.getElementById('tipoContratoSelect'),
+        fechaInicioInput: document.getElementById('fechaInicioInput'),
+        fechaFinInput: document.getElementById('fechaFinInput'),
+        tiempoTrabajoLabel: document.getElementById('tiempoTrabajoLabel'),
+        telefonoInput: document.getElementById('telefonoInput'),
+        correoInput: document.getElementById('correoInput'),
+        direccionInput: document.getElementById('direccionInput'),
+        epsInput: document.getElementById('epsInput'),
+        arlInput: document.getElementById('arlInput'),
+        cajaInput: document.getElementById('cajaInput'),
+        pensionInput: document.getElementById('pensionInput'),
+        em1NombreInput: document.getElementById('em1NombreInput'),
+        em1TelefonoInput: document.getElementById('em1TelefonoInput'),
+        em1ParentescoSelect: document.getElementById('em1ParentescoSelect'),
+        em2NombreInput: document.getElementById('em2NombreInput'),
+        em2TelefonoInput: document.getElementById('em2TelefonoInput'),
+        em2ParentescoSelect: document.getElementById('em2ParentescoSelect'),
+    };
+
+    const showToast = (message, type = 'success') => {
+        const toastContainer = document.getElementById('toastContainer');
+        const icon = type === 'success' ? 'fa-check-circle' : 'fa-times-circle';
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `<i class="fas ${icon}"></i> ${message}`;
+        toastContainer.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    };
+
+    const showConfirmation = (message, onConfirm) => {
+        const confirmModal = document.getElementById('confirmModal');
+        document.getElementById('modalMessage').textContent = message;
+        confirmModal.classList.add('active');
+        const close = () => {
+            confirmModal.classList.remove('active');
+            document.getElementById('modalConfirmBtn').onclick = null;
+            document.getElementById('modalCancelBtn').onclick = null;
+        };
+        document.getElementById('modalConfirmBtn').onclick = () => { close(); onConfirm(); };
+        document.getElementById('modalCancelBtn').onclick = close;
+    };
+
+    const setButtonsLoading = (loading) => {
+        [dom.addBtn, dom.editBtn, dom.deleteBtn, dom.exportBtn].forEach(btn => btn.disabled = loading);
+    };
+
+    async function apiRequest(endpoint, method = 'GET', data = null) {
+        setButtonsLoading(true);
+        try {
+            const options = {
+                method,
+                headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+                mode: 'cors',
+            };
+            if (data) options.body = JSON.stringify(data);
+            const response = await fetch(`${API_URL}${endpoint}`, options);
+            const responseData = await response.json();
+            if (!response.ok) throw new Error(responseData.message || 'Error del servidor');
+            return responseData;
+        } catch (error) {
+            showToast(error.message, 'error');
+            throw error;
+        } finally {
+            setButtonsLoading(false);
+        }
+    }
+
+    function populateSelect(selectElement, options) {
+        selectElement.innerHTML = `<option value="" disabled selected>Seleccione...</option>` + options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+    }
+
+    function calculateWorkTime(startDateStr) {
+        if (!startDateStr) return "N/A";
+        const startDate = new Date(startDateStr);
+        const today = new Date();
+        if (isNaN(startDate.getTime())) return "Fecha inválida";
+        let years = today.getFullYear() - startDate.getFullYear();
+        let months = today.getMonth() - startDate.getMonth();
+        let days = today.getDate() - startDate.getDate();
+        if (days < 0) { months--; days += new Date(today.getFullYear(), today.getMonth(), 0).getDate(); }
+        if (months < 0) { years--; months += 12; }
+        return `${years}a, ${months}m, ${days}d`;
+    }
+
+    function updateWorkTime() {
+        dom.tiempoTrabajoLabel.textContent = calculateWorkTime(dom.fechaInicioInput.value);
+    }
+
+    function collectFormData() {
+        const cargo = dom.cargoSelect.value === 'Otro' ? dom.otroCargoInput.value.trim() : dom.cargoSelect.value;
+        if (dom.cargoSelect.value === 'Otro' && !cargo) {
+            showToast('Por favor, especifique el cargo.', 'error');
+            return null;
+        }
+        const data = {
+            codigo_empleado: dom.codigoInput.value.trim(), name: dom.nombreInput.value.trim(), cedula: dom.cedulaInput.value.trim(),
+            rh: dom.rhSelect.value, sexo: dom.sexoSelect.value, fecha_nacimiento: dom.fechaNacimientoInput.value,
+            lugar_nacimiento: dom.lugarNacimientoInput.value.trim(), role: cargo, numero_contrato: dom.contratoNumInput.value.trim(),
+            tipo_contrato: dom.tipoContratoSelect.value, fecha_inicio: dom.fechaInicioInput.value, fecha_fin_contrato: dom.fechaFinInput.value || '',
+            phone: dom.telefonoInput.value.trim(), correo: dom.correoInput.value.trim(), direccion: dom.direccionInput.value.trim(),
+            eps: dom.epsInput.value.trim(), arl: dom.arlInput.value.trim(), caja: dom.cajaInput.value.trim(), pension: dom.pensionInput.value.trim(),
+            emergencia1_nombre: dom.em1NombreInput.value.trim(), emergencia1_telefono: dom.em1TelefonoInput.value.trim(), emergencia1_parentesco: dom.em1ParentescoSelect.value,
+            emergencia2_nombre: dom.em2NombreInput.value.trim(), emergencia2_telefono: dom.em2TelefonoInput.value.trim(), emergencia2_parentesco: dom.em2ParentescoSelect.value
+        };
+        if (!data.name || !data.cedula) {
+             showToast('Nombre y Cédula son obligatorios.', 'error'); 
+             return null;
+        }
+        return data;
+    }
+
+    function clearForm() {
+        document.querySelectorAll('.form-input, .form-select').forEach(el => el.value = '');
+        dom.cargoSelect.dispatchEvent(new Event('change'));
+        updateWorkTime();
+        selectedCedula = null;
+        dom.cedulaInput.disabled = false;
+        document.querySelectorAll('.data-table tr.selected').forEach(row => row.classList.remove('selected'));
+    }
+
+    function renderTable(data) {
+        currentlyDisplayedData = data;
+        dom.tableBody.innerHTML = '';
+        if (data.length === 0) {
+            dom.tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 2rem;">No se encontraron registros.</td></tr>`;
+            return;
+        }
+        data.forEach((record) => {
+            const tr = document.createElement('tr');
+            tr.onclick = () => selectRecord(record.cedula);
+            let estado = "Activo"; let estadoClass = "status-Activo";
+            if(record.fecha_fin_contrato) {
+                const fin = new Date(record.fecha_fin_contrato);
+                const hoy = new Date();
+                const diffDays = (fin - hoy) / (1000 * 60 * 60 * 24);
+                if (diffDays < 0) { estado = "Vencido"; estadoClass = "status-Vencido"; }
+                else if (diffDays <= 30) { estado = "Por vencer"; estadoClass = "status-Por-vencer"; }
+            }
+            tr.innerHTML = `
+                <td>${record.codigo_empleado || ''}</td>
+                <td>${record.name || ''}</td>
+                <td>${record.cedula || ''}</td>
+                <td>${record.role || ''}</td>
+                <td>${record.phone || ''}</td>
+                <td>${record.fecha_inicio || ''}</td>
+                <td><span class="status-badge ${estadoClass}">${estado}</span></td>`;
+            dom.tableBody.appendChild(tr);
+        });
+    }
+
+    function filterRecords() {
+        const term = dom.searchInput.value.toLowerCase();
+        const filtered = term ? employeesData_local.filter(emp =>
+            Object.values(emp).some(val => String(val).toLowerCase().includes(term))
+        ) : employeesData_local;
+        renderTable(filtered);
+    }
+    
+    async function loadEmployees() {
+        renderTable([]);
+        try {
+            const response = await apiRequest('/employees');
+            employeesData_local = response || [];
+            filterRecords();
+        } catch (error) {
+            renderTable([]);
+        }
+    }
+
+    function selectRecord(cedula) {
+        selectedCedula = cedula;
+        const record = employeesData_local.find(e => e.cedula === cedula);
+        if (!record) return;
+
+        dom.codigoInput.value = record.codigo_empleado || '';
+        dom.nombreInput.value = record.name || '';
+        dom.cedulaInput.value = record.cedula || '';
+        dom.cedulaInput.disabled = true; // La cédula es el identificador, no debe cambiar
+        dom.rhSelect.value = record.rh || '';
+        dom.sexoSelect.value = record.sexo || '';
+        dom.fechaNacimientoInput.value = record.fecha_nacimiento || '';
+        dom.lugarNacimientoInput.value = record.lugar_nacimiento || '';
+        
+        if(cargoOptions.includes(record.role)) { 
+            dom.cargoSelect.value = record.role; 
+            dom.otroCargoInput.classList.add('hidden');
+            dom.otroCargoInput.value = '';
+        } else { 
+            dom.cargoSelect.value = "Otro"; 
+            dom.otroCargoInput.value = record.role || '';
+            dom.otroCargoInput.classList.remove('hidden');
+        }
+        
+        dom.contratoNumInput.value = record.numero_contrato || '';
+        dom.tipoContratoSelect.value = record.tipo_contrato || '';
+        dom.fechaInicioInput.value = record.fecha_inicio || '';
+        dom.fechaFinInput.value = record.fecha_fin_contrato || '';
+        updateWorkTime();
+
+        dom.telefonoInput.value = record.phone || '';
+        dom.correoInput.value = record.correo || '';
+        dom.direccionInput.value = record.direccion || '';
+        dom.epsInput.value = record.eps || '';
+        dom.arlInput.value = record.arl || '';
+        dom.cajaInput.value = record.caja || '';
+        dom.pensionInput.value = record.pension || '';
+        dom.em1NombreInput.value = record.emergencia1_nombre || '';
+        dom.em1TelefonoInput.value = record.emergencia1_telefono || '';
+        dom.em1ParentescoSelect.value = record.emergencia1_parentesco || '';
+        dom.em2NombreInput.value = record.emergencia2_nombre || '';
+        dom.em2TelefonoInput.value = record.emergencia2_telefono || '';
+        dom.em2ParentescoSelect.value = record.emergencia2_parentesco || '';
+        
+        document.querySelectorAll('.data-table tr').forEach(row => row.classList.remove('selected'));
+        const rowToSelect = Array.from(dom.tableBody.children).find(row => row.children[2].textContent === cedula);
+        if (rowToSelect) rowToSelect.classList.add('selected');
+    }
+
+    async function addEmployee() {
+        const data = collectFormData();
+        if (!data) return;
+        try {
+            const result = await apiRequest('/employees', 'POST', data);
+            showToast(result.message, 'success');
+            clearForm();
+            await loadEmployees();
+        } catch (error) {}
+    }
+
+    async function editEmployee() {
+        if (!selectedCedula) { 
+            showToast("Seleccione un empleado para editar.", 'error'); 
+            return; 
+        }
+        const data = collectFormData();
+        if (!data) return;
+        try {
+            const result = await apiRequest(`/employees/${selectedCedula}`, 'PUT', data);
+            showToast(result.message, 'success');
+            clearForm();
+            await loadEmployees();
+        } catch (error) {}
+    }
+    
+    function deleteEmployee() {
+        if (!selectedCedula) { 
+            showToast("Seleccione un empleado para eliminar.", 'error'); 
+            return; 
+        }
+        showConfirmation(`¿Seguro que desea eliminar al empleado con cédula ${selectedCedula}?`, async () => {
+            try {
+                const result = await apiRequest('/employees', 'DELETE', { cedulas: [selectedCedula] });
+                showToast(result.message, 'success');
+                clearForm();
+                await loadEmployees();
+            } catch (error) {}
+        });
+    }
+
+    function exportToExcel() {
+        if (currentlyDisplayedData.length === 0) {
+            alert("No hay datos para exportar.");
+            return;
+        }
+        const dataToExport = currentlyDisplayedData.map(record => ({
+            'Código Empleado': record.codigo_empleado, 'Nombre Completo': record.name, 'Cédula': record.cedula,
+            'RH': record.rh, 'Sexo': record.sexo, 'Fecha Nacimiento': record.fecha_nacimiento,
+            'Lugar Nacimiento': record.lugar_nacimiento, 'Cargo': record.role, 'Nº Contrato': record.numero_contrato,
+            'Tipo Contrato': record.tipo_contrato, 'Fecha Inicio': record.fecha_inicio, 'Fecha Fin Contrato': record.fecha_fin_contrato,
+            'Teléfono': record.phone, 'Correo': record.correo, 'Dirección': record.direccion,
+            'EPS': record.eps, 'ARL': record.arl, 'Caja Compensación': record.caja, 'Pensión': record.pension,
+            'Emergencia 1 Nombre': record.emergencia1_nombre, 'Emergencia 1 Teléfono': record.emergencia1_telefono, 'Emergencia 1 Parentesco': record.emergencia1_parentesco,
+            'Emergencia 2 Nombre': record.emergencia2_nombre, 'Emergencia 2 Teléfono': record.emergencia2_telefono, 'Emergencia 2 Parentesco': record.emergencia2_parentesco
+        }));
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Empleados");
+        XLSX.writeFile(workbook, "Reporte_Empleados.xlsx");
+    }
+
+    function init() {
+        populateSelect(dom.rhSelect, rhOptions);
+        populateSelect(dom.sexoSelect, sexoOptions);
+        populateSelect(dom.cargoSelect, cargoOptions);
+        populateSelect(dom.tipoContratoSelect, tipoContratoOptions);
+        populateSelect(dom.em1ParentescoSelect, parentescoOptions);
+        populateSelect(dom.em2ParentescoSelect, parentescoOptions);
+        
+        dom.tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                dom.tabs.forEach(t => t.classList.remove('active'));
+                dom.panels.forEach(p => p.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+        
+        dom.cargoSelect.addEventListener('change', (e) => {
+            dom.otroCargoInput.classList.toggle('hidden', e.target.value !== 'Otro');
+        });
+        dom.fechaInicioInput.addEventListener('change', updateWorkTime);
+        
+        dom.addBtn.addEventListener('click', addEmployee);
+        dom.editBtn.addEventListener('click', editEmployee);
+        dom.deleteBtn.addEventListener('click', deleteEmployee);
+        dom.clearBtn.addEventListener('click', clearForm);
+        dom.exportBtn.addEventListener('click', exportToExcel);
+        
+        dom.searchInput.addEventListener('input', filterRecords);
+        dom.clearFilterBtn.addEventListener('click', () => { dom.searchInput.value = ''; filterRecords(); });
+        
+        clearForm();
+        loadEmployees();
+    }
+    
+    init();
+});
+</script>
+
+</body>
+</html>

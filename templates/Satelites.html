@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Satélites - DAMAR</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-dark: #2C3E50; --secondary-light: #ECF0F1; --accent: #3498DB;
+            --text-dark: #34495E; --text-light: white; --hover-accent: #2980B9;
+            --success: #27AE60; --warning: #F39C12; --danger: #E74C3C;
+            --border-color: #dfe4ea; --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --shadow: 0 10px 30px rgba(44, 62, 80, 0.1); --shadow-hover: 0 15px 35px rgba(44, 62, 80, 0.15);
+            --font-family: 'Poppins', sans-serif; --border-radius-lg: 12px; --border-radius-md: 8px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-family); background-color: var(--secondary-light); color: var(--text-dark); }
+        .container { max-width: 1600px; margin: 2rem auto; padding: 0 1.5rem; }
+        .card { background-color: white; border-radius: var(--border-radius-lg); padding: 2.5rem; margin-bottom: 2rem; box-shadow: var(--shadow); }
+        .content-header { text-align: center; margin-bottom: 2.5rem; }
+        .content-title { font-size: 2.5rem; font-weight: 700; color: var(--primary-dark); }
+        .main-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+        .tab-nav { display: flex; flex-wrap: wrap; border-bottom: 2px solid var(--border-color); margin-bottom: 1.5rem; }
+        .tab-btn { padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; border: none; background-color: transparent; color: var(--text-dark); border-bottom: 3px solid transparent; transition: all 0.3s ease; }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; animation: fadeIn 0.4s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-label { font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem; }
+        .form-input, .form-select { width: 100%; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--border-radius-md); font-size: 1rem; }
+        .form-input:focus, .form-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15); }
+        .form-input.observacion-input { min-height: 80px; resize: vertical; font-family: inherit; line-height: 1.4; }
+        .buttons-container { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
+        .btn { border: none; border-radius: var(--border-radius-md); padding: 12px 24px; font-size: 0.95rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.75rem; transition: all 0.3s ease; text-transform: uppercase; }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-primary { background: var(--gradient-primary); color: white; }
+        .btn-success { background-color: var(--success); color: white; }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-secondary { background-color: var(--secondary-light); color: var(--text-dark); border: 1px solid var(--border-color); }
+        .table-container { overflow-x: auto; max-height: 500px; }
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .data-table th, .data-table td { padding: 12px 10px; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+        .data-table thead th { background-color: #f8f9fa; color: var(--primary-dark); font-weight: 600; text-transform: uppercase; font-size: 0.8rem; position: sticky; top: 0; z-index: 2; }
+        .data-table tbody tr:hover { background-color: #f5f5f5; }
+        .data-table tr.selected { background-color: rgba(52, 152, 219, 0.1) !important; box-shadow: inset 4px 0 0 0 var(--accent); }
+
+
+        .data-table tr.estado-llevado { background-color: #A5D6A7 !important; }
+        .data-table tr.estado-llevado:hover { background-color: #81C784 !important; }
+        .data-table tr.estado-llevado td { color: #1B5E20; font-weight: 500; }
+
+
+        .status-badge { padding: 4px 10px; border-radius: 50px; color: white; font-weight: 600; font-size: 0.8rem; text-align: center; }
+        .status-Asignado { background-color: var(--warning); color: var(--text-dark); }
+        .status-Entregado { background-color: var(--success); }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s ease; }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-content { background: white; padding: 2rem; border-radius: var(--border-radius-lg); width: 90%; max-width: 450px; text-align: center; transform: scale(0.9); transition: all 0.3s ease; }
+        .modal-overlay.active .modal-content { transform: scale(1); }
+        .payment-details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; background-color: #f8f9fa; padding: 1rem; border-radius: var(--border-radius-md); margin: 1.5rem 0; }
+        .detail-item { display: flex; flex-direction: column; }
+        .detail-item .label { font-size: 0.8rem; font-weight: 600; color: #6c757d; }
+        .detail-item .value { font-size: 1.1rem; font-weight: 500; color: var(--text-dark); }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+        .toast { background: white; border-left: 4px solid var(--success); padding: 15px 20px; margin-bottom: 10px; border-radius: 5px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 10px; min-width: 300px; animation: slideIn 0.3s ease; }
+        .toast.error { border-left-color: var(--danger); }
+        .toast i { font-size: 1.2rem; }
+        .toast.success i { color: var(--success); }
+        .toast.error i { color: var(--danger); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div id="toastContainer" class="toast-container"></div>
+<div id="passwordModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3>Acceso Restringido</h3>
+        <p>Por favor, ingrese la contraseña para acceder a la sección de pagos.</p>
+        <div class="form-group" style="margin: 1.5rem 0;">
+            <input type="password" id="passwordInput" class="form-input" placeholder="Contraseña">
+        </div>
+        <div style="display: flex; justify-content: center; gap: 1rem;">
+            <button id="passwordCancelBtn" class="btn btn-secondary">Cancelar</button>
+            <button id="passwordSubmitBtn" class="btn btn-primary">Ingresar</button>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <header class="content-header">
+        <h1 class="content-title">Gestión de Satélites</h1>
+    </header>
+    
+    <div class="main-grid">
+        <section class="card">
+            <nav class="tab-nav">
+                <button class="tab-btn active" data-tab="finished-cuts-panel">Lista de Cortes Realizados</button>
+                <button class="tab-btn" data-tab="deliveries-panel">Entregas</button>
+                <button class="tab-btn" data-tab="payments-panel">Pagos</button>
+            </nav>
+
+
+            <div id="paymentDetailsModal" class="modal-overlay">
+                <div class="modal-content" style="max-width: 850px; text-align: left;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3 style="margin: 0;">Detalles del Pago Realizado</h3>
+                        <button id="closePaymentDetailsModalBtn" class="btn" style="padding: 8px 12px; background: transparent; border: none; font-size: 1.5rem; color: var(--text-dark); cursor: pointer;">&times;</button>
+                    </div>
+                    <p>A continuación se muestran los cortes que fueron incluidos en este pago. <br><strong style="font-size: 0.9rem;">Nota:</strong> El 'Valor Unitario' y 'Valor Total' no se guardan históricamente si fueron modificados, por lo que no se muestran.</p>
+                    <div id="paymentDetailsContainer" class="table-container" style="margin-top: 1rem;">
+                        </div>
+                    <div class="buttons-container" style="justify-content: flex-end; border-top: none; padding-top: 1rem; margin-top: 1rem;">
+                         <button id="closePaymentDetailsModalBtnSecondary" class="btn btn-secondary">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <div id="editPaymentModal" class="modal-overlay">
+                <div class="modal-content" style="max-width: 600px; text-align: left;">
+                    <h3 style="margin-bottom: 1.5rem;">Editar Registro de Pago</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Monto Pagado (COP)</label>
+                            <input type="number" id="editPaymentAmountInput" class="form-input" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Método</label>
+                            <select id="editPaymentMethodSelect" class="form-select"></select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Estado</label>
+                            <select id="editPaymentStatusSelect" class="form-select">
+                                <option value="CANCELADO">CANCELADO</option>
+                                <option value="PARCIAL">PARCIAL</option>
+                            </select>
+                        </div>
+                         <div class="form-group" style="grid-column: 1 / -1;">
+                            <label class="form-label">Observación</label>
+                            <textarea id="editPaymentObservationInput" class="form-input observacion-input" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="buttons-container" style="justify-content: flex-end;">
+                        <button id="cancelEditPaymentBtn" class="btn btn-secondary">Cancelar</button>
+                        <button id="savePaymentChangesBtn" class="btn btn-success"><i class="fa-solid fa-save"></i> Guardar Cambios</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="finished-cuts-panel" class="tab-panel active">
+                <h4>Asignar Satélite y Muestra a Corte</h4>
+                
+                <div class="form-grid" style="margin-top: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Serial</label>
+                        <input type="text" id="finishedCutsSerialInput" class="form-input" placeholder="Ingrese el serial">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Satélite</label>
+                        <select id="finishedCutsSatelliteSelect" class="form-select">
+                            <option value="">Seleccionar satélite...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div style="background-color: #f8f9fa; padding: 1.5rem; border-radius: var(--border-radius-md); margin-top: 1.5rem; border-left: 4px solid var(--accent);">
+                    <h5 style="margin-bottom: 1rem; color: var(--primary-dark); font-size: 1.1rem;"><i class="fa-solid fa-flask" style="margin-right: 0.5rem; color: var(--accent);"></i>Configuración de Muestra</h5>
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="finishedCutsSampleCheckbox" style="width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent);">
+                            <label for="finishedCutsSampleCheckbox" style="margin-bottom: 0; font-weight: 600; color: var(--text-dark);">Incluir Muestra</label>
+                        </div>
+                        <div id="sampleCodeContainer" style="display: none; flex: 1; min-width: 250px;">
+                            <input type="text" id="finishedCutsSampleCodeInput" class="form-input" placeholder="Número de muestra (ej: M-001)" style="margin: 0;">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="buttons-container">
+                    <button id="updateFinishedCutBtn" class="btn btn-success"><i class="fa-solid fa-save"></i> Actualizar</button>
+                    <button id="clearFinishedCutBtn" class="btn btn-secondary"><i class="fa-solid fa-eraser"></i> Limpiar</button>
+                    <button id="markAsTakenBtn" class="btn btn-primary"><i class="fa-solid fa-truck"></i> Marcar como Llevado</button>
+                </div>
+                
+                <div class="form-group" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+                    <input type="text" id="finishedCutsSearchInput" class="form-input" placeholder="Buscar por Lote, Referencia, Satélite o Serial...">
+                </div>
+                
+                <div class="table-container" style="margin-top: 1rem;">
+                    <table class="data-table">
+                        <thead><tr><th><input type="checkbox" id="selectAllFinishedCutsCheckbox"></th><th>Lote</th><th>Referencia</th><th>Satélite</th><th>Serial</th><th>Cantidad</th><th>Muestra</th></tr></thead>
+                        <tbody id="finishedCutsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="deliveries-panel" class="tab-panel">
+                 <h4>Registrar Entrega</h4>
+                <div class="form-grid" style="margin-top: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Serial del Producto</label>
+                        <input type="text" id="deliveryProductSerialSearchInput" class="form-input" placeholder="Escriba para buscar serial...">
+                        <select id="deliveryProductSerialSelect" class="form-select" style="margin-top: 0.5rem;"><option value="">Seleccionar serial...</option></select>
+                    </div>
+                </div>
+                <div id="productInfoDisplay" class="payment-details-grid" style="display: none; margin: 1.5rem 0;">
+                    <div class="detail-item"><span class="label">Fecha de Corte</span><span class="value" id="productDate">-</span></div>
+                    <div class="detail-item"><span class="label">Referencia</span><span class="value" id="productReference">-</span></div>
+                    <div class="detail-item"><span class="label">Satélite Asignado</span><span class="value" id="productSatellite">-</span></div>
+                    <div class="detail-item"><span class="label">Cantidad Total</span><span class="value" id="productQuantity">-</span></div>
+                    <div class="detail-item"><span class="label">Ya Entregado</span><span class="value" id="totalDelivered">0</span></div>
+                    <div class="detail-item"><span class="label">Stock Disponible</span><span class="value" id="availableStock" style="color: var(--success); font-weight: 700;">-</span></div>
+                </div>
+                <div class="form-grid" style="margin-top: 1rem;">
+                    <div class="form-group"><label class="form-label">Cantidad a Entregar</label><input type="number" id="deliveryQuantityInput" class="form-input" min="1" placeholder="0"></div>
+                    <div class="form-group"><label class="form-label">Fecha de Entrega</label><input type="date" id="deliveryDateInput" class="form-input"></div>
+                    <div class="form-group" style="grid-column: 1 / -1;"><label class="form-label">Observación</label><textarea id="observacionEntrega" class="form-input observacion-input" placeholder="Ingrese observaciones sobre la entrega..." rows="3"></textarea></div>
+                </div>
+                <div class="buttons-container" style="justify-content: flex-start; border-top: none; padding-top: 0;">
+                    <button id="registerDeliveryBtn" class="btn btn-success"><i class="fa-solid fa-truck-fast"></i> Registrar Entrega</button>
+                    <button id="clearDeliveryBtn" class="btn btn-secondary"><i class="fa-solid fa-eraser"></i> Limpiar</button>
+                </div>
+                <div class="search-controls" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+                    <input type="text" id="deliverySearchSerialInput" class="form-input" placeholder="Buscar Serial..."><input type="text" id="deliverySearchSatelliteInput" class="form-input" placeholder="Buscar Satélite..."><input type="date" id="deliverySearchDateInput" class="form-input"><button id="deliveryClearSearchBtn" class="btn btn-secondary">Limpiar</button>
+                </div>
+                <h4 style="margin-top: 1rem;">Historial de Entregas</h4>
+                <div class="table-container" style="margin-top: 1rem;">
+                    <table class="data-table"><thead><tr><th>Fecha Entrega</th><th>Serial</th><th>Referencia</th><th>Satélite</th><th>Cant. Total</th><th>Cant. Entregada</th><th>Stock Restante</th><th>Observación</th></tr></thead><tbody id="deliveriesTableBody"></tbody></table>
+                </div>
+            </div>
+
+            <div id="payments-panel" class="tab-panel">
+                <div id="paymentContent" style="display: none;">
+                    <h4>Registrar Pago de Asignación</h4>
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label class="form-label">Buscar y Seleccionar Seriales</label>
+                        <input type="text" id="paymentProductSerialSearchInput" class="form-input" placeholder="Buscar por serial, referencia o satélite...">
+                    </div>
+
+                    <div class="table-container" style="margin-top: 1rem; max-height: 250px;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="selectAllPaymentSerials"></th>
+                                    <th>Fecha Ent.</th>
+                                    <th>Serial</th>
+                                    <th>Referencia</th>
+                                    <th>Satélite</th>
+                                    <th>Valor Unitario</th>
+                                    <th>Valor Total</th>
+                                    <th>Cant. Entregada</th>
+                                    <th>Cant. Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="paymentSelectableDeliveriesBody"></tbody>
+                        </table>
+                    </div>
+                    
+                    <div id="paymentProductInfoDisplay" class="payment-details-grid" style="margin: 1.5rem 0;">
+                        <div class="detail-item" style="grid-column: 1 / -1;">
+                            <span class="label">Seriales Seleccionados</span>
+                            <span class="value" id="paymentSelectedSerials" style="font-size: 0.9rem; white-space: normal;">Ninguno</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Satélite a Pagar</span>
+                            <span class="value" id="paymentSatelliteDisplay" style="color: var(--primary-dark); font-weight: 700;">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Total a Pagar</span>
+                            <span class="value" id="paymentTotalAmount" style="color: var(--accent); font-weight: 700;">$0</span>
+                        </div>
+                    </div>
+
+                    <div class="form-grid" style="margin-top: 1.5rem;">
+                        <div class="form-group"><label class="form-label">Monto a Pagar (COP)</label><input type="number" id="paymentAmountInput" class="form-input" placeholder="0.00" min="0" step="0.01"></div>
+                        <div class="form-group"><label class="form-label">Método</label><select id="paymentMethodSelect" class="form-select"></select></div>
+                        <div class="form-group"><label class="form-label">Estado</label><select id="paymentStatusSelect" class="form-select"><option value="CANCELADO">CANCELADO</option><option value="PARCIAL">PARCIAL</option></select></div>
+                        <div class="form-group" id="partialPaymentValueContainer" style="display: none;"><label class="form-label">Valor Parcial</label><input type="number" id="partialPaymentValueInput" class="form-input" placeholder="0.00" min="0" step="0.01"></div>
+                        <div class="form-group" style="grid-column: 1 / -1;"><label class="form-label">Casilla de Observación</label><textarea id="paymentObservationInput" class="form-input observacion-input" placeholder="Ingrese observaciones sobre el pago..." rows="3"></textarea></div>
+                    </div>
+                    <div class="buttons-container" style="justify-content: flex-start;">
+                        <button id="registerPaymentBtn" class="btn btn-success"><i class="fa-solid fa-dollar-sign"></i> Registrar Pago</button>
+                        <button id="clearPaymentBtn" class="btn btn-secondary"><i class="fa-solid fa-eraser"></i> Limpiar</button>
+                    </div>
+
+                    <div class="search-controls" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+                        <input type="text" id="paymentSearchSerialInput" class="form-input" placeholder="Buscar Serial..."><input type="text" id="paymentSearchSatelliteInput" class="form-input" placeholder="Buscar Satélite..."><input type="date" id="paymentSearchDateInput" class="form-input"><button id="paymentClearSearchBtn" class="btn btn-secondary">Limpiar</button>
+                    </div>
+                    <h4 style="margin-top: 1rem;">Historial de Pagos</h4>
+                    <div class="table-container" style="margin-top: 1rem;">
+                        <table class="data-table"><thead><tr><th>Fecha</th><th>Serial(es)</th><th>Satélite</th><th>Monto Pagado</th><th>Estado</th><th>Observación</th></tr></thead><tbody id="paymentsTableBody"></tbody></table>
+                    </div>
+                    <h3 style="margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">Resumen por Satélite</h3>
+                    <div class="table-container" style="margin-top: 1rem;">
+                        <table class="data-table"><thead><tr><th>Satélite</th><th>Valor Asignado</th><th>Total Pagado</th><th>Saldo Pendiente</th></tr></thead><tbody id="summaryTableBody"></tbody></table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const API_URL = 'https://harvey-unspoilt-judie.ngrok-free.dev';
+    let satellites = [], products = [], assignments = [], deliveries = [], payments = [];
+    let selectedProductId = null;
+    let paymentAccessGranted = false;
+    let allProductSerialOptions = [];
+    
+    let selectedProductsForPayment = new Map();
+
+    const dom = {
+        tabs: document.querySelectorAll('.tab-btn'), panels: document.querySelectorAll('.tab-panel'),
+        finishedCutsTableBody: document.getElementById('finishedCutsTableBody'),
+        finishedCutsSearchInput: document.getElementById('finishedCutsSearchInput'),
+        finishedCutsSatelliteSelect: document.getElementById('finishedCutsSatelliteSelect'),
+        finishedCutsSerialInput: document.getElementById('finishedCutsSerialInput'),
+        finishedCutsSampleCheckbox: document.getElementById('finishedCutsSampleCheckbox'),
+        finishedCutsSampleCodeInput: document.getElementById('finishedCutsSampleCodeInput'),
+        paymentDetailsModal: document.getElementById('paymentDetailsModal'),
+        paymentDetailsContainer: document.getElementById('paymentDetailsContainer'),
+        closePaymentDetailsModalBtn: document.getElementById('closePaymentDetailsModalBtn'),
+        closePaymentDetailsModalBtnSecondary: document.getElementById('closePaymentDetailsModalBtnSecondary'),
+        sampleCodeContainer: document.getElementById('sampleCodeContainer'),
+        updateFinishedCutBtn: document.getElementById('updateFinishedCutBtn'),
+        clearFinishedCutBtn: document.getElementById('clearFinishedCutBtn'),
+        markAsTakenBtn: document.getElementById('markAsTakenBtn'),
+        selectAllFinishedCutsCheckbox: document.getElementById('selectAllFinishedCutsCheckbox'),
+        deliveryProductSerialSearchInput: document.getElementById('deliveryProductSerialSearchInput'),
+        deliveryProductSerialSelect: document.getElementById('deliveryProductSerialSelect'),
+        productInfoDisplay: document.getElementById('productInfoDisplay'),
+        productDate: document.getElementById('productDate'),
+        productReference: document.getElementById('productReference'),
+        productSatellite: document.getElementById('productSatellite'),
+        productQuantity: document.getElementById('productQuantity'),
+        totalDelivered: document.getElementById('totalDelivered'),
+        availableStock: document.getElementById('availableStock'),
+        deliveryQuantityInput: document.getElementById('deliveryQuantityInput'), 
+        deliveryDateInput: document.getElementById('deliveryDateInput'),
+        observacionEntrega: document.getElementById('observacionEntrega'),
+        registerDeliveryBtn: document.getElementById('registerDeliveryBtn'),
+        clearDeliveryBtn: document.getElementById('clearDeliveryBtn'),
+        paymentContent: document.getElementById('paymentContent'),
+        paymentProductSerialSearchInput: document.getElementById('paymentProductSerialSearchInput'),
+        paymentSelectableDeliveriesBody: document.getElementById('paymentSelectableDeliveriesBody'),
+        selectAllPaymentSerials: document.getElementById('selectAllPaymentSerials'),
+        paymentSelectedSerials: document.getElementById('paymentSelectedSerials'),
+        paymentSatelliteDisplay: document.getElementById('paymentSatelliteDisplay'),
+        paymentTotalAmount: document.getElementById('paymentTotalAmount'),
+        paymentAmountInput: document.getElementById('paymentAmountInput'), 
+        paymentMethodSelect: document.getElementById('paymentMethodSelect'),
+        paymentStatusSelect: document.getElementById('paymentStatusSelect'),
+        partialPaymentValueContainer: document.getElementById('partialPaymentValueContainer'),
+        partialPaymentValueInput: document.getElementById('partialPaymentValueInput'),
+        paymentObservationInput: document.getElementById('paymentObservationInput'),
+        registerPaymentBtn: document.getElementById('registerPaymentBtn'),
+        clearPaymentBtn: document.getElementById('clearPaymentBtn'),
+        paymentsTableBody: document.getElementById('paymentsTableBody'),
+        summaryTableBody: document.getElementById('summaryTableBody'),
+        passwordModal: document.getElementById('passwordModal'), 
+        passwordInput: document.getElementById('passwordInput'),
+        passwordSubmitBtn: document.getElementById('passwordSubmitBtn'), 
+        passwordCancelBtn: document.getElementById('passwordCancelBtn'),
+        deliverySearchSerialInput: document.getElementById('deliverySearchSerialInput'),
+        deliverySearchSatelliteInput: document.getElementById('deliverySearchSatelliteInput'),
+        deliverySearchDateInput: document.getElementById('deliverySearchDateInput'),
+        deliveryClearSearchBtn: document.getElementById('deliveryClearSearchBtn'),
+        deliveriesTableBody: document.getElementById('deliveriesTableBody'),
+        paymentSearchSerialInput: document.getElementById('paymentSearchSerialInput'),
+        paymentSearchSatelliteInput: document.getElementById('paymentSearchSatelliteInput'),
+        paymentSearchDateInput: document.getElementById('paymentSearchDateInput'),
+        paymentClearSearchBtn: document.getElementById('paymentClearSearchBtn'),
+        editPaymentModal: document.getElementById('editPaymentModal'),
+        editPaymentAmountInput: document.getElementById('editPaymentAmountInput'),
+        editPaymentMethodSelect: document.getElementById('editPaymentMethodSelect'),
+        editPaymentStatusSelect: document.getElementById('editPaymentStatusSelect'),
+        editPaymentObservationInput: document.getElementById('editPaymentObservationInput'),
+        cancelEditPaymentBtn: document.getElementById('cancelEditPaymentBtn'),
+        savePaymentChangesBtn: document.getElementById('savePaymentChangesBtn'),
+    };
+
+    const showToast = (message, type = 'success') => {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'times-circle'}"></i> ${message}`;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    };
+
+    async function apiRequest(endpoint, method = 'GET', data = null) {
+        document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+        try {
+            const options = { method, headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, mode: 'cors' };
+            if (data) options.body = JSON.stringify(data);
+            const response = await fetch(`${API_URL}${endpoint}`, options);
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("Server error response:", errorText);
+                throw new Error(`Error del servidor: ${response.status}.`);
+            }
+            return await response.json();
+        } catch (error) {
+            showToast(error.message, 'error');
+            throw error;
+        } finally {
+            document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+        }
+    }
+
+
+    function openEditPaymentModal(paymentId) {
+        const payment = payments.find(p => p.id === paymentId);
+        if (!payment) {
+            showToast('No se encontró el pago para editar.', 'error');
+            return;
+        }
+        
+        dom.editPaymentModal.dataset.paymentId = paymentId;
+        dom.editPaymentAmountInput.value = payment.payment_amount;
+        dom.editPaymentMethodSelect.innerHTML = dom.paymentMethodSelect.innerHTML;
+        dom.editPaymentMethodSelect.value = payment.payment_method;
+        dom.editPaymentStatusSelect.value = payment.status;
+        dom.editPaymentObservationInput.value = payment.observation;
+        dom.editPaymentModal.classList.add('active');
+    }
+
+    async function savePaymentChanges() {
+        const paymentId = dom.editPaymentModal.dataset.paymentId;
+        if (!paymentId) return;
+        const data = {
+            payment_amount: parseFloat(dom.editPaymentAmountInput.value) || 0,
+            payment_method: dom.editPaymentMethodSelect.value,
+            status: dom.editPaymentStatusSelect.value,
+            observation: dom.editPaymentObservationInput.value.trim()
+        };
+        try {
+            const result = await apiRequest(`/payments/${paymentId}`, 'PUT', data);
+            dom.editPaymentModal.classList.remove('active');
+            showToast(result.message, 'success');
+            await loadData();
+        } catch (error) { showToast('Error al guardar los cambios.', 'error'); }
+    }
+
+    async function deletePayment(paymentId) {
+        if (!confirm('¿Está seguro de que desea eliminar permanentemente este registro de pago? Esta acción no se puede deshacer.')) { return; }
+        try {
+            const result = await apiRequest(`/payments/${paymentId}`, 'DELETE');
+            showToast(result.message, 'success');
+            await loadData();
+        } catch (error) { showToast('Error al eliminar el pago.', 'error'); }
+    }
+
+    const formatCurrency = (val) => (parseFloat(val) || 0).toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
+
+    function renderFinishedCutsTable() {
+        const filter = dom.finishedCutsSearchInput.value.toLowerCase();
+        const filteredData = products.filter(p => (p.lote || '').toLowerCase().includes(filter) || (p.referencia || '').toLowerCase().includes(filter) || (p.satellite || '').toLowerCase().includes(filter) || (p.serial || '').toLowerCase().includes(filter));
+        dom.finishedCutsTableBody.innerHTML = '';
+        filteredData.forEach(prod => {
+            const hasSample = ['True', true, '1', 'true'].includes(prod.has_sample);
+            const sampleInfo = hasSample ? `<span style="color: var(--success); font-weight: 600;">✓ ${prod.sample_code || 'Sin código'}</span>` : `<span style="color: #6c757d;">No</span>`;
+            const tr = document.createElement('tr');
+            tr.dataset.id = prod.id;
+            tr.onclick = () => selectFinishedCut(prod.id);
+            if (String(prod.id) === String(selectedProductId)) tr.classList.add('selected');
+            if (prod.estado_corte === 'Llevado') tr.classList.add('estado-llevado');
+
+            tr.innerHTML = `<td><input type="checkbox" data-id="${prod.id}" onclick="event.stopPropagation();"></td><td>${prod.lote || prod.fecha}</td><td>${prod.referencia}</td><td>${prod.satellite || '<em style="color: #6c757d;">Sin asignar</em>'}</td><td>${prod.serial || '<em style="color: #6c757d;">Sin serial</em>'}</td><td>${prod.cantidad}</td><td>${sampleInfo}</td>`;
+
+            dom.finishedCutsTableBody.appendChild(tr);
+        });
+    }
+
+    function selectFinishedCut(id) {
+        selectedProductId = id;
+        const product = products.find(p => String(p.id) === String(id));
+        if (product) {
+            dom.finishedCutsSatelliteSelect.value = product.satellite || '';
+            dom.finishedCutsSerialInput.value = product.serial || '';
+            const hasSample = ['True', true, '1', 'true'].includes(product.has_sample);
+            dom.finishedCutsSampleCheckbox.checked = hasSample;
+            dom.finishedCutsSampleCodeInput.value = product.sample_code || '';
+            dom.sampleCodeContainer.style.display = hasSample ? 'block' : 'none';
+        }
+        renderFinishedCutsTable();
+    }
+
+    async function markCutsAsTaken() {
+        const checkedBoxes = dom.finishedCutsTableBody.querySelectorAll('input[type="checkbox"]:checked');
+        if (checkedBoxes.length === 0) {
+            showToast('Seleccione al menos un corte para marcar.', 'error');
+            return;
+        }
+        const idsToUpdate = Array.from(checkedBoxes).map(cb => cb.dataset.id);
+        const payload = { ids: idsToUpdate, status: 'Llevado' };
+        try {
+            const result = await apiRequest('/products/update-corte-status', 'POST', payload);
+            showToast(result.message, 'success');
+            await loadData();
+        } catch (error) {
+            showToast('Error al actualizar el estado de los cortes.', 'error');
+        }
+    }
+
+    async function showPaymentDetails(paymentId) {
+        const payment = payments.find(p => p.id === paymentId);
+        if (!payment) { showToast('No se encontró el registro del pago.', 'error'); return; }
+        let historicalPrices = new Map();
+        if (payment.details && payment.details.startsWith('[')) {
+            try {
+                const detailsArray = JSON.parse(payment.details);
+                detailsArray.forEach(item => { historicalPrices.set(String(item.id), parseFloat(item.uv)); });
+            } catch (e) {
+                console.error("Error al procesar los detalles del pago:", e);
+                showToast('Los detalles de este pago están corruptos.', 'error');
+                return;
+            }
+        }
+        const idMatch = payment.observation ? payment.observation.match(/IDs: ([a-zA-Z0-9\-, ]+)/) : null;
+        if (!idMatch || !idMatch[1]) { showToast('Este pago no contiene detalles de cortes asociados.', 'warning'); return; }
+        const productIds = idMatch[1].split(',').map(id => id.trim());
+        const productIdsSet = new Set(productIds);
+        const detailedProducts = products.filter(p => productIdsSet.has(String(p.id)));
+        if (detailedProducts.length === 0) { showToast('No se encontraron los productos específicos de este pago.', 'error'); return; }
+        let detailsHtml = `<table class="data-table"><thead><tr><th>Fecha Ent.</th><th>Serial</th><th>Referencia</th><th>Satélite</th><th>Cant. Total</th><th>Valor Unitario</th><th>Valor Total</th></tr></thead><tbody>`;
+        detailedProducts.forEach(p => {
+            const unitValue = historicalPrices.get(String(p.id)) ?? 0;
+            const totalValue = unitValue * (parseFloat(p.cantidad) || 0);
+            detailsHtml += `<tr><td>${p.fecha || p.lote}</td><td>${p.serial}</td><td>${p.referencia}</td><td>${p.satellite}</td><td>${p.cantidad}</td><td>${formatCurrency(unitValue)}</td><td>${formatCurrency(totalValue)}</td></tr>`;
+        });
+        detailsHtml += `</tbody></table>`;
+        dom.paymentDetailsContainer.innerHTML = detailsHtml;
+        dom.paymentDetailsModal.classList.add('active');
+    }
+
+    function clearFinishedCutForm() {
+        selectedProductId = null;
+        dom.finishedCutsSatelliteSelect.value = '';
+        dom.finishedCutsSerialInput.value = '';
+        dom.finishedCutsSampleCheckbox.checked = false;
+        dom.finishedCutsSampleCodeInput.value = '';
+        dom.sampleCodeContainer.style.display = 'none';
+        document.querySelectorAll('.data-table tr.selected').forEach(row => row.classList.remove('selected'));
+    }
+
+    async function updateFinishedCut() {
+        if (!selectedProductId) { showToast('Seleccione un producto para actualizar.', 'error'); return; }
+        const data = { satellite: dom.finishedCutsSatelliteSelect.value, serial: dom.finishedCutsSerialInput.value, has_sample: dom.finishedCutsSampleCheckbox.checked, sample_code: dom.finishedCutsSampleCheckbox.checked ? dom.finishedCutsSampleCodeInput.value.trim() : '' };
+        try {
+            dom.updateFinishedCutBtn.disabled = true;
+            dom.updateFinishedCutBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Actualizando...';
+            const result = await apiRequest(`/products/${selectedProductId}`, 'PUT', data);
+            showToast(result.message, 'success');
+            clearFinishedCutForm();
+            await loadData();
+        } catch(error) { showToast('Error al actualizar el producto.', 'error');
+        } finally { dom.updateFinishedCutBtn.disabled = false; dom.updateFinishedCutBtn.innerHTML = '<i class="fa-solid fa-save"></i> Actualizar'; }
+    }
+
+    function populateAndFilterDeliveryProductSerials(searchTerm = '') {
+        if (allProductSerialOptions.length === 0) { allProductSerialOptions = products.filter(p => p.serial && p.serial.trim() !== '').map(p => ({ value: p.serial, text: `${p.serial} - ${p.referencia} (${p.cantidad})` })); }
+        const filteredOptions = allProductSerialOptions.filter(option => option.text.toLowerCase().includes(searchTerm.toLowerCase()));
+        dom.deliveryProductSerialSelect.innerHTML = '<option value="">Seleccionar serial...</option>' + filteredOptions.map(option => `<option value="${option.value}">${option.text}</option>`).join('');
+    }
+
+    function updateProductInfo() {
+        const selectedSerial = dom.deliveryProductSerialSelect.value;
+        const product = products.find(p => p.serial === selectedSerial);
+        if (!product) { dom.productInfoDisplay.style.display = 'none'; return; }
+        const deliveriesForProduct = deliveries.filter(d => d.product_serial === selectedSerial);
+        const totalDeliveredQty = deliveriesForProduct.reduce((sum, d) => sum + (parseFloat(d.delivered_quantity) || 0), 0);
+        const availableQty = (parseFloat(product.cantidad) || 0) - totalDeliveredQty;
+        dom.productDate.textContent = product.fecha || product.lote || '-';
+        dom.productReference.textContent = product.referencia || '-';
+        dom.productSatellite.textContent = product.satellite || 'Sin asignar';
+        dom.productQuantity.textContent = product.cantidad || '0';
+        dom.totalDelivered.textContent = totalDeliveredQty.toString();
+        dom.availableStock.textContent = availableQty.toString();
+        dom.availableStock.style.color = availableQty > 0 ? 'var(--success)' : 'var(--danger)';
+        dom.deliveryQuantityInput.max = availableQty;
+        dom.deliveryQuantityInput.placeholder = `Máximo: ${availableQty}`;
+        dom.productInfoDisplay.style.display = 'grid';
+    }
+
+    function clearDeliveryForm() {
+        dom.deliveryProductSerialSearchInput.value = '';
+        populateAndFilterDeliveryProductSerials('');
+        dom.deliveryProductSerialSelect.value = '';
+        dom.deliveryQuantityInput.value = '';
+        dom.deliveryDateInput.value = new Date().toISOString().split('T')[0];
+        dom.observacionEntrega.value = '';
+        dom.productInfoDisplay.style.display = 'none';
+    }
+
+    function renderDeliveriesTable(dataToRender = deliveries) {
+        dom.deliveriesTableBody.parentElement.querySelector('thead tr').innerHTML = `<th>Fecha Entrega</th><th>Serial</th><th>Referencia</th><th>Satélite</th><th>Cant. Total</th><th>Cant. Entregada</th><th>Stock Restante</th><th>Observación</th>`;
+        dom.deliveriesTableBody.innerHTML = '';
+        dataToRender.forEach(d => {
+            const product = products.find(p => p.serial === d.product_serial) || {};
+            const totalQuantity = parseFloat(product.cantidad) || 0;
+            const deliveriesUpToThisOne = deliveries.filter(del => del.product_serial === d.product_serial && new Date(del.delivery_date) <= new Date(d.delivery_date)).reduce((sum, del) => sum + (parseFloat(del.delivered_quantity) || 0), 0);
+            const stockRestante = totalQuantity - deliveriesUpToThisOne;
+            const observacion = d.observacion || '';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${d.delivery_date}</td><td>${d.product_serial || 'N/A'}</td><td>${product.referencia || 'N/A'}</td><td>${d.satellite_name}</td><td>${totalQuantity}</td><td style="color: var(--accent); font-weight: 600;">${parseFloat(d.delivered_quantity) || 0}</td><td style="color: ${stockRestante >= 0 ? 'var(--success)' : 'var(--danger)'}; font-weight: 600;">${stockRestante}</td><td title="${observacion}">${observacion.length > 30 ? observacion.substring(0, 30) + '...' : observacion}</td>`;
+            dom.deliveriesTableBody.appendChild(tr);
+        });
+    }
+
+    function applyDeliveryFiltersAndRender() {
+        const serialTerm = dom.deliverySearchSerialInput.value.toLowerCase().trim();
+        const satelliteTerm = dom.deliverySearchSatelliteInput.value.toLowerCase().trim();
+        const dateTerm = dom.deliverySearchDateInput.value;
+        const filteredData = deliveries.filter(d => (!serialTerm || (d.product_serial || '').toLowerCase().includes(serialTerm)) && (!satelliteTerm || d.satellite_name.toLowerCase().includes(satelliteTerm)) && (!dateTerm || d.delivery_date === dateTerm));
+        renderDeliveriesTable(filteredData);
+    }
+
+    async function registerDelivery() {
+        const selectedSerial = dom.deliveryProductSerialSelect.value;
+        const quantity = parseFloat(dom.deliveryQuantityInput.value);
+        const deliveryDate = dom.deliveryDateInput.value;
+        const observacion = dom.observacionEntrega.value.trim();
+        if (!selectedSerial || !quantity || !deliveryDate) { showToast('Serial, cantidad y fecha son obligatorios.', 'error'); return; }
+        const product = products.find(p => p.serial === selectedSerial);
+        if (!product) { showToast('Producto no encontrado.', 'error'); return; }
+        const deliveriesForProduct = deliveries.filter(d => d.product_serial === selectedSerial);
+        const totalDelivered = deliveriesForProduct.reduce((sum, d) => sum + (parseFloat(d.delivered_quantity) || 0), 0);
+        const available = (parseFloat(product.cantidad) || 0) - totalDelivered;
+        if (quantity > available) { showToast(`La cantidad excede el stock disponible (${available}).`, 'error'); return; }
+        const data = { delivery_date: deliveryDate, product_serial: selectedSerial, product_lote: product.lote || product.fecha, delivered_quantity: quantity, satellite_name: product.satellite || 'Sin asignar', observacion };
+        try { const result = await apiRequest('/deliveries', 'POST', data); showToast(result.message, 'success'); clearDeliveryForm(); await loadData(); } catch(error) {}
+    }
+
+    function renderSelectableProductsForPayment(searchTerm = '') {
+        dom.paymentSelectableDeliveriesBody.innerHTML = '';
+        const search = searchTerm.toLowerCase();
+        const paidSerials = new Set();
+        payments.forEach(p => { if (p.status === 'CANCELADO' && p.product_serial) { p.product_serial.split(', ').forEach(serial => paidSerials.add(serial.trim())); } });
+        const filteredProducts = products.filter(p => {
+            const isEligible = p.serial && p.satellite && !paidSerials.has(p.serial);
+            if (!isEligible) return false;
+            return (p.serial || '').toLowerCase().includes(search) || (p.referencia || '').toLowerCase().includes(search) || (p.satellite || '').toLowerCase().includes(search);
+        });
+        filteredProducts.forEach(p => {
+            const isChecked = selectedProductsForPayment.has(p.id);
+            const totalDelivered = deliveries.filter(d => d.product_serial === p.serial).reduce((sum, d) => sum + (parseFloat(d.delivered_quantity) || 0), 0);
+            const deliveredQty = totalDelivered;
+            const totalQty = p.cantidad;
+            const unitValue = p.unit_value || 0;
+            const totalValue = unitValue * (parseFloat(totalQty) || 0);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td><input type="checkbox" data-product-id="${p.id}" ${isChecked ? 'checked' : ''}></td><td>${p.fecha || p.lote}</td><td>${p.serial}</td><td>${p.referencia}</td><td>${p.satellite}</td><td class="unit-value-cell"><input type="number" class="form-input unit-value-input" value="${unitValue.toFixed(2)}" data-product-id="${p.id}" style="width: 120px; padding: 5px 8px;" ${!isChecked ? 'disabled' : ''}></td><td class="total-value-cell">${formatCurrency(totalValue)}</td><td>${deliveredQty}</td><td>${totalQty}</td>`;
+            dom.paymentSelectableDeliveriesBody.appendChild(tr);
+        });
+    }
+
+    async function updatePaymentSummary() {
+        let grandTotal = 0, satelliteName = null, firstSatellite = true, inconsistentSatellites = false;
+        const selectedSerials = [];
+        for (const product of selectedProductsForPayment.values()) {
+            if (firstSatellite) { satelliteName = product.satellite; firstSatellite = false; }
+            else if (satelliteName !== product.satellite) { inconsistentSatellites = true; }
+            grandTotal += (parseFloat(product.cantidad) || 0) * (product.unit_value || 0);
+            selectedSerials.push(`${product.serial} (${product.cantidad})`);
+        }
+        if (inconsistentSatellites) {
+            dom.paymentSatelliteDisplay.textContent = '¡Varios Satélites!';
+            dom.paymentSatelliteDisplay.style.color = 'var(--danger)';
+            showToast('Ha seleccionado cortes de diferentes satélites. No se puede registrar un pago combinado.', 'error');
+        } else {
+            dom.paymentSatelliteDisplay.textContent = satelliteName || '-';
+            dom.paymentSatelliteDisplay.style.color = 'var(--primary-dark)';
+        }
+        dom.paymentTotalAmount.textContent = formatCurrency(grandTotal);
+        dom.paymentSelectedSerials.textContent = selectedSerials.join(', ') || 'Ninguno';
+        dom.paymentAmountInput.value = grandTotal;
+    }
+
+    async function handlePaymentProductSelection(e) {
+        if (e.target.type !== 'checkbox') return;
+        const checkbox = e.target;
+        const productId = checkbox.dataset.productId;
+        const product = products.find(p => String(p.id) === String(productId));
+        if (!product) return;
+        const row = checkbox.closest('tr');
+        const unitValueInput = row.querySelector('.unit-value-input');
+        const totalValueCell = row.querySelector('.total-value-cell');
+        if (checkbox.checked) {
+            try {
+                const priceData = await apiRequest(`/payments/reference-price/${encodeURIComponent(product.referencia)}`);
+                product.unit_value = parseFloat(priceData.price) || 0;
+                if (product.unit_value === 0) { showToast(`La referencia '${product.referencia}' no tiene costo de confección. Puede asignarlo manualmente.`, 'warning'); }
+                selectedProductsForPayment.set(productId, product);
+                unitValueInput.value = product.unit_value.toFixed(2);
+                unitValueInput.disabled = false;
+                const totalValue = product.unit_value * (parseFloat(product.cantidad) || 0);
+                totalValueCell.textContent = formatCurrency(totalValue);
+            } catch (error) { showToast(`No se pudo obtener el precio para la referencia ${product.referencia}.`, 'error'); checkbox.checked = false; }
+        } else {
+            selectedProductsForPayment.delete(productId);
+            delete product.unit_value;
+            unitValueInput.value = (0).toFixed(2);
+            unitValueInput.disabled = true;
+            totalValueCell.textContent = formatCurrency(0);
+        }
+        updatePaymentSummary();
+    }
+    
+    function clearPaymentForm() {
+        selectedProductsForPayment.clear();
+        dom.paymentProductSerialSearchInput.value = '';
+        dom.paymentAmountInput.value = '';
+        if (dom.paymentMethodSelect.options.length > 0) dom.paymentMethodSelect.value = dom.paymentMethodSelect.options[0].value;
+        dom.paymentStatusSelect.value = 'CANCELADO';
+        dom.partialPaymentValueInput.value = '';
+        dom.partialPaymentValueContainer.style.display = 'none';
+        dom.paymentObservationInput.value = '';
+        renderSelectableProductsForPayment();
+        updatePaymentSummary();
+    }
+
+    function handleUnitValueChange(e) {
+        if (!e.target.classList.contains('unit-value-input')) return;
+        const input = e.target;
+        const productId = input.dataset.productId;
+        const product = selectedProductsForPayment.get(productId);
+        if (product) {
+            const newUnitValue = parseFloat(input.value) || 0;
+            product.unit_value = newUnitValue;
+            const row = input.closest('tr');
+            const totalValueCell = row.querySelector('.total-value-cell');
+            const newTotalValue = newUnitValue * (parseFloat(product.cantidad) || 0);
+            totalValueCell.textContent = formatCurrency(newTotalValue);
+            updatePaymentSummary();
+        }
+    }
+
+    async function registerPayment() {
+        if (selectedProductsForPayment.size === 0) { showToast('Debe seleccionar al menos un corte para registrar un pago.', 'error'); return; }
+        const paymentAmount = parseFloat(dom.paymentAmountInput.value) || 0;
+        const paymentMethod = dom.paymentMethodSelect.value;
+        const status = dom.paymentStatusSelect.value;
+        const partialPaymentValue = (status === 'PARCIAL') ? (parseFloat(dom.partialPaymentValueInput.value) || 0) : 0;
+        let observation = dom.paymentObservationInput.value.trim();
+        if (!paymentAmount || !paymentMethod) { showToast('Monto a Pagar y Método son obligatorios.', 'error'); return; }
+        if (status === 'PARCIAL' && partialPaymentValue <= 0) { showToast('Para estado PARCIAL, el Valor Parcial debe ser mayor a 0.', 'error'); return; }
+        let satelliteName = null, inconsistent = false, grandTotal = 0;
+        const serialsSet = new Set();
+        const paymentDetailsArray = [];
+        selectedProductsForPayment.forEach(product => {
+            if (satelliteName === null) satelliteName = product.satellite;
+            else if (satelliteName !== product.satellite) inconsistent = true;
+            const unitValue = product.unit_value || 0;
+            const quantity = parseFloat(product.cantidad) || 0;
+            grandTotal += quantity * unitValue;
+            serialsSet.add(product.serial);
+            paymentDetailsArray.push({ id: product.id, uv: unitValue });
+        });
+        if (inconsistent) { showToast('No se puede registrar un pago para múltiples satélites a la vez.', 'error'); return; }
+        const serialsString = [...serialsSet].join(', ');
+        const productIdsString = [...selectedProductsForPayment.keys()].join(', ');
+        observation = observation ? `${observation} (Cortes IDs: ${productIdsString})` : `Pago por cortes (IDs: ${productIdsString})`;
+        const data = { payment_date: new Date().toISOString().split('T')[0], satellite_name: satelliteName, product_serial: serialsString, payment_amount: paymentAmount, payment_method: paymentMethod, status: status, partial_payment_value: partialPaymentValue, observation: observation, total_payment_amount: grandTotal, reference: 'Pago por Confección', details: JSON.stringify(paymentDetailsArray) };
+        try { const result = await apiRequest('/payments', 'POST', data); showToast(result.message, 'success'); clearPaymentForm(); await loadData(); } catch(error) {}
+    }
+
+    function renderPaymentsTable(dataToRender = payments) {
+        dom.paymentsTableBody.parentElement.querySelector('thead tr').innerHTML = `<th>Fecha</th><th>Serial(es)</th><th>Satélite</th><th>Monto Pagado</th><th>Estado</th><th>Observación</th><th>Acciones</th>`;
+        dom.paymentsTableBody.innerHTML = '';
+        dataToRender.forEach(p => {
+            const serial = p.product_serial || 'N/A', observacion = p.observation || '';
+            const tr = document.createElement('tr');
+            tr.style.cursor = 'pointer';
+            tr.title = 'Haz clic para ver los detalles';
+            tr.onclick = () => showPaymentDetails(p.id);
+            tr.innerHTML = `<td>${p.payment_date}</td><td title="${serial}">${serial.length > 20 ? serial.substring(0, 20) + '...' : serial}</td><td>${p.satellite_name || 'N/A'}</td><td>${formatCurrency(p.payment_amount)}</td><td><span class="status-badge status-${p.status === 'CANCELADO' ? 'Entregado' : 'Asignado'}">${p.status}</span></td><td title="${observacion}">${observacion.length > 30 ? observacion.substring(0, 30) + '...' : observacion}</td><td class="actions-cell"><button class="btn btn-sm" onclick="event.stopPropagation(); openEditPaymentModal('${p.id}');" title="Editar Pago" style="padding: 5px 8px; font-size: 0.8rem; background: var(--accent); color: white;"><i class="fa-solid fa-pencil"></i></button><button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deletePayment('${p.id}');" title="Eliminar Pago" style="padding: 5px 8px; font-size: 0.8rem;"><i class="fa-solid fa-trash"></i></button></td>`;
+            dom.paymentsTableBody.appendChild(tr);
+        });
+    }
+
+    function applyPaymentFiltersAndRender() {
+        const serialTerm = dom.paymentSearchSerialInput.value.toLowerCase().trim();
+        const satelliteTerm = dom.paymentSearchSatelliteInput.value.toLowerCase().trim();
+        const dateTerm = dom.paymentSearchDateInput.value;
+        const filteredData = payments.filter(p => (!serialTerm || (p.product_serial || '').toLowerCase().includes(serialTerm)) && (!satelliteTerm || (p.satellite_name || '').toLowerCase().includes(satelliteTerm)) && (!dateTerm || p.payment_date === dateTerm));
+        renderPaymentsTable(filteredData);
+    }
+
+    async function renderSummaryTable() {
+        const summary = {};
+        satellites.forEach(s => { summary[s.Usuario] = { assigned: 0, paid: 0 }; });
+        const priceMap = new Map();
+        const uniqueReferences = [...new Set(products.map(p => p.referencia))];
+        for (const ref of uniqueReferences) {
+            if (ref && !priceMap.has(ref)) {
+                try {
+                    const priceData = await apiRequest(`/payments/reference-price/${encodeURIComponent(ref)}`);
+                    priceMap.set(ref, parseFloat(priceData.price) || 0);
+                } catch (e) { priceMap.set(ref, 0); }
+            }
+        }
+        products.forEach(p => {
+            if (p.satellite && summary[p.satellite]) {
+                 const unitPrice = priceMap.get(p.referencia) || 0;
+                 const quantity = parseFloat(p.cantidad) || 0;
+                 summary[p.satellite].assigned += unitPrice * quantity;
+            }
+        });
+        payments.forEach(p => { if (p.satellite_name && summary[p.satellite_name]) { summary[p.satellite_name].paid += parseFloat(p.payment_amount) || 0; } });
+        dom.summaryTableBody.innerHTML = '';
+        Object.entries(summary).forEach(([name, data]) => {
+            const balance = data.assigned - data.paid;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${name}</td><td>${formatCurrency(data.assigned)}</td><td>${formatCurrency(data.paid)}</td><td style="font-weight: 600; color: ${balance > 0 ? 'var(--danger)' : 'var(--success)'};">${formatCurrency(balance)}</td>`;
+            dom.summaryTableBody.appendChild(tr);
+        });
+    }
+    
+    async function loadData() {
+        try {
+            const [usersData, productsData, assignmentsData, deliveriesData, paymentsData] = await Promise.all([apiRequest('/users'), apiRequest('/products'), apiRequest('/assignments'), apiRequest('/deliveries'), apiRequest('/payments')]);
+            satellites = (usersData || []).filter(user => user.Rol === 'Satelite');
+            products = productsData || []; 
+            assignments = assignmentsData || [];
+            deliveries = deliveriesData || []; 
+            payments = paymentsData || [];
+            const satelliteOptions = '<option value="">Seleccione un satélite...</option>' + satellites.map(user => `<option value="${user.Usuario}">${user.Usuario}</option>`).join('');
+            dom.finishedCutsSatelliteSelect.innerHTML = satelliteOptions;
+            populateAndFilterDeliveryProductSerials();
+            dom.paymentMethodSelect.innerHTML = ["Efectivo", "Transferencia", "Nequi", "Daviplata"].map(o => `<option>${o}</option>`).join('');
+            applyDeliveryFiltersAndRender(); 
+            applyPaymentFiltersAndRender();
+            renderSummaryTable();
+            renderFinishedCutsTable();
+            renderSelectableProductsForPayment();
+            dom.deliveryDateInput.value = new Date().toISOString().split('T')[0];
+        } catch (error) { showToast('Error al cargar los datos iniciales', 'error'); }
+    }
+
+    function handleTabClick(e) {
+        const targetPanelId = e.target.dataset.tab;
+        if (targetPanelId === 'payments-panel' && !paymentAccessGranted) {
+            e.preventDefault();
+            dom.passwordModal.classList.add('active');
+        } else {
+            dom.tabs.forEach(t => t.classList.remove('active'));
+            e.target.classList.add('active');
+            dom.panels.forEach(p => p.classList.remove('active'));
+            document.getElementById(targetPanelId).classList.add('active');
+        }
+    }
+
+    function init() {
+        window.openEditPaymentModal = openEditPaymentModal;
+        window.deletePayment = deletePayment;
+        dom.tabs.forEach(tab => tab.addEventListener('click', handleTabClick));
+        dom.passwordSubmitBtn.addEventListener('click', () => {
+            if (dom.passwordInput.value === '3012') {
+                paymentAccessGranted = true;
+                dom.passwordModal.classList.remove('active');
+                dom.paymentContent.style.display = 'block';
+                document.querySelector('.tab-btn[data-tab="payments-panel"]').click();
+            } else { showToast('Contraseña incorrecta', 'error'); }
+            dom.passwordInput.value = '';
+        });
+        dom.passwordCancelBtn.addEventListener('click', () => dom.passwordModal.classList.remove('active'));
+        dom.updateFinishedCutBtn.addEventListener('click', updateFinishedCut);
+        dom.clearFinishedCutBtn.addEventListener('click', clearFinishedCutForm);
+        dom.markAsTakenBtn.addEventListener('click', markCutsAsTaken);
+        dom.finishedCutsSearchInput.addEventListener('input', renderFinishedCutsTable);
+        dom.finishedCutsSampleCheckbox.addEventListener('change', (e) => { dom.sampleCodeContainer.style.display = e.target.checked ? 'block' : 'none'; if (!e.target.checked) dom.finishedCutsSampleCodeInput.value = ''; });
+        dom.selectAllFinishedCutsCheckbox.onchange = (e) => dom.finishedCutsTableBody.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = e.target.checked);
+        dom.deliveryProductSerialSearchInput.addEventListener('input', (e) => populateAndFilterDeliveryProductSerials(e.target.value));
+        dom.deliveryProductSerialSelect.addEventListener('change', updateProductInfo);
+        dom.registerDeliveryBtn.addEventListener('click', registerDelivery);
+        dom.clearDeliveryBtn.addEventListener('click', clearDeliveryForm);
+        [dom.deliverySearchSerialInput, dom.deliverySearchSatelliteInput, dom.deliverySearchDateInput].forEach(input => input.addEventListener('input', applyDeliveryFiltersAndRender));
+        dom.deliveryClearSearchBtn.addEventListener('click', () => { dom.deliverySearchSerialInput.value = ''; dom.deliverySearchSatelliteInput.value = ''; dom.deliverySearchDateInput.value = ''; applyDeliveryFiltersAndRender(); });
+        
+        dom.paymentProductSerialSearchInput.addEventListener('input', (e) => renderSelectableProductsForPayment(e.target.value));
+        dom.paymentSelectableDeliveriesBody.addEventListener('click', handlePaymentProductSelection);
+        dom.paymentSelectableDeliveriesBody.addEventListener('input', handleUnitValueChange);
+
+        const closePaymentModal = () => dom.paymentDetailsModal.classList.remove('active');
+        dom.closePaymentDetailsModalBtn.addEventListener('click', closePaymentModal);
+        dom.closePaymentDetailsModalBtnSecondary.addEventListener('click', closePaymentModal);
+        
+        dom.paymentStatusSelect.addEventListener('change', (e) => { dom.partialPaymentValueContainer.style.display = (e.target.value === 'PARCIAL') ? 'flex' : 'none'; });
+        dom.registerPaymentBtn.addEventListener('click', registerPayment);
+        dom.clearPaymentBtn.addEventListener('click', clearPaymentForm);
+
+        [dom.paymentSearchSerialInput, dom.paymentSearchSatelliteInput, dom.paymentSearchDateInput].forEach(input => input.addEventListener('input', applyPaymentFiltersAndRender));
+        dom.paymentClearSearchBtn.addEventListener('click', () => { dom.paymentSearchSerialInput.value = ''; dom.paymentSearchSatelliteInput.value = ''; dom.paymentSearchDateInput.value = ''; applyPaymentFiltersAndRender(); });
+        
+        dom.cancelEditPaymentBtn.addEventListener('click', () => dom.editPaymentModal.classList.remove('active'));
+        dom.savePaymentChangesBtn.addEventListener('click', savePaymentChanges);
+
+        loadData();
+    }
+    
+    init();
+});
+</script>
+
+</body>
+</html>

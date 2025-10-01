@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Productos Terminados - DAMAR</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-dark: #2C3E50; --secondary-light: #ECF0F1; --accent: #3498DB;
+            --text-dark: #34495E; --text-light: white; --hover-accent: #2980B9;
+            --success: #27AE60; --warning: #F39C12; --danger: #E74C3C;
+            --border-color: #dfe4ea; --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --shadow: 0 10px 30px rgba(44, 62, 80, 0.1); --shadow-hover: 0 15px 35px rgba(44, 62, 80, 0.15);
+            --font-family: 'Poppins', sans-serif; --border-radius-lg: 12px; --border-radius-md: 8px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-family); background-color: var(--secondary-light); color: var(--text-dark); }
+        .container { max-width: 1400px; margin: 2rem auto; padding: 0 1.5rem; }
+        .card { background-color: white; border-radius: var(--border-radius-lg); padding: 2.5rem; margin-bottom: 2rem; box-shadow: var(--shadow); }
+        .content-header { text-align: center; margin-bottom: 2.5rem; }
+        .content-title { font-size: 2.5rem; font-weight: 700; color: var(--primary-dark); }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 2rem; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-label { font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem; }
+        .form-input, .form-select { width: 100%; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--border-radius-md); font-size: 1rem; }
+        .form-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15); }
+        .buttons-container { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1.5rem; padding-top: 1.5rem; justify-content: center; border-top: 1px solid var(--border-color); }
+        .btn {
+            border: none; border-radius: var(--border-radius-md); padding: 12px 24px; font-size: 0.95rem;
+            font-weight: 600; font-family: var(--font-family); cursor: pointer; display: inline-flex;
+            align-items: center; justify-content: center; gap: 0.75rem; transition: all 0.3s ease;
+            text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-primary { background: var(--gradient-primary); color: white; }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-secondary { background-color: var(--secondary-light); color: var(--text-dark); border: 1px solid var(--border-color); }
+        .table-container { overflow-x: auto; }
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .data-table th, .data-table td { padding: 12px 10px; border-bottom: 1px solid var(--border-color); white-space: nowrap; vertical-align: middle; }
+        .data-table thead th { background-color: #f8f9fa; color: var(--primary-dark); font-weight: 600; text-transform: uppercase; font-size: 0.8rem; }
+        .modal-overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background-color: rgba(0,0,0,0.6); 
+            display: flex; justify-content: center; align-items: center; 
+            z-index: 1000; 
+            opacity: 0; visibility: hidden; transition: all 0.3s ease; 
+        }
+        .modal-overlay.active { 
+            opacity: 1; visibility: visible; 
+        }
+        .modal-content { 
+            background: white; padding: 2rem; border-radius: var(--border-radius-lg); 
+            transform: scale(0.9); transition: all 0.3s ease; 
+        }
+        .modal-overlay.active .modal-content { 
+            transform: scale(1); 
+        }
+        .data-table tbody tr { transition: background-color 0.2s ease; }
+        .data-table tbody tr:hover { background-color: #f5f5f5; cursor: pointer; }
+        .data-table tr.selected { background-color: rgba(52, 152, 219, 0.1) !important; box-shadow: inset 4px 0 0 0 var(--accent); }
+        .deduction-container { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1.5rem; }
+        .deduction-section h3 { margin-bottom: 0.5rem; }
+        .deduction-table-wrapper { border-radius: var(--border-radius-md); overflow: hidden; height: 280px; display: flex; flex-direction: column;}
+        .deduction-table { flex-grow: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--border-radius-md); }
+        .deduction-table thead th { position: sticky; top: 0; z-index: 1; background-color: #f8f9fa; }
+        .deduction-table .form-input { max-width: 80px; padding: 4px 8px; font-size: 0.9rem; text-align: center;}
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1050; }
+        .toast { display: flex; align-items: center; padding: 15px 20px; border-radius: var(--border-radius-md); color: white; font-weight: 500; margin-bottom: 10px; box-shadow: var(--shadow); transform: translateX(120%); animation: slideIn 0.5s forwards; }
+        @keyframes slideIn { to { transform: translateX(0); } }
+        .form-input.observacion-input { min-height: 60px; resize: vertical; }
+    </style>
+</head>
+<body>
+
+<div id="toastContainer" class="toast-container"></div>
+
+<div id="deletePasswordModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px; text-align: center;">
+        <h3><i class="fa-solid fa-lock" style="color: var(--warning);"></i> Confirmar Eliminación</h3>
+        <p style="margin: 1rem 0;">Por favor, ingrese la contraseña para eliminar los productos seleccionados.</p>
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            <input type="password" id="passwordInput" class="form-input" placeholder="Contraseña de administrador">
+        </div>
+        <div style="display: flex; justify-content: center; gap: 1rem;">
+            <button id="passwordCancelBtn" class="btn btn-secondary">Cancelar</button>
+            <button id="passwordSubmitBtn" class="btn btn-danger">Confirmar y Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<div id="editPasswordModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px; text-align: center;">
+        <h3><i class="fa-solid fa-lock" style="color: var(--warning);"></i> Confirmar Edición</h3>
+        <p style="margin: 1rem 0;">Por favor, ingrese la contraseña para guardar los cambios.</p>
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            <input type="password" id="editPasswordInput" class="form-input" placeholder="Contraseña de administrador">
+        </div>
+        <div style="display: flex; justify-content: center; gap: 1rem;">
+            <button id="editPasswordCancelBtn" class="btn btn-secondary">Cancelar</button>
+            <button id="editPasswordSubmitBtn" class="btn btn-primary">Confirmar y Guardar</button>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <header class="content-header">
+        <h1 class="content-title">Inventario de Productos Terminados</h1>
+    </header>
+    <main>
+        <section class="card">
+            <div id="main-panel" class="tab-panel active">
+                <div class="form-grid">
+                    <div class="form-group"><label class="form-label">Fecha</label><input type="text" id="fechaInput" class="form-input" readonly style="background-color: #f8f9fa;"></div>
+                    <div class="form-group"><label class="form-label">Referencia</label><input type="text" id="referenciaInput" class="form-input" list="references-datalist"><datalist id="references-datalist"></datalist></div>
+                    <div class="form-group"><label class="form-label">Cód. Barras</label><input type="text" id="barrasInput" class="form-input" readonly style="background-color: #f8f9fa;"></div>
+                    <div class="form-group"><label class="form-label">Medida Trazo</label><input type="number" id="trazoInput" class="form-input" step="0.01"></div>
+                    <div class="form-group"><label class="form-label">Trazos</label><input type="number" id="trazosInput" class="form-input" step="1"></div>
+                    <div class="form-group"><label class="form-label">Cantidad</label><input type="number" id="cantidadInput" class="form-input" readonly style="background-color: #f8f9fa;"></div>
+                    <div class="form-group"><label class="form-label">Tipo de Tela</label><input type="text" id="tipoTelaInput" class="form-input"></div>
+                    <div class="form-group"><label class="form-label">Serial</label><input type="text" id="serialInput" class="form-input" readonly style="background-color: #f8f9fa;"></div>
+                    <div class="form-group"><label class="form-label">Observación</label><textarea id="observacionInput" class="form-input observacion-input" rows="3"></textarea></div>
+                </div>
+                <div class="deduction-container">
+                    <div class="deduction-section">
+                        <h3>Materiales a Deducir</h3>
+                        <input type="text" id="materialSearch" class="form-input" placeholder="Buscar material..." style="margin-bottom: 0.5rem;">
+                        <div class="deduction-table-wrapper"><div class="deduction-table"><table class="data-table"><thead><tr><th>Material</th><th>Disponible</th><th>Descontar</th></tr></thead><tbody id="materialDeductionBody"></tbody></table></div></div>
+                    </div>
+                    <div class="deduction-section">
+                        <h3>Telas a Deducir</h3>
+                        <input type="text" id="fabricSearch" class="form-input" placeholder="Buscar tela..." style="margin-bottom: 0.5rem;">
+                        <div class="deduction-table-wrapper"><div class="deduction-table"><table class="data-table">
+                            <thead><tr><th>Serial</th><th>Rollos</th><th>Disponible</th><th>Factor Desc.</th><th>Terminado</th><th>Restantes</th></tr></thead>
+                            <tbody id="fabricDeductionBody"></tbody>
+                        </table></div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="buttons-container">
+                <button id="addBtn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Registrar</button>
+                <button id="editBtn" class="btn btn-primary"><i class="fa-solid fa-save"></i> Guardar Cambios</button>
+                <button id="clearBtn" class="btn btn-secondary"><i class="fa-solid fa-eraser"></i> Limpiar</button>
+            </div>
+        </section>
+        <section class="card">
+             <input type="text" id="productSearch" class="form-input" placeholder="Buscar por Fecha, Referencia o Serial..." style="margin-bottom: 1rem;">
+             <div class="table-container"><table class="data-table">
+                <thead><tr><th><input type="checkbox" id="selectAllCheckbox"></th><th>Fecha</th><th>Referencia</th><th>Serial</th><th>Cantidad</th><th>Trazos</th><th>Medida Trazo</th><th>Observación</th></tr></thead>
+                <tbody id="productsTableBody"></tbody>
+             </table></div>
+             <div class="buttons-container" style="border:none; padding-top:1rem; justify-content: flex-start;">
+                <button id="deleteBtn" class="btn btn-danger"><i class="fa-solid fa-trash"></i> Eliminar Seleccionados</button>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const API_URL = 'https://harvey-unspoilt-judie.ngrok-free.dev';
+    
+    let materials_master = [], fabrics_master = [], products_master = [], references_master = [], barcodes_master = [];
+    let materialDeductionValues = new Map(), fabricDeductionValues = new Map();
+    let selectedProductId = null, idsPendingDeletion = [];
+
+    const dom = {
+        fecha: document.getElementById('fechaInput'), referencia: document.getElementById('referenciaInput'),
+        barras: document.getElementById('barrasInput'), trazo: document.getElementById('trazoInput'),
+        trazos: document.getElementById('trazosInput'), cantidad: document.getElementById('cantidadInput'),
+        tipoTela: document.getElementById('tipoTelaInput'), serial: document.getElementById('serialInput'),
+        observacion: document.getElementById('observacionInput'), addBtn: document.getElementById('addBtn'),
+        editBtn: document.getElementById('editBtn'), clearBtn: document.getElementById('clearBtn'),
+        materialSearch: document.getElementById('materialSearch'), fabricSearch: document.getElementById('fabricSearch'),
+        materialBody: document.getElementById('materialDeductionBody'), fabricBody: document.getElementById('fabricDeductionBody'),
+        productSearch: document.getElementById('productSearch'), productsTableBody: document.getElementById('productsTableBody'),
+        selectAllCheckbox: document.getElementById('selectAllCheckbox'), deleteBtn: document.getElementById('deleteBtn'),
+        referencesDatalist: document.getElementById('references-datalist'), deletePasswordModal: document.getElementById('deletePasswordModal'),
+        passwordInput: document.getElementById('passwordInput'), passwordSubmitBtn: document.getElementById('passwordSubmitBtn'),
+        passwordCancelBtn: document.getElementById('passwordCancelBtn'),
+        editPasswordModal: document.getElementById('editPasswordModal'),
+        editPasswordInput: document.getElementById('editPasswordInput'),
+        editPasswordSubmitBtn: document.getElementById('editPasswordSubmitBtn'),
+        editPasswordCancelBtn: document.getElementById('editPasswordCancelBtn'),
+    };
+
+    const showToast = (message, type = 'success') => {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'times-circle'}"></i> ${message}`;
+        
+        if(type === 'error') {
+            toast.style.backgroundColor = 'var(--danger)';
+        } else if(type === 'success') {
+            toast.style.backgroundColor = 'var(--success)';
+        }
+        
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    };
+
+    async function apiRequest(endpoint, method = 'GET', data = null) {
+        [dom.addBtn, dom.editBtn, dom.deleteBtn].forEach(b => b.disabled = true);
+        try {
+            const options = { method, headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, mode: 'cors' };
+            if (data) options.body = JSON.stringify(data);
+            const response = await fetch(`${API_URL}${endpoint}`, options);
+            if (!response.ok) { 
+                const err = await response.json(); 
+                throw new Error(err.message || `Error: ${response.status}`); 
+            }
+            return response.json();
+        } catch (error) {
+            showToast(error.message, 'error');
+            throw error;
+        } finally {
+            [dom.addBtn, dom.editBtn, dom.deleteBtn].forEach(b => b.disabled = false);
+        }
+    }
+
+    async function updateFabricStatus(fabricId, isTerminado, restantes) {
+        try {
+            await apiRequest('/fabrics/update-status', 'POST', {
+                id: fabricId,
+                is_terminado: isTerminado,
+                restantes: restantes
+            });
+        } catch (error) {
+            console.error('Error actualizando estado de tela:', error);
+        }
+    }
+
+    function generateAutoDate() {
+        const today = new Date();
+        return `${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}${today.getFullYear()}`;
+    }
+
+    async function getNextSerial() {
+        const serials = products_master.map(p => parseInt(p.serial)).filter(s => !isNaN(s));
+        return serials.length > 0 ? Math.max(...serials) + 1 : 7301;
+    }
+
+    function calculateQuantity() {
+        const trazos = parseFloat(dom.trazos.value) || 0;
+        let totalFactor = 0;
+        fabricDeductionValues.forEach(obj => totalFactor += (parseFloat(obj.factor) || 0));
+        dom.cantidad.value = (totalFactor * trazos).toFixed(0);
+    }
+
+    function updateCalculations() {
+        const medidaTrazo = parseFloat(dom.trazo.value) || 0;
+        dom.fabricBody.querySelectorAll('tr').forEach(tr => {
+            const factorInput = tr.querySelector('.fabric-factor-input');
+            const factor = parseFloat(factorInput.value) || 0;
+            let display = tr.querySelector('.calculation-display');
+            if (factor > 0 && medidaTrazo > 0) {
+                if (!display) {
+                    display = document.createElement('span');
+                    display.className = 'calculation-display';
+                    display.style.cssText = 'margin-left:5px; font-size:0.8rem; color:#666;';
+                    factorInput.parentNode.appendChild(display);
+                }
+                display.textContent = `= ${(medidaTrazo * factor).toFixed(2)}m`;
+            } else if (display) {
+                display.remove();
+            }
+        });
+        calculateQuantity();
+    }
+
+    function renderDeductionTables(materialFilter = '', fabricFilter = '') {
+        dom.materialBody.innerHTML = materials_master
+            .filter(item => (item.material_name || '').toLowerCase().includes(materialFilter.toLowerCase()))
+            .map(item => `<tr data-id="${item.id}"><td>${item.material_name}</td><td>${(parseFloat(item.quantity_value) || 0).toFixed(2)} ${item.quantity_type || ''}</td><td><input type="number" class="form-input deduction-input" value="${materialDeductionValues.get(String(item.id)) || ''}" placeholder="0" min="0" step="0.01"></td></tr>`).join('');
+
+        dom.fabricBody.innerHTML = fabrics_master
+            .filter(item => (item.serial_rollo || '').toLowerCase().includes(fabricFilter.toLowerCase()))
+            .map(item => {
+                const itemId = String(item.id);
+                const val = fabricDeductionValues.get(itemId) || {};
+                const isTerminado = item.is_terminado === 'true' || val.terminado || false;
+                const restantesValue = item.restantes || val.restantes || '';
+                
+                return `<tr data-id="${itemId}"><td>${item.serial_rollo}</td><td>${(parseFloat(item.size_value) || 0).toFixed(2)} rollos</td><td>${(parseFloat(item.cantidad_value) || 0).toFixed(2)} m</td>
+                    <td><input type="number" class="form-input deduction-input fabric-factor-input" data-field="factor" value="${val.factor || ''}" placeholder="0" min="0" step="0.01"></td>
+                    <td><input type="checkbox" class="deduction-input fabric-terminado-check" data-field="terminado" style="cursor:pointer;transform:scale(1.2);" ${isTerminado ? 'checked' : ''}></td>
+                    <td><input type="text" class="form-input deduction-input fabric-restantes-input" data-field="restantes" value="${restantesValue}" style="display:${isTerminado ? 'inline-block':'none'};"></td></tr>`;
+            }).join('');
+        updateCalculations();
+    }
+
+    function renderProductsTable() {
+        const filter = dom.productSearch.value.toLowerCase();
+        dom.productsTableBody.innerHTML = products_master
+            .filter(p => [p.fecha, p.lote, p.referencia, p.serial].some(f => (f || '').toLowerCase().includes(filter)))
+            .map(prod => `<tr data-id="${prod.id}" class="${String(prod.id)===String(selectedProductId)?'selected':''}"><td><input type="checkbox" onclick="event.stopPropagation();" data-id="${prod.id}"></td><td>${prod.fecha||prod.lote||''}</td><td>${prod.referencia}</td><td>${prod.serial||''}</td><td>${prod.cantidad||0}</td><td>${prod.trazos||0}</td><td>${(parseFloat(prod.medida_trazo||0)).toFixed(2)}</td><td title="${prod.observacion||''}">${(prod.observacion||'').substring(0,30)}</td></tr>`).join('');
+        dom.productsTableBody.querySelectorAll('tr').forEach(tr => tr.addEventListener('click', () => selectProduct(tr.dataset.id)));
+    }
+
+    function selectProduct(id) {
+        selectedProductId = id;
+        const product = products_master.find(p => String(p.id) === String(id));
+        if (!product) return;
+
+        dom.fecha.value = product.fecha || product.lote || '';
+        dom.referencia.value = product.referencia || '';
+        dom.barras.value = product.codigo_barras || '';
+        dom.trazo.value = product.medida_trazo || '';
+        dom.trazos.value = product.trazos || '';
+        dom.cantidad.value = product.cantidad || '';
+        dom.tipoTela.value = product.tipo_tela || '';
+        dom.serial.value = product.serial || '';
+        dom.observacion.value = product.observacion || '';
+
+        fabricDeductionValues.clear();
+        materialDeductionValues.clear();
+
+        try {
+            const fabricsUsed = JSON.parse(String(product.fabrics_used || '[]'));
+            fabricsUsed.forEach(u => {
+                const existingVal = fabricDeductionValues.get(String(u.id)) || {};
+                existingVal.factor = u.valor_descontar || 0;
+                fabricDeductionValues.set(String(u.id), existingVal);
+            });
+
+            const materialsUsed = JSON.parse(String(product.materials_used || '[]'));
+            materialsUsed.forEach(u => {
+                materialDeductionValues.set(String(u.id), u.quantity_used || 0);
+            });
+
+            const terminadas_ids = (product.telas_terminadas || '').split(',').filter(i => i);
+            let restantes_map = {};
+            try {
+                restantes_map = typeof product.telas_restantes === 'string' 
+                    ? JSON.parse(product.telas_restantes || '{}') 
+                    : (product.telas_restantes || {});
+            } catch(e) {
+                restantes_map = {};
+            }
+
+            terminadas_ids.forEach(tela_id => {
+                const existingVal = fabricDeductionValues.get(String(tela_id)) || {};
+                existingVal.terminado = true;
+                fabricDeductionValues.set(String(tela_id), existingVal);
+            });
+
+            for (const tela_id in restantes_map) {
+                const existingVal = fabricDeductionValues.get(String(tela_id)) || {};
+                existingVal.restantes = restantes_map[tela_id];
+                fabricDeductionValues.set(String(tela_id), existingVal);
+            }
+            
+        } catch(e) { 
+            console.error("Error al procesar datos del producto:", e);
+            showToast("Error al cargar detalles del producto.", "error");
+        }
+        renderDeductionTables();
+        renderProductsTable();
+    }
+    
+    async function clearMainForm() {
+        [dom.referencia, dom.barras, dom.trazo, dom.trazos, dom.tipoTela, dom.observacion].forEach(el => el.value = '');
+        dom.fecha.value = generateAutoDate();
+        dom.serial.value = await getNextSerial();
+        dom.cantidad.value = '';
+        selectedProductId = null;
+        renderProductsTable();
+    }
+
+    async function clearAll() {
+        await clearMainForm();
+        materialDeductionValues.clear();
+        fabricDeductionValues.clear();
+        renderDeductionTables();
+    }
+    
+    function collectFormData() {
+        const data = {
+            fecha: dom.fecha.value.trim(), referencia: dom.referencia.value.trim(),
+            codigo_barras: dom.barras.value.trim(), tipo_tela: dom.tipoTela.value.trim(),
+            serial: dom.serial.value.trim(), observacion: dom.observacion.value.trim(),
+            medida_trazo: dom.trazo.value.trim(), trazos: parseInt(dom.trazos.value) || 0,
+            cantidad: parseInt(dom.cantidad.value) || 0, 
+            materials_used: [], fabrics_used: [],
+            telas_terminadas: [], telas_restantes: {}
+        };
+
+        if (!data.fecha || !data.referencia || !data.medida_trazo || !data.trazos) {
+            showToast("Complete los campos principales.", 'error'); return null;
+        }
+
+        materialDeductionValues.forEach((qty, id) => { 
+            if (parseFloat(qty) > 0) data.materials_used.push({id, quantity_used: qty}); 
+        });
+        
+        fabricDeductionValues.forEach((val, id) => {
+            if ((parseFloat(val.factor) || 0) > 0) {
+                data.fabrics_used.push({
+                    id: id, valor_descontar: val.factor || 0,
+                    quantity_used: (parseFloat(val.factor) || 0) * (parseFloat(data.medida_trazo) || 0)
+                });
+            }
+            if (val.terminado) data.telas_terminadas.push(id);
+            if (val.restantes) data.telas_restantes[id] = val.restantes;
+        });
+
+        return data;
+    }
+
+    async function submitData(endpoint, method) {
+        const data = collectFormData();
+        if (!data) return;
+        try {
+            const result = await apiRequest(endpoint, method, data);
+            showToast(result.message, 'success');
+            products_master = await apiRequest('/products');
+            await (method === 'POST' ? clearMainForm() : clearAll());
+        } catch (error) {}
+    }
+
+    async function deleteProducts() {
+        idsPendingDeletion = Array.from(dom.productsTableBody.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.dataset.id);
+        if (idsPendingDeletion.length === 0) { showToast("Seleccione productos para eliminar.", 'error'); return; }
+        dom.deletePasswordModal.classList.add('active');
+    }
+
+    async function loadData() {
+        try {
+            [materials_master, fabrics_master, products_master, references_master, barcodes_master] = await Promise.all([
+                apiRequest('/materials'), apiRequest('/fabrics'), apiRequest('/products'),
+                apiRequest('/dynamic-codes/all-references'), apiRequest('/dynamic-codes/all-barcodes')
+            ]);
+            dom.referencesDatalist.innerHTML = references_master.map(ref => `<option value="${ref.code}"></option>`).join('');
+            setupReferenceAutocomplete();
+            await clearAll();
+        } catch (error) { showToast("Fallo la carga inicial de datos.", 'error'); }
+    }
+    
+    function setupReferenceAutocomplete() {
+        dom.referencia.addEventListener('input', () => {
+            const refValue = dom.referencia.value.trim();
+            const foundRef = references_master.find(r => r.code === refValue && r.description);
+            if(foundRef) {
+                dom.barras.value = foundRef.description;
+            }
+        });
+    }
+
+    function init() {
+        ['input', 'change'].forEach(evt => {
+            dom.fabricBody.addEventListener(evt, (e) => {
+                const target = e.target;
+                if (!target.classList.contains('deduction-input')) return;
+                const tr = target.closest('tr');
+                if (!tr) return;
+                const id = tr.dataset.id;
+                const field = target.dataset.field;
+                const value = target.type === 'checkbox' ? target.checked : target.value;
+                const valObj = fabricDeductionValues.get(id) || {};
+                valObj[field] = value;
+                fabricDeductionValues.set(id, valObj);
+                
+                if (field === 'terminado' || field === 'restantes') {
+                    const isTerminado = field === 'terminado' ? value : valObj.terminado || false;
+                    const restantes = field === 'restantes' ? value : valObj.restantes || '';
+                    updateFabricStatus(id, isTerminado, restantes);
+                }
+                
+                if (target.matches('.fabric-terminado-check')) {
+                    tr.querySelector('.fabric-restantes-input').style.display = target.checked ? 'inline-block' : 'none';
+                }
+                if (target.matches('.fabric-factor-input')) updateCalculations();
+            });
+            dom.materialBody.addEventListener(evt, (e) => {
+                 if (e.target.classList.contains('deduction-input')) {
+                    const id = e.target.closest('tr').dataset.id;
+                    if (e.target.value) materialDeductionValues.set(id, e.target.value);
+                    else materialDeductionValues.delete(id);
+                }
+            });
+        });
+
+        dom.materialSearch.addEventListener('input', () => renderDeductionTables(dom.materialSearch.value, dom.fabricSearch.value));
+        dom.fabricSearch.addEventListener('input', () => renderDeductionTables(dom.materialSearch.value, dom.fabricSearch.value));
+
+        dom.addBtn.addEventListener('click', () => submitData('/products', 'POST'));
+        dom.editBtn.addEventListener('click', () => {
+            if (!selectedProductId) { 
+                showToast("Seleccione un producto para editar.", 'error'); 
+                return; 
+            }
+            dom.editPasswordModal.classList.add('active');
+        });
+        dom.clearBtn.addEventListener('click', clearAll);
+        dom.deleteBtn.addEventListener('click', deleteProducts);
+        dom.passwordCancelBtn.addEventListener('click', () => {
+            dom.deletePasswordModal.classList.remove('active');
+            dom.passwordInput.value = '';
+        });
+        dom.passwordSubmitBtn.addEventListener('click', async () => {
+            if (dom.passwordInput.value !== '3012') { showToast('Contraseña incorrecta.', 'error'); return; }
+            dom.deletePasswordModal.classList.remove('active');
+            dom.passwordInput.value = '';
+            try {
+                await apiRequest('/products', 'DELETE', { ids: idsPendingDeletion });
+                showToast('Productos eliminados.', 'success');
+                await loadData();
+            } catch (error) {}
+        });
+        
+        dom.editPasswordCancelBtn.addEventListener('click', () => {
+            dom.editPasswordModal.classList.remove('active');
+            dom.editPasswordInput.value = '';
+        });
+
+        dom.editPasswordSubmitBtn.addEventListener('click', async () => {
+            if (dom.editPasswordInput.value !== '3012') { 
+                showToast('Contraseña incorrecta.', 'error'); 
+                return; 
+            }
+            dom.editPasswordModal.classList.remove('active');
+            dom.editPasswordInput.value = '';
+            submitData(`/products/${selectedProductId}`, 'PUT');
+        });
+        
+        dom.trazo.addEventListener('input', updateCalculations);
+        dom.trazos.addEventListener('input', calculateQuantity);
+        dom.productSearch.addEventListener('input', renderProductsTable);
+        dom.selectAllCheckbox.addEventListener('change', e => dom.productsTableBody.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = e.target.checked));
+        
+        loadData();
+    }
+    
+    init();
+});
+</script>
+
+</body>
+</html>

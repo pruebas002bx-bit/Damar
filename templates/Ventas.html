@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Ventas - DAMAR</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --primary-dark: #2C3E50; --secondary-light: #ECF0F1; --accent: #3498DB;
+            --text-dark: #34495E; --text-light: white; --hover-accent: #2980B9;
+            --success: #27AE60; --warning: #F39C12; --danger: #E74C3C;
+            --border-color: #dfe4ea; --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --shadow: 0 10px 30px rgba(44, 62, 80, 0.1); --shadow-hover: 0 15px 35px rgba(44, 62, 80, 0.15);
+            --font-family: 'Poppins', sans-serif; --border-radius-lg: 12px; --border-radius-md: 8px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-family); background-color: var(--secondary-light); color: var(--text-dark); }
+        .container { max-width: 1600px; margin: 2rem auto; padding: 0 1.5rem; }
+        .card { background-color: white; border-radius: var(--border-radius-lg); padding: 2.5rem; margin-bottom: 2rem; box-shadow: var(--shadow); }
+        .content-header { text-align: center; margin-bottom: 2.5rem; }
+        .content-title { font-size: 2.5rem; font-weight: 700; color: var(--primary-dark); }
+        
+        /* --- Nuevo Layout de Rejilla --- */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2rem;
+        }
+
+        .tab-nav { display: flex; flex-wrap: wrap; border-bottom: 2px solid var(--border-color); margin-bottom: 1.5rem; }
+        .tab-btn { padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; border: none; background-color: transparent; color: var(--text-dark); border-bottom: 3px solid transparent; transition: all 0.3s ease; }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; animation: fadeIn 0.4s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .form-section h3, h4 { font-size: 1.5rem; color: var(--primary-dark); margin-bottom: 1.5rem; padding-bottom: 0.5rem; }
+        h4 { font-size: 1.2rem; border-bottom: 1px solid var(--border-color); }
+        .form-group { margin-bottom: 1rem; }
+        .form-label { font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 0.5rem; }
+        .form-input, .form-select { width: 100%; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--border-radius-md); font-size: 1rem; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+        .total-display { font-size: 2.5rem; font-weight: 700; color: var(--primary-dark); text-align: center; background-color: var(--secondary-light); padding: 1rem; border-radius: var(--border-radius-md); }
+        .buttons-container { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1.5rem; }
+        .btn { border: none; border-radius: var(--border-radius-md); padding: 12px 24px; font-size: 0.95rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.75rem; transition: all 0.3s ease; text-transform: uppercase; }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+        .btn-primary { background: var(--gradient-primary); color: white; }
+        .btn-success { background-color: var(--success); color: white; }
+        .btn-secondary { background-color: var(--secondary-light); color: var(--text-dark); border: 1px solid var(--border-color); }
+        .table-container { overflow-x: auto; max-height: 500px; }
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .data-table th, .data-table td { padding: 12px 10px; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+        .data-table thead th { background-color: #f8f9fa; color: var(--primary-dark); font-weight: 600; text-transform: uppercase; font-size: 0.8rem; position: sticky; top: 0; }
+        .data-table .action-btn { background: none; border: none; cursor: pointer; color: var(--danger); font-size: 1.1rem; }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1050; }
+        
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="toastContainer" class="toast-container"></div>
+
+<div class="container">
+    <header class="content-header">
+        <h1 class="content-title">Gestión de Ventas</h1>
+    </header>
+    
+    <div class="main-grid">
+        <!-- Columna Izquierda: Formulario de Venta -->
+        <section class="card form-section">
+            <h3>Registrar Venta</h3>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Nº Factura</label>
+                    <input type="text" id="invoiceInput" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Punto de Venta</label>
+                    <select id="puntoVentaSelect" class="form-select"></select>
+                </div>
+            </div>
+
+            <h4 style="margin-top: 2rem;">Añadir Productos</h4>
+            <div class="form-grid" style="align-items: end;">
+                <div class="form-group">
+                    <label class="form-label">Producto (Referencia - Lote)</label>
+                    <select id="productSelect" class="form-select"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cantidad</label>
+                    <input type="number" id="quantityInput" class="form-input" min="1">
+                </div>
+                <button id="addProductBtn" class="btn btn-primary" style="height: 44px;">Añadir</button>
+            </div>
+            
+            <h4 style="margin-top: 2rem;">Productos en Venta</h4>
+            <div class="table-container" style="max-height: 200px;">
+                <table class="data-table">
+                    <thead><tr><th>Lote</th><th>Referencia</th><th>Cant.</th><th>V. Unit.</th><th>Subtotal</th><th></th></tr></thead>
+                    <tbody id="currentSaleBody"></tbody>
+                </table>
+            </div>
+
+            <h4 style="margin-top: 2rem;">Pago</h4>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Efectivo</label>
+                    <input type="number" id="efectivoInput" class="form-input" value="0">
+                </div>
+            </div>
+            <div class="form-grid" style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                 <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label" style="font-size: 1.1rem; color: var(--primary-dark);">Pago por Consignación / Transferencia</label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cuenta Bancaria</label>
+                    <select id="bancoConsignacionSelect" class="form-select">
+                        <option value="">Seleccionar cuenta...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Monto Consignado</label>
+                    <input type="number" id="consignacionAmountInput" class="form-input" value="0">
+                </div>
+            </div>
+
+            <h4 style="margin-top: 1rem;">Total Venta</h4>
+            <div id="totalDisplay" class="total-display">$0</div>
+
+            <div class="buttons-container">
+                <button id="registerSaleBtn" class="btn btn-success"><i class="fa-solid fa-cash-register"></i> Registrar Venta</button>
+                <button id="clearBtn" class="btn btn-secondary"><i class="fa-solid fa-eraser"></i> Limpiar</button>
+            </div>
+        </section>
+
+        <!-- Columna Derecha: Pestañas de Inventario e Historial -->
+        <section class="card">
+            <nav class="tab-nav">
+                <button class="tab-btn active" data-tab="inventory-panel">Inventario Productos</button>
+                <button class="tab-btn" data-tab="history-panel">Historial de Ventas</button>
+            </nav>
+
+            <div id="inventory-panel" class="tab-panel active">
+                <h4>Inventario de Productos Terminados</h4>
+                 <div class="form-group">
+                    <input type="text" id="inventorySearchInput" class="form-input" placeholder="Buscar por Lote o Referencia...">
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead><tr><th>Lote</th><th>Referencia</th><th>Stock Actual</th><th>Valor Venta</th></tr></thead>
+                        <tbody id="inventoryTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="history-panel" class="tab-panel">
+                <h4>Historial de Ventas (Salidas)</h4>
+                <div class="form-group">
+                    <input type="text" id="historySearchInput" class="form-input" placeholder="Buscar por Nº Factura o Punto de Venta...">
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead><tr><th>Fecha</th><th>Factura</th><th>Punto Venta</th><th>Total</th></tr></thead>
+                        <tbody id="salesHistoryBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const API_URL = 'https://harvey-unspoilt-judie.ngrok-free.dev';
+    let products_master = [];
+    let sales_master = [];
+    let currentSaleItems = [];
+
+    const dom = {
+        tabs: document.querySelectorAll('.tab-btn'),
+        panels: document.querySelectorAll('.tab-panel'),
+        invoiceInput: document.getElementById('invoiceInput'),
+        puntoVentaSelect: document.getElementById('puntoVentaSelect'),
+        productSelect: document.getElementById('productSelect'),
+        quantityInput: document.getElementById('quantityInput'),
+        addProductBtn: document.getElementById('addProductBtn'),
+        currentSaleBody: document.getElementById('currentSaleBody'),
+        efectivoInput: document.getElementById('efectivoInput'),
+        consignacionAmountInput: document.getElementById('consignacionAmountInput'),
+        bancoConsignacionSelect: document.getElementById('bancoConsignacionSelect'),
+        totalDisplay: document.getElementById('totalDisplay'),
+        registerSaleBtn: document.getElementById('registerSaleBtn'),
+        clearBtn: document.getElementById('clearBtn'),
+        inventorySearchInput: document.getElementById('inventorySearchInput'),
+        inventoryTableBody: document.getElementById('inventoryTableBody'),
+        historySearchInput: document.getElementById('historySearchInput'),
+        salesHistoryBody: document.getElementById('salesHistoryBody'),
+    };
+    
+    const puntoVentaOptions = ["Punto A", "Punto B", "Punto C", "Online"];
+
+    const showToast = (message, type = 'success') => {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'times-circle'}"></i> ${message}`;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    };
+
+    async function apiRequest(endpoint, method = 'GET', data = null) {
+        document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+        try {
+            const options = { method, headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, mode: 'cors' };
+            if (data) options.body = JSON.stringify(data);
+            const response = await fetch(`${API_URL}${endpoint}`, options);
+            const responseData = await response.json();
+            if (!response.ok) throw new Error(responseData.message || `Error del servidor: ${response.status}`);
+            return responseData;
+        } catch (error) {
+            showToast(error.message, 'error');
+            throw error;
+        } finally {
+            document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+        }
+    }
+
+    function formatCurrency(value) {
+        return (parseFloat(value) || 0).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
+    }
+
+    function updateTotal() {
+        const total = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0);
+        dom.totalDisplay.textContent = formatCurrency(total);
+    }
+
+    function renderCurrentSale() {
+        dom.currentSaleBody.innerHTML = '';
+        currentSaleItems.forEach((item, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${item.lote}</td>
+                <td>${item.referencia}</td>
+                <td>${item.quantity}</td>
+                <td>${formatCurrency(item.valor_venta)}</td>
+                <td>${formatCurrency(item.subtotal)}</td>
+                <td><button class="action-btn" data-index="${index}"><i class="fa-solid fa-trash"></i></button></td>
+            `;
+            dom.currentSaleBody.appendChild(tr);
+        });
+        updateTotal();
+    }
+    
+    function addProductToSale() {
+        const productId = dom.productSelect.value;
+        const quantity = parseInt(dom.quantityInput.value, 10);
+
+        if (!productId || !quantity || quantity <= 0) {
+            showToast('Seleccione un producto y una cantidad válida.', 'error');
+            return;
+        }
+
+        const product = products_master.find(p => String(p.id) === productId);
+        if (!product) {
+            showToast('Producto no encontrado.', 'error');
+            return;
+        }
+        
+        if (quantity > parseFloat(product.cantidad)) {
+            showToast(`Stock insuficiente para ${product.lote}. Disponible: ${product.cantidad}`, 'error');
+            return;
+        }
+
+        const existingItem = currentSaleItems.find(item => item.id === productId);
+        if (existingItem) {
+            existingItem.quantity += quantity;
+            existingItem.subtotal = existingItem.quantity * parseFloat(existingItem.valor_venta);
+        } else {
+            currentSaleItems.push({
+                id: product.id,
+                lote: product.lote,
+                referencia: product.referencia,
+                quantity: quantity,
+                valor_venta: parseFloat(product.valor_venta) || 0,
+                subtotal: quantity * (parseFloat(product.valor_venta) || 0)
+            });
+        }
+        
+        dom.quantityInput.value = '';
+        renderCurrentSale();
+    }
+
+    function removeProductFromSale(index) {
+        currentSaleItems.splice(index, 1);
+        renderCurrentSale();
+    }
+
+    function clearForm() {
+        currentSaleItems = [];
+        dom.invoiceInput.value = '';
+        dom.puntoVentaSelect.value = puntoVentaOptions[0];
+        dom.productSelect.value = '';
+        dom.quantityInput.value = '';
+        dom.efectivoInput.value = '0';
+        dom.consignacionAmountInput.value = '0';
+        dom.bancoConsignacionSelect.value = '';
+        renderCurrentSale();
+    }
+
+    async function registerSale() {
+        if (currentSaleItems.length === 0) {
+            showToast('Añada al menos un producto a la venta.', 'error');
+            return;
+        }
+
+        const consignacionValue = parseFloat(dom.consignacionAmountInput.value) || 0;
+        const bancoSeleccionado = dom.bancoConsignacionSelect.value;
+
+        if (consignacionValue > 0 && !bancoSeleccionado) {
+            showToast('Si hay un valor de consignación, debe seleccionar un banco.', 'error');
+            return;
+        }
+        
+        if (consignacionValue <= 0 && bancoSeleccionado) {
+            showToast('Si selecciona un banco, debe ingresar un monto de consignación.', 'error');
+            return;
+        }
+
+        const data = {
+            sale_date: new Date().toISOString().split('T')[0],
+            invoice_number: dom.invoiceInput.value.trim(),
+            punto_venta: dom.puntoVentaSelect.value,
+            products_sold: currentSaleItems.map(item => ({ id: item.id, quantity: item.quantity, price: item.valor_venta })),
+            efectivo: parseFloat(dom.efectivoInput.value) || 0,
+            consignacion: consignacionValue,
+            banco_consignacion: consignacionValue > 0 ? bancoSeleccionado : '',
+            total_sale: currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0)
+        };
+        
+        try {
+            const result = await apiRequest('/sales', 'POST', data);
+            showToast(result.message, 'success');
+            clearForm();
+            await loadData();
+        } catch (error) {}
+    }
+
+    function renderInventoryTable() {
+        const filter = dom.inventorySearchInput.value.toLowerCase();
+        const filteredProducts = products_master.filter(p =>
+            (p.lote || '').toLowerCase().includes(filter) ||
+            (p.referencia || '').toLowerCase().includes(filter)
+        );
+        dom.inventoryTableBody.innerHTML = '';
+        filteredProducts.forEach(prod => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${prod.lote}</td>
+                <td>${prod.referencia}</td>
+                <td>${prod.cantidad}</td>
+                <td>${formatCurrency(prod.valor_venta)}</td>
+            `;
+            dom.inventoryTableBody.appendChild(tr);
+        });
+    }
+
+    function renderSalesHistory() {
+        const filter = dom.historySearchInput.value.toLowerCase();
+        const filteredSales = sales_master.filter(s => 
+            (s.invoice_number || '').toLowerCase().includes(filter) ||
+            (s.punto_venta || '').toLowerCase().includes(filter)
+        );
+        dom.salesHistoryBody.innerHTML = '';
+        filteredSales.forEach(sale => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${sale.sale_date}</td>
+                <td>${sale.invoice_number}</td>
+                <td>${sale.punto_venta}</td>
+                <td>${formatCurrency(sale.total_sale)}</td>
+            `;
+            dom.salesHistoryBody.appendChild(tr);
+        });
+    }
+
+    async function loadData() {
+        try {
+            const [productsData, salesData, banksData] = await Promise.all([
+                apiRequest('/products'),
+                apiRequest('/sales'),
+                apiRequest('/bancos')
+            ]);
+            products_master = productsData || [];
+            sales_master = (salesData || []).sort((a, b) => new Date(b.sale_date) - new Date(a.sale_date));
+
+            dom.productSelect.innerHTML = '<option value="">Seleccionar producto...</option>';
+            products_master.forEach(p => {
+                if (parseFloat(p.cantidad) > 0) {
+                    dom.productSelect.innerHTML += `<option value="${p.id}">${p.referencia} - ${p.lote} (Stock: ${p.cantidad})</option>`;
+                }
+            });
+
+            dom.bancoConsignacionSelect.innerHTML = '<option value="">Seleccione un banco...</option>';
+            // Llenar con bancos registrados en el sistema
+            (banksData || []).forEach(banco => {
+                dom.bancoConsignacionSelect.innerHTML += `<option value="${banco.banco} - Cta ${banco.cuenta}">${banco.banco} - Cta ${banco.cuenta}</option>`;
+            });
+            
+            // Llenar con lista de bancos comunes de Colombia
+            const bancosColombia = [
+                "Nequi", "Daviplata", "Bancolombia", "Banco de Bogotá", "Davivienda", 
+                "BBVA", "Banco de Occidente", "Banco Popular", "Banco AV Villas", 
+                "Scotiabank Colpatria", "Banco GNB Sudameris", "Itaú"
+            ];
+            bancosColombia.forEach(banco => {
+                dom.bancoConsignacionSelect.innerHTML += `<option value="${banco}">${banco}</option>`;
+            });
+
+            renderSalesHistory();
+            renderInventoryTable();
+        } catch (error) {
+            console.error("Fallo la carga inicial de datos", error);
+        }
+    }
+
+    function init() {
+        dom.puntoVentaSelect.innerHTML = puntoVentaOptions.map(p => `<option>${p}</option>`).join('');
+        
+        dom.tabs.forEach(tab => tab.addEventListener('click', (e) => {
+            dom.tabs.forEach(t => t.classList.remove('active'));
+            dom.panels.forEach(p => p.classList.remove('active'));
+            e.target.classList.add('active');
+            document.getElementById(e.target.dataset.tab).classList.add('active');
+        }));
+
+        dom.addProductBtn.addEventListener('click', addProductToSale);
+        dom.registerSaleBtn.addEventListener('click', registerSale);
+        dom.clearBtn.addEventListener('click', clearForm);
+        
+        dom.historySearchInput.addEventListener('input', renderSalesHistory);
+        dom.inventorySearchInput.addEventListener('input', renderInventoryTable);
+        
+        dom.currentSaleBody.addEventListener('click', (e) => {
+            if (e.target.closest('.action-btn')) {
+                removeProductFromSale(e.target.closest('.action-btn').dataset.index);
+            }
+        });
+
+        loadData();
+    }
+    
+    init();
+});
+</script>
+
+</body>
+</html>

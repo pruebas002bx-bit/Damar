@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Referencias de Productos - DAMAR</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        :root {
+            --primary-dark: #2C3E50; --secondary-light: #ECF0F1; --accent: #3498DB;
+            --text-dark: #34495E; --success: #27AE60; --danger: #E74C3C;
+            --border-color: #dfe4ea; --gradient-primary: linear-gradient(135deg, #667eea, #764ba2);
+            --shadow: 0 10px 30px rgba(44, 62, 80, 0.1); --font-family: 'Poppins', sans-serif;
+            --border-radius-lg: 12px; --border-radius-md: 8px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-family); background-color: var(--secondary-light); color: var(--text-dark); }
+        .container { max-width: 1300px; margin: 2rem auto; padding: 0 1.5rem; }
+        .card { background-color: white; border-radius: var(--border-radius-lg); padding: 2.5rem; margin-bottom: 2rem; box-shadow: var(--shadow); }
+        .content-header { text-align: center; margin-bottom: 2.5rem; }
+        .content-title { font-size: 2.5rem; font-weight: 700; color: var(--primary-dark); }
+        .form-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; align-items: end; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-label { font-weight: 600; margin-bottom: 0.6rem; }
+        .form-input, .form-select { width: 100%; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: var(--border-radius-md); font-size: 1rem; }
+        .buttons-container { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 2rem; }
+        .btn { border: none; border-radius: var(--border-radius-md); padding: 12px 24px; font-size: 0.95rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.75rem; transition: all 0.3s ease; text-transform: uppercase; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: var(--gradient-primary); color: white; }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-secondary { background-color: #6c757d; color: white; }
+        .btn-warning { background-color: #f39c12; color: white; }
+        .table-container { overflow-x: auto; }
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .data-table th, .data-table td { padding: 16px 20px; vertical-align: middle; border-bottom: 1px solid var(--border-color); }
+        .data-table thead th { background-color: #f8f9fa; text-transform: uppercase; font-size: 13px; }
+        .hidden { display: none; }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1050; }
+        .toast { display: flex; align-items: center; padding: 15px 20px; border-radius: var(--border-radius-md); color: white; font-weight: 500; margin-bottom: 10px; box-shadow: var(--shadow); transform: translateX(120%); animation: slideIn 0.5s forwards; }
+        .toast.success { background-color: var(--success); }
+        .toast.error { background-color: var(--danger); }
+        @keyframes slideIn { to { transform: translateX(0); } }
+
+        .info-panel {
+            max-width: 900px; margin: 1.5rem auto 0 auto; padding: 1.5rem; background-color: #eaf5fc;
+            border-radius: var(--border-radius-md); border-left: 5px solid var(--accent); text-align: left;
+        }
+        .info-panel p { margin-bottom: 0; line-height: 1.6; font-size: 1rem; color: var(--text-dark); }
+        
+        .tab-nav { display: flex; border-bottom: 2px solid var(--border-color); margin-bottom: 2rem; }
+        .tab-btn { padding: 12px 20px; font-size: 1rem; font-weight: 600; cursor: pointer; border: none; background-color: transparent; color: var(--text-dark); border-bottom: 3px solid transparent; transition: all 0.3s ease; }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; animation: fadeIn 0.4s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5);
+            display: none; z-index: 1000; justify-content: center; align-items: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: white; border-radius: var(--border-radius-lg); padding: 2rem; max-width: 500px;
+            width: 90%; max-height: 90vh; overflow-y: auto;
+        }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);
+        }
+        .modal-title { font-size: 1.5rem; font-weight: 600; color: var(--primary-dark); }
+        .close-btn {
+            background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-dark);
+            padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+        }
+        .modal-body { margin-bottom: 2rem; }
+        .modal-footer { display: flex; gap: 1rem; justify-content: flex-end; }
+        
+        .missing-value {
+            color: var(--danger);
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div id="toastContainer" class="toast-container"></div>
+    
+    <div id="editModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Editar Referencia</h3>
+                <button class="close-btn" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group hidden">
+                    <label class="form-label" for="editType">Tipo</label>
+                    <input type="text" id="editType" class="form-input" readonly>
+                </div>
+                <div class="form-group hidden">
+                    <label class="form-label" for="editCategory">Categoría</label>
+                    <input type="text" id="editCategory" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="editCode">Referencia</label>
+                    <input type="text" id="editCode" class="form-input" required>
+                </div>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label class="form-label" for="editDescription">Código de Barras</label>
+                    <input type="text" id="editDescription" class="form-input">
+                </div>
+                <div id="productCostsFields">
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label class="form-label" for="editCostoVenta">Costo de Venta</label>
+                        <input type="number" id="editCostoVenta" class="form-input" placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label class="form-label" for="editCostoConfeccion">Costo de Confección</label>
+                        <input type="number" id="editCostoConfeccion" class="form-input" placeholder="0.00" step="0.01">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelEdit">Cancelar</button>
+                <button class="btn btn-primary" id="saveEdit"><i class="fa-solid fa-save"></i> Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <header class="content-header">
+            <h1 class="content-title">Gestión de Referencias de Productos</h1>
+            <div class="info-panel">
+                <p>
+                    Desde aquí puedes agregar, editar y eliminar todas las <strong>Referencias de Productos</strong>. Los valores que agregues aquí se usarán como sugerencias en otros módulos, como <strong>Programación de Cortes</strong>.
+                </p>
+            </div>
+        </header>
+        <main>
+            <nav class="tab-nav">
+                <button class="tab-btn active" data-tab="agregar-panel">Gestionar Referencias</button>
+                <button class="tab-btn" data-tab="ver-todas-panel">Ver Historial Completo</button>
+            </nav>
+
+            <div id="agregar-panel" class="tab-panel active">
+                <section class="card">
+                    <div class="form-section hidden">
+                        <div class="form-group">
+                            <label class="form-label" for="typeSelect">1. Tipo de Código</label>
+                            <select id="typeSelect" class="form-select">
+                                <option value="references" selected>Referencia</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="categoryInput">2. Categoría</label>
+                            <input type="text" id="categoryInput" class="form-input" value="ref_products" readonly>
+                        </div>
+                    </div>
+                    <div id="mainForm">
+                        <div class="form-section">
+                            <div class="form-group">
+                                <label class="form-label" id="mainLabel" for="mainInput">Nueva Referencia</label>
+                                <input type="text" id="mainInput" class="form-input" placeholder="EJ: VESTIDO ARIADNA LARGO" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="barcodeInput">Código de Barras (Opcional)</label>
+                                <input type="text" id="barcodeInput" class="form-input" placeholder="EJ: 770123456789">
+                            </div>
+                        </div>
+                        <div id="addCostsContainer">
+                            <div class="form-section" style="margin-top: 1.5rem;">
+                                <div class="form-group">
+                                    <label class="form-label" for="costoVentaInput">Costo Venta (Opcional)</label>
+                                    <input type="number" id="costoVentaInput" class="form-input" placeholder="0.00" step="0.01">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="costoConfeccionInput">Costo Confección (Opcional)</label>
+                                    <input type="number" id="costoConfeccionInput" class="form-input" placeholder="0.00" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                     <div class="buttons-container">
+                        <button id="addBtn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Agregar</button>
+                        <button id="editBtn" class="btn btn-warning" disabled><i class="fa-solid fa-edit"></i> Editar Seleccionado</button>
+                        <button id="deleteBtn" class="btn btn-danger" disabled><i class="fa-solid fa-trash"></i> Eliminar Seleccionados</button>
+                    </div>
+                </section>
+                
+                <section class="card" id="tableSection">
+                    <h3 id="tableTitle" style="margin-bottom: 1.5rem;">Listado de Referencias de Productos</h3>
+                    <input type="text" id="searchInput" class="form-input" placeholder="Buscar en la tabla..." style="margin-bottom: 1.5rem; max-width: 400px;">
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead id="dataTableHeader"></thead>
+                            <tbody id="dataTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <div id="ver-todas-panel" class="tab-panel">
+                <section class="card">
+                    <h3 style="margin-bottom: 1.5rem;">Historial de Todos los Códigos</h3>
+                    <div class="view-all-section">
+                        <div class="form-section" style="margin-bottom: 1.5rem;">
+                            <input type="text" id="allReferencesSearch" class="form-input" placeholder="Buscar por referencia, código de barras...">
+                        </div>
+                        <div class="buttons-container" style="border: none; padding: 0; margin: 1rem 0;">
+                            <button id="refreshAllBtn" class="btn btn-secondary"><i class="fa-solid fa-refresh"></i> Actualizar</button>
+                            <button id="editSelectedBtn" class="btn btn-warning" disabled><i class="fa-solid fa-edit"></i> Editar Seleccionado</button>
+                            <button id="deleteSelectedBtn" class="btn btn-danger" disabled><i class="fa-solid fa-trash"></i> Eliminar Seleccionados</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="selectAllAllReferences"></th>
+                                    <th>Referencia</th>
+                                    <th>Código de Barras</th>
+                                    <th>Costo Venta</th>
+                                    <th>Costo Confección</th>
+                                </tr>
+                            </thead>
+                            <tbody id="allReferencesTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const API_URL = 'https://harvey-unspoilt-judie.ngrok-free.dev';
+        let masterData = [];
+        let allReferencesData = [];
+        let currentType = 'references';
+        let currentCategory = 'ref_products';
+        let editingItem = null;
+
+        const dom = {
+            tabs: document.querySelectorAll('.tab-btn'),
+            mainInput: document.getElementById('mainInput'),
+            barcodeInput: document.getElementById('barcodeInput'),
+            costoVentaInput: document.getElementById('costoVentaInput'),
+            costoConfeccionInput: document.getElementById('costoConfeccionInput'),
+            tableSection: document.getElementById('tableSection'),
+            dataTableHeader: document.getElementById('dataTableHeader'),
+            dataTableBody: document.getElementById('dataTableBody'),
+            searchInput: document.getElementById('searchInput'),
+            addBtn: document.getElementById('addBtn'),
+            editBtn: document.getElementById('editBtn'),
+            deleteBtn: document.getElementById('deleteBtn'),
+            allReferencesTableBody: document.getElementById('allReferencesTableBody'),
+            allReferencesSearch: document.getElementById('allReferencesSearch'),
+            refreshAllBtn: document.getElementById('refreshAllBtn'),
+            editSelectedBtn: document.getElementById('editSelectedBtn'),
+            deleteSelectedBtn: document.getElementById('deleteSelectedBtn'),
+            selectAllAllReferences: document.getElementById('selectAllAllReferences'),
+            editModal: document.getElementById('editModal'),
+            closeModal: document.getElementById('closeModal'),
+            editType: document.getElementById('editType'),
+            editCategory: document.getElementById('editCategory'),
+            editCode: document.getElementById('editCode'),
+            editDescription: document.getElementById('editDescription'),
+            editCostoVenta: document.getElementById('editCostoVenta'),
+            editCostoConfeccion: document.getElementById('editCostoConfeccion'),
+            cancelEdit: document.getElementById('cancelEdit'),
+            saveEdit: document.getElementById('saveEdit'),
+        };
+
+        const showToast = (message, type = 'success') => {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fa ${type === 'success' ? 'fa-check-circle' : 'fa-times-circle'}"></i> ${message}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        };
+        
+        async function apiRequest(endpoint, method = 'GET', data = null) {
+            try {
+                const options = { method, headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, mode: 'cors' };
+                if (data) options.body = JSON.stringify(data);
+                const response = await fetch(`${API_URL}${endpoint}`, options);
+                const responseData = await response.json();
+                if (!response.ok) throw new Error(responseData.message || `Error ${response.status}`);
+                return responseData;
+            } catch (error) {
+                showToast(error.message, 'error');
+                console.error("API Request Error:", error);
+                throw error;
+            }
+        }
+        
+        function formatCostCell(value) {
+            const numValue = parseFloat(value);
+            if (isNaN(numValue) || numValue === 0) {
+                return `<span class="missing-value"><i class="fa-solid fa-triangle-exclamation"></i> Sin Asignar</span>`;
+            }
+            return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(numValue);
+        }
+
+        dom.tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const target = tab.dataset.tab;
+                dom.tabs.forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(target).classList.add('active');
+                if (target === 'ver-todas-panel') loadAllData();
+            });
+        });
+
+        function updateSimpleTableButtons() {
+            const checkedBoxes = dom.dataTableBody.querySelectorAll('input[type="checkbox"]:checked');
+            dom.editBtn.disabled = checkedBoxes.length !== 1;
+            dom.deleteBtn.disabled = checkedBoxes.length === 0;
+        }
+
+        function renderTable() {
+            const filter = dom.searchInput.value.toLowerCase();
+            
+            dom.dataTableHeader.innerHTML = `
+                <tr>
+                    <th><input type="checkbox" id="selectAllCheckbox"></th>
+                    <th>Referencia</th>
+                    <th>Código de Barras</th>
+                    <th>Costo Venta</th>
+                    <th>Costo Confección</th>
+                </tr>
+            `;
+            document.getElementById('selectAllCheckbox').addEventListener('change', e => {
+                 dom.dataTableBody.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = e.target.checked);
+                 updateSimpleTableButtons();
+            });
+
+            const filteredData = masterData.filter(item => 
+                (item.code || '').toLowerCase().includes(filter) || 
+                (item.description || '').toLowerCase().includes(filter)
+            );
+
+            dom.dataTableBody.innerHTML = '';
+            filteredData.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <input type="checkbox" 
+                               data-id="${item.id}" 
+                               data-code="${item.code || ''}" 
+                               data-description="${item.description || ''}"
+                               data-costo-venta="${item.costo_venta || ''}"
+                               data-costo-confeccion="${item.costo_confeccion || ''}">
+                    </td>
+                    <td>${item.code || ''}</td>
+                    <td>${item.description || ''}</td>
+                    <td>${formatCostCell(item.costo_venta)}</td>
+                    <td>${formatCostCell(item.costo_confeccion)}</td>
+                `;
+                dom.dataTableBody.appendChild(tr);
+            });
+            updateSimpleTableButtons();
+        }
+
+        async function loadData() {
+            const endpoint = `/dynamic-codes/${currentType}/${currentCategory}`;
+            try {
+                masterData = await apiRequest(endpoint);
+                renderTable();
+            } catch (error) {
+                dom.dataTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Error al cargar datos.</td></tr>`;
+            }
+        }
+
+        async function loadAllData() {
+            try {
+                const [references, barcodes] = await Promise.all([
+                    apiRequest('/dynamic-codes/all-references'),
+                    apiRequest('/dynamic-codes/all-barcodes')
+                ]);
+                allReferencesData = [
+                    ...references.map(item => ({...item, type: 'Referencia'})),
+                    ...barcodes.map(item => ({...item, type: 'Código de Barras'}))
+                ];
+                renderAllReferencesTable();
+            } catch (error) {
+                dom.allReferencesTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Error al cargar datos.</td></tr>`;
+            }
+        }
+
+        function renderAllReferencesTable() {
+            const searchFilter = dom.allReferencesSearch.value.toLowerCase();
+            
+            const filteredData = allReferencesData.filter(item => {
+                return !searchFilter || 
+                       (item.code || '').toLowerCase().includes(searchFilter) || 
+                       (item.description || '').toLowerCase().includes(searchFilter);
+            });
+            
+            dom.allReferencesTableBody.innerHTML = '';
+            filteredData.forEach(item => {
+                const tr = document.createElement('tr');
+                if (item.category === 'ref_products' || item.category === 'productos') {
+                    tr.innerHTML = `
+                        <td><input type="checkbox" data-id="${item.id}" data-type="${item.type}" data-category="${item.category}" data-code="${item.code}" data-description="${item.description || ''}" data-costo-venta="${item.costo_venta || ''}" data-costo-confeccion="${item.costo_confeccion || ''}"></td>
+                        <td>${item.code || ''}</td>
+                        <td>${item.description || ''}</td>
+                        <td>${formatCostCell(item.costo_venta)}</td>
+                        <td>${formatCostCell(item.costo_confeccion)}</td>
+                    `;
+                    dom.allReferencesTableBody.appendChild(tr);
+                }
+            });
+            updateAllReferencesButtons();
+        }
+
+        function updateAllReferencesButtons() {
+            const checkedBoxes = dom.allReferencesTableBody.querySelectorAll('input[type="checkbox"]:checked');
+            dom.editSelectedBtn.disabled = checkedBoxes.length !== 1;
+            dom.deleteSelectedBtn.disabled = checkedBoxes.length === 0;
+        }
+
+        function openEditModal(item) {
+            editingItem = item;
+            dom.editType.value = "Referencia";
+            dom.editCategory.value = "ref_products";
+            dom.editCode.value = item.code;
+            dom.editDescription.value = item.description || '';
+            dom.editCostoVenta.value = item.costo_venta || '';
+            dom.editCostoConfeccion.value = item.costo_confeccion || '';
+            dom.editModal.classList.add('show');
+        }
+
+        function closeEditModal() {
+            editingItem = null;
+            dom.editModal.classList.remove('show');
+        }
+
+        async function saveEditedItem() {
+            if (!editingItem) return;
+            
+            const newCode = dom.editCode.value.trim();
+            if (!newCode) return showToast('La Referencia es obligatoria.', 'error');
+            
+            const payload = {
+                code: newCode,
+                description: dom.editDescription.value.trim(),
+                costo_venta: dom.editCostoVenta.value || '0',
+                costo_confeccion: dom.editCostoConfeccion.value || '0'
+            };
+
+            try {
+                const endpoint = `/dynamic-codes/references/ref_products/${editingItem.id}`;
+                await apiRequest(endpoint, 'PUT', payload);
+                
+                showToast('Registro actualizado.', 'success');
+                closeEditModal();
+                loadAllData();
+                loadData();
+            } catch (error) {}
+        }
+
+        async function deleteSelectedItems(isFromAllView) {
+            const container = isFromAllView ? dom.allReferencesTableBody : dom.dataTableBody;
+            const checkedBoxes = container.querySelectorAll('input[type="checkbox"]:checked');
+            
+            if (checkedBoxes.length === 0) return showToast('Seleccione registros para eliminar.', 'error');
+            if (!confirm(`¿Seguro que desea eliminar ${checkedBoxes.length} registro(s)?`)) return;
+
+            try {
+                const itemsToDelete = {};
+                checkedBoxes.forEach(checkbox => {
+                    const category = checkbox.dataset.category;
+                    const id = checkbox.dataset.id;
+                    const key = `references-${category}`;
+                    if (!itemsToDelete[key]) itemsToDelete[key] = { ids: [] };
+                    itemsToDelete[key].ids.push(id);
+                });
+                
+                const deletePromises = Object.keys(itemsToDelete).map(key => {
+                    const [type, category] = key.split('-');
+                    return apiRequest(`/dynamic-codes/${type}/${category}`, 'DELETE', { ids: itemsToDelete[key].ids });
+                });
+                
+                await Promise.all(deletePromises);
+                
+                showToast('Registros eliminados.', 'success');
+                loadAllData();
+                loadData();
+            } catch (error) {}
+        }
+        
+        dom.addBtn.addEventListener('click', async () => {
+            const code = dom.mainInput.value.trim();
+            if (!code) return showToast('El campo Nueva Referencia es obligatorio.', 'error');
+            
+            const endpoint = `/dynamic-codes/${currentType}/${currentCategory}`;
+            
+            const payload = {
+                code: code,
+                description: dom.barcodeInput.value.trim(),
+                costo_venta: dom.costoVentaInput.value || '0',
+                costo_confeccion: dom.costoConfeccionInput.value || '0'
+            };
+
+            try {
+                await apiRequest(endpoint, 'POST', payload);
+                showToast('Registro agregado.', 'success');
+                dom.mainInput.value = '';
+                dom.barcodeInput.value = '';
+                dom.costoVentaInput.value = '';
+                dom.costoConfeccionInput.value = '';
+                loadData();
+                loadAllData();
+            } catch (error) {}
+        });
+
+        dom.editBtn.addEventListener('click', () => {
+            const checkedBox = dom.dataTableBody.querySelector('input[type="checkbox"]:checked');
+            if (checkedBox) openEditModal({ ...checkedBox.dataset });
+        });
+
+        dom.deleteBtn.addEventListener('click', () => deleteSelectedItems(false));
+        dom.searchInput.addEventListener('input', renderTable);
+        dom.dataTableBody.addEventListener('change', (e) => { if(e.target.type === 'checkbox') updateSimpleTableButtons(); });
+        
+        dom.allReferencesSearch.addEventListener('input', renderAllReferencesTable);
+        dom.refreshAllBtn.addEventListener('click', loadAllData);
+        
+        dom.selectAllAllReferences.addEventListener('change', e => {
+            dom.allReferencesTableBody.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = e.target.checked);
+            updateAllReferencesButtons();
+        });
+        dom.allReferencesTableBody.addEventListener('change', e => { if (e.target.type === 'checkbox') updateAllReferencesButtons(); });
+
+        dom.editSelectedBtn.addEventListener('click', () => {
+            const checkedBox = dom.allReferencesTableBody.querySelector('input[type="checkbox"]:checked');
+            if (checkedBox) openEditModal({ ...checkedBox.dataset });
+        });
+
+        dom.deleteSelectedBtn.addEventListener('click', () => deleteSelectedItems(true));
+
+        dom.closeModal.addEventListener('click', closeEditModal);
+        dom.cancelEdit.addEventListener('click', closeEditModal);
+        dom.saveEdit.addEventListener('click', saveEditedItem);
+        dom.editModal.addEventListener('click', (e) => { if (e.target === dom.editModal) closeEditModal(); });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && dom.editModal.classList.contains('show')) closeEditModal();
+            if (e.key === 'Enter' && dom.editModal.classList.contains('show') && document.activeElement.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                saveEditedItem();
+            }
+        });
+        
+        // --- Initial Load ---
+        loadData();
+        loadAllData();
+    });
+    </script>
+</body>
+</html>

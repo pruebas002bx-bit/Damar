@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAMAR - Sistema de Gestión Integral</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --primary-dark: #1e3a8a; --primary-main: #3b82f6; --primary-light: #eff6ff;
+            --text-dark: #1f2937; --text-medium: #374151; --text-light: #6b7280;
+            --border-color: #e5e7eb; --background-light: #f8fafc; --success-main: #10b981;
+            --error-main: #c0392b; --error-light: rgba(192, 57, 43, 0.1); --warning-main: #f39c12;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body, html { height: 100%; font-family: 'Segoe UI', sans-serif; background: var(--background-light); overflow: hidden; }
+        .login-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; transition: all 0.8s ease; }
+        .login-container.hidden { opacity: 0; visibility: hidden; }
+        .background-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        .background-image { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 2s ease-in-out; }
+        .background-image.active { opacity: 1; }
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, rgba(30, 58, 138, 0.9), rgba(59, 130, 246, 0.8)); z-index: 2; }
+        .login-content { position: relative; z-index: 3; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .login-card { background: rgba(255, 255, 255, 0.98); border-radius: 24px; padding: 50px 40px; width: 100%; max-width: 450px; box-shadow: 0 25px 50px rgba(0,0,0,0.3); animation: slideUp 0.8s ease-out; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(50px); } to { opacity: 1; transform: translateY(0); } }
+        .logo-container { text-align: center; margin-bottom: 40px; }
+        .logo { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin-bottom: 20px; }
+        .welcome-text { font-size: 28px; font-weight: 700; color: var(--primary-dark); }
+        .subtitle { font-size: 16px; color: var(--text-light); margin-bottom: 30px; }
+        .form-group { margin-bottom: 25px; position: relative; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-medium); font-size: 14px; }
+        .form-input { width: 100%; padding: 16px 20px; border: 2px solid var(--border-color); border-radius: 12px; font-size: 16px; transition: all 0.3s ease; outline: none; }
+        .form-input:focus { border-color: var(--primary-main); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+        .password-container { position: relative; }
+        .toggle-password { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-light); cursor: pointer; font-size: 18px; }
+        .login-button { width: 100%; padding: 16px; background: linear-gradient(135deg, var(--primary-main), #1e40af); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .login-button:disabled { background: #d1d5db; cursor: not-allowed; }
+        .connection-status { margin-top: 20px; padding: 12px 16px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 14px; font-weight: 500; }
+        .connection-status.connected { background: rgba(16, 185, 129, 0.1); color: #065f46; }
+        .connection-status.disconnected { background: rgba(239, 68, 68, 0.1); color: #991b1b; }
+        .connection-status.checking { background: rgba(245, 158, 11, 0.1); color: #92400e; }
+        .connection-dot { width: 10px; height: 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .connection-dot.connected { background: var(--success-main); animation: pulse 2s infinite; }
+        .connection-dot.disconnected { background: var(--error-main); }
+        .connection-dot.checking .fa-spinner { animation: spin 1.5s linear infinite; }
+        .loading-spinner { display: none; width: 20px; height: 20px; border: 2px solid transparent; border-top: 2px solid white; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        .message { margin-top: 20px; padding: 12px 16px; border-radius: 8px; font-size: 14px; text-align: center; opacity: 0; transform: translateY(-10px); transition: all 0.3s ease; display: none; }
+        .message.show { opacity: 1; transform: translateY(0); display: block; }
+        .message.success { background: rgba(16, 185, 129, 0.1); color: #065f46; }
+        .message.error { background: rgba(239, 68, 68, 0.1); color: #991b1b; }
+        .dashboard-container { display: flex; height: 100vh; opacity: 0; transition: all 0.8s ease; visibility: hidden; }
+        .dashboard-container.visible { opacity: 1; visibility: visible; }
+        .sidebar { width: 280px; background: white; border-right: 1px solid var(--border-color); box-shadow: 5px 0 15px rgba(0,0,0,0.05); transition: width 0.3s ease; position: relative; z-index: 100; display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar.collapsed { width: 88px; }
+        .sidebar-header { padding: 0 20px; border-bottom: 1px solid var(--border-color); height: 80px; display: flex; align-items: center; justify-content: center; }
+        .sidebar.collapsed .sidebar-header { padding: 0 10px; }
+        .sidebar-logo-container { display: flex; align-items: center; gap: 15px; }
+        .sidebar-logo { width: 50px; height: 50px; border-radius: 12px; }
+        .sidebar-logo-text { font-size: 30px; font-weight: 700; white-space: nowrap; color: var(--text-dark); opacity: 1; transition: opacity 0.2s ease; }
+        .sidebar.collapsed .sidebar-logo-text { opacity: 0; width: 0; }
+        .toggle-btn { position: absolute; right: -15px; top: 30px; transform: translateY(-50%); width: 30px; height: 30px; background: white; border: 1px solid var(--border-color); border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: all 0.3s ease; z-index: 101; }
+        .toggle-btn:hover { background-color: var(--primary-main); color: white; }
+        .sidebar.collapsed .toggle-btn .fa-chevron-left { transform: rotate(180deg); }
+        .menu-section { flex-grow: 1; padding: 10px 0; overflow-y: auto; }
+        .menu-item { display: flex; align-items: center; padding: 13px 25px; color: var(--text-medium); text-decoration: none; transition: all 0.25s ease; margin: 6px 12px; border-radius: 8px; position: relative; white-space: nowrap; }
+        .sidebar.collapsed .menu-item { justify-content: center; }
+        .menu-item i { font-size: 20px; margin-right: 22px; min-width: 25px; text-align: center; color: var(--text-light); }
+        .sidebar.collapsed .menu-item i { margin-right: 0; }
+        .menu-item span { font-weight: 500; font-size: 15px; }
+        .sidebar.collapsed .menu-item span { opacity: 0; width: 0; }
+        .menu-item:hover { background: var(--primary-light); color: var(--primary-dark); }
+        .menu-item.active { background: var(--primary-light); color: var(--primary-dark); font-weight: 600; }
+        .menu-item.active::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 60%; width: 4px; background-color: var(--primary-main); border-radius: 0 4px 4px 0; }
+        .sidebar-footer { padding: 15px 20px; margin-top: auto; }
+        .sidebar.collapsed .sidebar-footer { padding: 15px 0; }
+        .menu-separator { border: none; height: 1px; background-color: var(--border-color); margin: 15px 10px; }
+        .user-profile { display: flex; align-items: center; gap: 10px; padding: 0 15px; }
+        .sidebar.collapsed .user-profile { display: none; }
+        .user-details { display: flex; flex-direction: column; }
+        .user-name { font-weight: 600; color: var(--text-dark); }
+        .user-role { font-size: 12px; color: var(--text-light); }
+        .menu-item-logout:hover { background-color: var(--error-light); color: var(--error-main); }
+        .main-content { display: flex; flex-direction: column; width: 100%; height: 100vh; }
+        .top-bar { background: white; padding: 0 30px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; height: 80px; }
+        .mobile-menu-btn { display: none; background: none; border: none; font-size: 24px; cursor: pointer; }
+        .page-title { font-size: 24px; font-weight: 600; display: flex; align-items: center; gap: 15px; }
+        .page-icon { font-size: 28px; color: var(--primary-main); }
+        .content-area { flex: 1; overflow: hidden; }
+        .content-frame { width: 100%; height: 100%; border: none; }
+        .status-bar { background: white; padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); }
+        .status-indicator { display: flex; align-items: center; gap: 8px; }
+        .status-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .status-dot.connected { background: var(--success-main); animation: pulse 2s infinite; }
+        .status-text { font-size: 14px; font-weight: 500; }
+        .status-right { font-size: 12px; }
+        .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99; opacity: 0; transition: opacity 0.3s ease; }
+        .mobile-overlay.active { opacity: 1; display: block; }
+        .ai-chat-button { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; background: var(--primary-main); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(0,0,0,0.2); cursor: pointer; z-index: 1050; transition: transform 0.3s ease; }
+        .ai-chat-button:hover { transform: scale(1.1); }
+        .ai-chat-button img { width: 50px; height: 50px; border-radius: 50%; }
+        .chat-modal { position: fixed; bottom: 100px; right: 30px; width: 350px; max-width: 90vw; height: 500px; background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); z-index: 1040; display: flex; flex-direction: column; overflow: hidden; transform: translateY(20px) scale(0.95); opacity: 0; visibility: hidden; transition: all 0.3s ease; }
+        .chat-modal.visible { transform: translateY(0) scale(1); opacity: 1; visibility: visible; }
+        .chat-header { background: var(--primary-main); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .chat-header h3 { margin: 0; font-size: 1.1rem; }
+        .chat-header .close-btn { background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; }
+        .chat-messages { flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background-color: #f9fafb; }
+        .chat-message { max-width: 85%; padding: 10px 15px; border-radius: 18px; line-height: 1.5; }
+        .chat-message.assistant { background-color: #e5e7eb; color: var(--text-dark); align-self: flex-start; border-bottom-left-radius: 4px; }
+        .chat-message.user { background-color: var(--primary-main); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .chat-message.typing { color: var(--text-light); font-style: italic; }
+        .chat-input-area { display: flex; padding: 10px; border-top: 1px solid var(--border-color); }
+        #chatInput { flex-grow: 1; border: 1px solid var(--border-color); border-radius: 20px; padding: 10px 15px; font-size: 1rem; outline: none; }
+        #chatSendBtn { background: var(--primary-main); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; margin-left: 10px; cursor: pointer; font-size: 1rem; flex-shrink: 0; }
+        @media (max-width: 1024px) {
+            .sidebar { position: fixed; left: -280px; height: 100vh; z-index: 1000; transition: left 0.3s ease; }
+            .sidebar.mobile-open { left: 0; }
+            .toggle-btn { display: none; }
+            .mobile-menu-btn { display: block; }
+        }
+
+        .chat-modal {
+            width: 400px; /* Un poco más ancho */
+            height: 600px; /* Un poco más alto */
+            border: 1px solid var(--border-color);
+        }
+        .chat-header {
+            background: var(--gradient-primary); /* Gradiente para un look premium */
+            flex-shrink: 0;
+        }
+        .chat-messages {
+            background-color: var(--background-light);
+        }
+        .chat-message {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            max-width: 90%;
+        }
+        .chat-message .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .chat-message.user .avatar {
+            background-color: var(--primary-main);
+            color: white;
+        }
+        .chat-message.assistant .avatar {
+            background-color: #764ba2;
+            color: white;
+        }
+        .message-content {
+            padding: 12px 18px;
+            border-radius: 18px;
+            line-height: 1.5;
+        }
+        .chat-message.assistant .message-content {
+            background-color: white;
+            color: var(--text-dark);
+            border-bottom-left-radius: 4px;
+        }
+        .chat-message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse; /* Avatar a la derecha */
+        }
+        .chat-message.user .message-content {
+            background-color: var(--primary-main);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        /* Estilos para el texto en negrita y cursiva */
+        .message-content strong { font-weight: 600; }
+        .message-content em { font-style: italic; }
+        
+        /* Nuevo indicador de "escribiendo..." animado */
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #ccc;
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container" id="loginContainer">
+        <div class="background-container">
+            <img src="https://i.ibb.co/7x2bVjsc/Diapositiva1.jpg" alt="[Imagen de fondo 1]" class="background-image active">
+            <img src="https://i.ibb.co/tpg3dws9/Diapositiva2.jpg" alt="[Imagen de fondo 2]" class="background-image">
+            <img src="https://i.ibb.co/NnVZRT0j/Diapositiva3.jpg" alt="[Imagen de fondo 3]" class="background-image">
+        </div>
+        <div class="overlay"></div>
+        <div class="login-content">
+            <div class="login-card">
+                <div class="logo-container">
+                    <img src="https://i.ibb.co/7d5CDnsT/Logo.png" alt="[Logo de DAMAR]" class="logo">
+                    <h1 class="welcome-text">Bienvenido</h1>
+                    <p class="subtitle">Sistema de Gestión DAMAR</p>
+                </div>
+                <form id="loginForm" novalidate>
+                    <div class="form-group"><label for="username" class="form-label">Usuario</label><input type="text" id="username" name="username" class="form-input" placeholder="Ingrese su usuario" required></div>
+                    <div class="form-group">
+                        <label for="password" class="form-label">Contraseña</label>
+                        <div class="password-container">
+                            <input type="password" id="password" name="password" class="form-input" placeholder="Ingrese su contraseña" required>
+                            <button type="button" class="toggle-password" id="togglePasswordBtn"><i class="fa-solid fa-eye"></i></button>
+                        </div>
+                    </div>
+                    <button type="submit" class="login-button" id="loginBtn"><span class="loading-spinner" id="loadingSpinner"></span><span id="buttonText">Iniciar Sesión</span></button>
+                    <div class="connection-status checking" id="loginConnectionStatus">
+                        <div class="connection-dot" id="loginConnectionDot">
+                            <i class="fa-solid fa-spinner"></i>
+                        </div>
+                        <span id="loginConnectionText">Verificando conexión...</span>
+                    </div>
+                    <div id="message" class="message"></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+    <div class="dashboard-container" id="dashboardContainer">
+        <div class="mobile-overlay" id="mobileOverlay"></div>
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo-container">
+                    <img src="https://i.ibb.co/7d5CDnsT/Logo.png" alt="[Logo de DAMAR]" class="sidebar-logo">
+                    <span class="sidebar-logo-text">DAMAR</span>
+                </div>
+                <button class="toggle-btn" id="sidebarToggleBtn"><i class="fa-solid fa-chevron-left"></i></button>
+            </div>
+            <nav class="menu-section">
+                <a href="#" class="menu-item active" data-src="Dashboard.html" data-title="Dashboard" data-icon="fa-solid fa-chart-pie"><i class="fa-solid fa-chart-pie"></i><span>Dashboard</span></a>
+                <a href="#" class="menu-item" data-src="Loggin_Registros.html" data-title="Registro de Usuarios" data-icon="fa-solid fa-user-shield"><i class="fa-solid fa-user-shield"></i><span>Login Register</span></a>
+                <a href="#" class="menu-item" data-src="Referencias.html" data-title="Referencias" data-icon="fa-solid fa-tags"><i class="fa-solid fa-tags"></i><span>Referencias</span></a>
+                <a href="#" class="menu-item" data-src="Materiales.html" data-title="Materiales" data-icon="fa-solid fa-shapes"><i class="fa-solid fa-shapes"></i><span>Materiales</span></a>
+                <hr class="menu-separator">
+                <a href="#" class="menu-item" data-src="Empleados.html" data-title="Empleados" data-icon="fa-solid fa-users"><i class="fa-solid fa-users"></i><span>Empleados</span></a>
+                <a href="#" class="menu-item" data-src="Clientes.html" data-title="Clientes" data-icon="fa-solid fa-handshake"><i class="fa-solid fa-handshake"></i><span>Clientes</span></a>
+                <a href="#" class="menu-item" data-src="Proveedores.html" data-title="Proveedores" data-icon="fa-solid fa-truck-field"><i class="fa-solid fa-truck-field"></i><span>Proveedores</span></a>
+                <a href="#" class="menu-item" data-src="Bancos.html" data-title="Bancos" data-icon="fa-solid fa-building-columns"><i class="fa-solid fa-building-columns"></i><span>Bancos</span></a>
+                <hr class="menu-separator">
+                <a href="#" class="menu-item" data-src="Llegada_de_Material.html" data-title="Llegada de Material" data-icon="fa-solid fa-boxes-packing"><i class="fa-solid fa-boxes-packing"></i><span>Llegada de Material</span></a>
+                <a href="#" class="menu-item" data-src="Llegada_de_Telas.html" data-title="Llegada de Telas" data-icon="fa-solid fa-scroll"><i class="fa-solid fa-scroll"></i><span>Llegada de Telas</span></a>
+                <a href="#" class="menu-item" data-src="Inventario_Telas.html" data-title="Inventario Telas" data-icon="fa-solid fa-warehouse"><i class="fa-solid fa-warehouse"></i><span>Inventario Telas</span></a>
+                <a href="#" class="menu-item" data-src="Inventario_Material.html" data-title="Inventario Material" data-icon="fa-solid fa-dolly"><i class="fa-solid fa-dolly"></i><span>Inventario Material</span></a>
+                <a href="#" class="menu-item" data-src="Productos_Terminados.html" data-title="Productos Terminados" data-icon="fa-solid fa-shirt"><i class="fa-solid fa-shirt"></i><span>Productos Terminados</span></a>
+                <a href="#" class="menu-item" data-src="Programacion_Cortes.html" data-title="Programación Cortes" data-icon="fa-solid fa-scissors"><i class="fa-solid fa-scissors"></i><span>Programación Cortes</span></a>
+                <a href="#" class="menu-item" data-src="Satelites.html" data-title="Satélites" data-icon="fa-solid fa-satellite-dish"><i class="fa-solid fa-satellite-dish"></i><span>Satélites</span></a>
+                <hr class="menu-separator">
+                <a href="#" class="menu-item" data-src="Ventas.html" data-title="Ventas" data-icon="fa-solid fa-dollar-sign"><i class="fa-solid fa-dollar-sign"></i><span>Ventas</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <hr class="menu-separator">
+                <div class="user-profile">
+                     <div class="user-details">
+                        <span id="userName" class="user-name">Nombre de Usuario</span>
+                        <span id="userRole" class="user-role">Rol de Usuario</span>
+                    </div>
+                </div>
+                <a href="#" class="menu-item menu-item-logout" id="logoutBtn">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i><span>Cerrar Sesión</span>
+                </a>
+            </div>
+        </aside>
+        <main class="main-content" id="mainContent">
+            <header class="top-bar">
+                 <div class="page-title">
+                     <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="fa-solid fa-bars"></i></button>
+                     <i id="pageIcon" class="page-icon fa-solid fa-chart-pie"></i>
+                     <span id="pageTitle">Dashboard</span>
+                 </div>
+            </header>
+            <div class="content-area" id="contentArea">
+                 <iframe id="contentFrame" name="contentFrame" class="content-frame"></iframe>
+            </div>
+            <footer class="status-bar">
+                <div class="status-indicator">
+                    <div id="connectionDot" class="status-dot connected"></div>
+                    <span id="connectionText" class="status-text">Conectado</span>
+                </div>
+                <div class="status-right">
+                    <span>DAMAR Systems &copy; 2025</span>
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <div class="ai-chat-button" id="aiChatButton">
+        <img src="https://i.ibb.co/3yBpSDLw/imagen-2025-07-21-182126225.png" alt="[Icono de Asistente IA]">
+    </div>
+
+    <div class="chat-modal" id="chatModal">
+        <div class="chat-header">
+            <h3>Asistente IA de DAMAR</h3>
+            <button class="close-btn" id="closeChatBtn">&times;</button>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" placeholder="Pregúntame sobre los datos...">
+            <button id="chatSendBtn"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- CONFIGURACIÓN ---
+    // ▼▼▼ ¡ATENCIÓN! ESTA URL ES TEMPORAL. DEBES REEMPLAZARLA CADA VEZ QUE INICIES NGROK. ▼▼▼
+    const API_BASE_URL = 'https://harvey-unspoilt-judie.ngrok-free.dev';
+    window.API_BASE_URL = API_BASE_URL;
+    
+    // ▼▼▼ ¡IMPORTANTE! Reemplaza esto con tu clave de la API de Gemini ▼▼▼
+    const GEMINI_API_KEY = 'AIzaSyA0m618lO2QOHBMAkhyp5etUDTLNfDblEc'; 
+    // ▲▲▲ ¡IMPORTANTE! Reemplaza esto con tu clave de la API de Gemini ▲▲▲
+
+    // --- BASE DE CONOCIMIENTO PARA LA IA ---
+    let knowledgeBase = {}; // Aquí se guardarán los datos para la IA
+
+    // --- REFERENCIAS AL DOM (Definidas primero para asegurar disponibilidad) ---
+    const loginContainer = document.getElementById('loginContainer');
+    const loginForm = document.getElementById('loginForm');
+    const loginBtn = document.getElementById('loginBtn');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const buttonText = document.getElementById('buttonText');
+    const messageDiv = document.getElementById('message');
+    const dashboardContainer = document.getElementById('dashboardContainer');
+    const contentFrame = document.getElementById('contentFrame');
+    const pageTitle = document.getElementById('pageTitle');
+    const pageIcon = document.getElementById('pageIcon');
+    const userNameEl = document.getElementById('userName');
+    const userRoleEl = document.getElementById('userRole');
+    const togglePasswordBtn = document.getElementById('togglePasswordBtn');
+    const passwordInput = document.getElementById('password');
+    const usernameInput = document.getElementById('username');
+    const loginConnectionStatus = document.getElementById('loginConnectionStatus');
+    const loginConnectionDot = document.getElementById('loginConnectionDot');
+    const loginConnectionText = document.getElementById('loginConnectionText');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const mobileOverlay = document.getElementById('mobileOverlay');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const aiChatButton = document.getElementById('aiChatButton');
+    const chatModal = document.getElementById('chatModal');
+    const closeChatBtn = document.getElementById('closeChatBtn');
+    const chatMessages = document.getElementById('chatMessages');
+    const chatInput = document.getElementById('chatInput');
+    const chatSendBtn = document.getElementById('chatSendBtn');
+
+    // --- DECLARACIÓN DE FUNCIONES ---
+
+    function showMessage(message, type = 'error') {
+        messageDiv.textContent = message;
+        messageDiv.className = `message ${type} show`;
+        setTimeout(() => messageDiv.classList.remove('show'), 4000);
+    }
+
+    function setLoadingState(isLoading) {
+        loginBtn.disabled = isLoading;
+        loadingSpinner.style.display = isLoading ? 'block' : 'none';
+        buttonText.textContent = isLoading ? 'Verificando...' : 'Iniciar Sesión';
+    }
+
+    async function checkServerStatus() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/health`, {
+                headers: { 'ngrok-skip-browser-warning': 'true' }
+            });
+            if (response.ok) {
+                loginConnectionStatus.className = 'connection-status connected';
+                loginConnectionDot.className = 'connection-dot connected';
+                loginConnectionDot.innerHTML = '';
+                loginConnectionText.textContent = 'Servidor en línea';
+            } else {
+                throw new Error('Server not OK');
+            }
+        } catch (error) {
+            loginConnectionStatus.className = 'connection-status disconnected';
+            loginConnectionDot.className = 'connection-dot disconnected';
+            loginConnectionDot.innerHTML = '';
+            loginConnectionText.textContent = 'Servidor desconectado';
+        }
+    }
+
+    function setupBackgroundImageSlider() {
+        const images = document.querySelectorAll('.background-image');
+        if (images.length === 0) return;
+        let currentIndex = 0;
+        setInterval(() => {
+            images[currentIndex].classList.remove('active');
+            currentIndex = (currentIndex + 1) % images.length;
+            images[currentIndex].classList.add('active');
+        }, 5000);
+    }
+
+    // --- FUNCIONES PARA LA IA ---
+    async function fetchAllDataForAI() {
+        console.log("IA: Cargando base de conocimiento...");
+        try {
+            const [users, providers, clients, payments, products, sales] = await Promise.all([
+                fetch(`${API_BASE_URL}/users`, { headers: { 'ngrok-skip-browser-warning': 'true' } }).then(res => res.json()),
+                fetch(`${API_BASE_URL}/proveedores`, { headers: { 'ngrok-skip-browser-warning': 'true' } }).then(res => res.json()),
+                fetch(`${API_BASE_URL}/clientes`, { headers: { 'ngrok-skip-browser-warning': 'true' } }).then(res => res.json()),
+                fetch(`${API_BASE_URL}/payments`, { headers: { 'ngrok-skip-browser-warning': 'true' } }).then(res => res.json()),
+                fetch(`${API_BASE_URL}/products`, { headers: { 'ngrok-skip-browser-warning': 'true' } }).then(res => res.json()),
+                fetch(`${API_BASE_URL}/sales`, { headers: { 'ngrok-skip-browser-warning': 'true' } }).then(res => res.json())
+            ]);
+            knowledgeBase = { users, providers, clients, payments, products, sales };
+            console.log("IA: ¡Base de conocimiento cargada! ✨", knowledgeBase);
+        } catch (error) {
+            console.error("IA: Error al cargar la base de conocimiento:", error);
+        }
+    }
+    
+    // --- FUNCIONES PRINCIPALES DE LA PÁGINA ---
+    
+    function setupDashboard(userData) {
+        userNameEl.textContent = userData.name;
+        userRoleEl.textContent = userData.role;
+        const userRole = (userData.role || '').toLowerCase();
+        aiChatButton.style.display = (userRole === 'administrador') ? 'flex' : 'none';
+        const allMenuItems = document.querySelectorAll('.menu-section .menu-item');
+        const rolePermissions = {
+            'almacenista': ['Llegada de Material', 'Llegada de Telas', 'Inventario Telas', 'Inventario Material'],
+            'corte': ['Inventario Telas', 'Inventario Material', 'Productos Terminados', 'Programación Cortes'],
+            'satelite': ['Inventario Material', 'Productos Terminados', 'Satélites'],
+            'ventas': ['Ventas']
+        };
+        allMenuItems.forEach(item => {
+            const title = item.dataset.title;
+            if (!title) return;
+            let isVisible = (userRole === 'administrador') || (rolePermissions[userRole] || []).includes(title);
+            item.style.display = isVisible ? 'flex' : 'none';
+        });
+        const firstVisibleItem = document.querySelector('.menu-section .menu-item[style*="display: flex"]');
+        if(firstVisibleItem){
+            document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+            firstVisibleItem.classList.add('active');
+            pageTitle.textContent = firstVisibleItem.dataset.title;
+            pageIcon.className = `page-icon ${firstVisibleItem.dataset.icon}`;
+            contentFrame.src = firstVisibleItem.dataset.src;
+        } else {
+            pageTitle.textContent = "Sin acceso";
+            pageIcon.className = "page-icon fa-solid fa-lock";
+            contentFrame.src = "about:blank";
+        }
+    }
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        setLoadingState(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}/login`, {
+                method: 'POST',
+                body: new FormData(loginForm),
+                headers: { 'ngrok-skip-browser-warning': 'true' }
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Error en la respuesta del servidor.');
+            }
+            if (data.success) {
+                showMessage('Inicio de sesión exitoso', 'success');
+                setupDashboard({ name: data.username, role: data.rol });
+                if (data.rol.toLowerCase() === 'administrador') {
+                    await fetchAllDataForAI();
+                }
+                setTimeout(() => {
+                    loginContainer.classList.add('hidden');
+                    dashboardContainer.classList.add('visible');
+                }, 1000);
+            }
+        } catch (error) {
+            showMessage(error.message || 'Error de red. Intente de nuevo.', 'error');
+        } finally {
+            setLoadingState(false);
+        }
+    }
+    
+    function handleMenuClick(e) {
+        e.preventDefault();
+        const menuItem = e.target.closest('.menu-item');
+        if (!menuItem || menuItem.id === 'logoutBtn') return;
+        document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+        menuItem.classList.add('active');
+        pageTitle.textContent = menuItem.dataset.title;
+        pageIcon.className = `page-icon ${menuItem.dataset.icon}`;
+        if (contentFrame.getAttribute('src') !== menuItem.dataset.src) {
+            contentFrame.src = menuItem.dataset.src;
+        }
+        if (window.innerWidth <= 1024) {
+            sidebar.classList.remove('mobile-open');
+            mobileOverlay.classList.remove('active');
+        }
+    }
+    
+    function togglePasswordVisibility() {
+        const icon = togglePasswordBtn.querySelector('i');
+        const isPassword = passwordInput.type === 'password';
+        passwordInput.type = isPassword ? 'text' : 'password';
+        icon.classList.toggle('fa-eye', !isPassword);
+        icon.classList.toggle('fa-eye-slash', isPassword);
+    }
+
+    function markdownToHtml(text) {
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/\n/g, '<br>');
+    }
+
+    function appendMessage(text, sender, isTyping = false) {
+        const messageWrapper = document.createElement('div');
+        messageWrapper.classList.add('chat-message', sender);
+        const avatar = document.createElement('div');
+        avatar.classList.add('avatar');
+        avatar.innerHTML = sender === 'user' ? '<i class="fa-solid fa-user"></i>' : '<i class="fa-solid fa-brain"></i>';
+        const messageContent = document.createElement('div');
+        messageContent.classList.add('message-content');
+        if (isTyping) {
+            messageWrapper.id = 'typing-indicator';
+            messageContent.innerHTML = `<div class="typing-indicator"><span></span><span></span><span></span></div>`;
+        } else {
+            messageContent.innerHTML = markdownToHtml(text);
+        }
+        messageWrapper.appendChild(avatar);
+        messageWrapper.appendChild(messageContent);
+        chatMessages.appendChild(messageWrapper);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    async function getGeminiResponse(userQuestion) {
+        if (GEMINI_API_KEY === 'TU_API_KEY_DE_GEMINI_AQUI') {
+            return "El Asistente IA no está configurado. Por favor, añade una clave de API de Gemini en el archivo index.html.";
+        }
+        
+        const knowledgeJSON = JSON.stringify(knowledgeBase, null, 2);
+
+        const systemPrompt = `Eres un asistente IA proactivo, amigable y muy competente llamado 'DAMAR AI'.
+        Tu misión es ser un analista de datos experto para los administradores de la empresa DAMAR.
+
+        **TU BASE DE CONOCIMIENTO ES EL SIGUIENTE OBJETO JSON CON LOS DATOS EN TIEMPO REAL DEL SISTEMA:**
+        ---
+        ${knowledgeJSON}
+        ---
+
+        **INSTRUCCIONES CLAVE:**
+        1.  **Sé un Experto en Datos:** Tu única fuente de verdad es el JSON anterior. Analízalo a fondo para cada pregunta.
+        2.  **Sé Preciso y Detallado:** Cuando te pregunten algo, extrae toda la información relevante. No te limites a dar totales. Si te preguntan por proveedores, muestra nombres, facturas, valores, abonos y calcula la deuda individual (\`valor\` - \`abono\`).
+        3.  **Realiza Cálculos:** Si te piden totales, sumas, promedios o cualquier otra métrica, calcúlala basándote en los datos del JSON.
+        4.  **PROHIBIDO REDIRIGIR:** Tu propósito es dar la respuesta directamente. **Nunca** le digas al usuario "consulta el módulo de..." o "ve a la pestaña de...". Si la información no está en el JSON, indica claramente que no tienes acceso a ese dato específico.
+        5.  **Tono Profesional y Servicial:** Mantén un tono colaborativo. Usa markdown (**negritas**) y emojis sutiles (✨, 📊, 💡, ✅) para que tus respuestas sean claras y fáciles de leer.
+        6.  **Ejemplo de Respuesta Ideal:**
+            * *Pregunta:* "¿Quiénes son los proveedores con deudas?"
+            * *Tu Respuesta:* "¡Claro! 📊 Aquí está el detalle de los proveedores con deudas pendientes:\\n\\n- **Proveedor A:**\\n  - Factura: #123\\n  - Valor Total: $5,000,000\\n  - Abono: $2,000,000\\n  - **Deuda: $3,000,000**\\n\\n- **Proveedor B:**\\n  - Factura: #456\\n  - Valor Total: $1,500,000\\n  - Abono: $1,500,000\\n  - **Deuda: $0 (Al día ✅)**"`;
+
+        const fullPrompt = `${systemPrompt}\n\nPregunta del usuario: "${userQuestion}"`;
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+        
+        const response = await fetch(GEMINI_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] })
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Error de la API de Gemini:', errorData);
+            throw new Error(`Error en la API: ${errorData.error?.message || response.statusText}`);
+        }
+        const data = await response.json();
+        if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+            return data.candidates[0].content.parts[0].text;
+        } else {
+            console.error("Respuesta inesperada de la API de Gemini:", data);
+            return "Lo siento, recibí una respuesta inesperada de la IA. No puedo procesar tu solicitud en este momento.";
+        }
+    }
+
+    function appendMessage(text, sender) {
+        const chatMessages = document.getElementById('chatMessages'); // Asegúrate de que tu contenedor de mensajes tenga este ID
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('chat-message', `${sender}-message`);
+        
+        const icon = document.createElement('i');
+        icon.classList.add('fas', sender === 'user' ? 'fa-user-circle' : 'fa-robot');
+        
+        const textNode = document.createElement('p');
+        textNode.innerHTML = text; // Usamos innerHTML para renderizar formato como <b> y <i>
+        
+        messageDiv.appendChild(icon);
+        messageDiv.appendChild(textNode);
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    async function handleSendMessage() {
+        const chatInput = document.getElementById('chatInput'); // Asegúrate de que tu input de texto tenga este ID
+        const chatSendBtn = document.getElementById('chatSendBtn'); // Asegúrate de que tu botón de envío tenga este ID
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        appendMessage(message, 'user');
+        chatInput.value = '';
+        chatSendBtn.disabled = true;
+
+        const thinkingIndicator = document.createElement('div');
+        thinkingIndicator.classList.add('chat-message', 'assistant-message', 'thinking');
+        thinkingIndicator.innerHTML = '<i class="fas fa-robot"></i><p>...</p>';
+        document.getElementById('chatMessages').appendChild(thinkingIndicator);
+        document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+
+        try {
+            const response = await fetch('http://127.0.0.1:8080/ai/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: message })
+            });
+
+            document.getElementById('chatMessages').removeChild(thinkingIndicator);
+
+            if (!response.ok) {
+                throw new Error('Error en la respuesta del servidor.');
+            }
+
+            const data = await response.json();
+            
+            if (data.success && data.reply) {
+                appendMessage(data.reply, 'assistant');
+            } else {
+                appendMessage(data.message || 'Hubo un problema al obtener la respuesta.', 'assistant');
+            }
+
+        } catch (error) {
+            console.error('Error al enviar mensaje:', error);
+            document.getElementById('chatMessages').removeChild(thinkingIndicator);
+            appendMessage('Lo siento, no pude conectarme con mi cerebro. Verifica la consola del servidor para más detalles.', 'assistant');
+        } finally {
+            chatSendBtn.disabled = false;
+            chatInput.focus();
+        }
+    }
+
+    // --- INICIALIZACIÓN DE EVENTOS ---
+    sidebarToggleBtn.addEventListener('click', () => sidebar.classList.toggle('collapsed'));
+    mobileMenuBtn.addEventListener('click', () => { sidebar.classList.add('mobile-open'); mobileOverlay.classList.add('active'); });
+    mobileOverlay.addEventListener('click', () => { sidebar.classList.remove('mobile-open'); mobileOverlay.classList.remove('active'); });
+    logoutBtn.addEventListener('click', (e) => { e.preventDefault(); window.location.reload(); });
+    
+    aiChatButton.addEventListener('click', () => {
+        chatModal.classList.toggle('visible');
+        if (chatModal.classList.contains('visible') && chatMessages.children.length === 0) {
+            appendMessage("¡Hola! ✨ Soy tu asistente IA de DAMAR. Estoy aquí para ayudarte a analizar y consultar información sobre los módulos del sistema como Proveedores, Clientes, Inventarios, Ventas y más. ¿En qué te puedo colaborar hoy?", 'assistant');
+        }
+    });
+    closeChatBtn.addEventListener('click', () => chatModal.classList.remove('visible'));
+    chatSendBtn.addEventListener('click', handleSendMessage);
+    chatInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleSendMessage(); });
+
+    checkServerStatus();
+    setupBackgroundImageSlider();
+    loginForm.addEventListener('submit', handleLogin);
+    togglePasswordBtn.addEventListener('click', togglePasswordVisibility);
+    document.querySelectorAll('.menu-item').forEach(item => item.addEventListener('click', handleMenuClick));
+});
+</script>
+</body>
+</html>

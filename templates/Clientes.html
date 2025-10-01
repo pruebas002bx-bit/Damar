@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Clientes - DAMAR</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --primary-dark: #2C3E50; --secondary-light: #ECF0F1; --accent: #3498DB;
+            --text-dark: #34495E; --text-light: white; --hover-accent: #2980B9;
+            --success: #27AE60; --warning: #F39C12; --danger: #E74C3C;
+            --border-color: #dfe4ea; --gradient-primary: linear-gradient(135deg, #3498DB 0%, #2C3E50 100%);
+            --shadow: 0 10px 30px rgba(44, 62, 80, 0.1); --shadow-hover: 0 15px 35px rgba(44, 62, 80, 0.15);
+            --font-family: 'Poppins', sans-serif; --border-radius-lg: 12px; --border-radius-md: 8px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: var(--font-family); background-color: var(--secondary-light); color: var(--text-dark);
+            line-height: 1.6; animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .container { max-width: 1300px; margin: 2rem auto; padding: 0 1.5rem; }
+        .card {
+            background-color: white; border-radius: var(--border-radius-lg); padding: 2.5rem;
+            margin-bottom: 2rem; box-shadow: var(--shadow); border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+        .content-header { text-align: center; margin-bottom: 2.5rem; }
+        .content-title { font-size: 2.5rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 0.5rem; }
+        .content-subtitle { font-size: 1.1rem; color: var(--text-dark); max-width: 600px; margin: 0 auto; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-label { font-weight: 600; margin-bottom: 0.6rem; color: var(--primary-dark); font-size: 0.9rem; }
+        .form-input {
+            width: 100%; padding: 12px 16px; border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-md); background-color: #fdfdfe; color: var(--text-dark);
+            font-size: 1rem; font-family: var(--font-family); transition: all 0.3s ease;
+        }
+        .form-input:focus {
+            outline: none; border-color: var(--accent); background-color: white;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+        }
+        .form-input:disabled { background-color: #f1f2f6; cursor: not-allowed; }
+        .total-display {
+            font-size: 2rem; font-weight: 700; color: var(--primary-dark); background-color: var(--secondary-light);
+            border-radius: var(--border-radius-md); text-align: center; height: 100%; display: flex;
+            align-items: center; justify-content: center; border: 1px solid var(--border-color);
+        }
+        .buttons-container {
+            display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 2rem;
+            border-top: 1px solid var(--border-color); padding-top: 2rem; justify-content: center;
+        }
+        .btn {
+            border: none; border-radius: var(--border-radius-md); padding: 12px 24px; font-size: 0.95rem;
+            font-weight: 600; font-family: var(--font-family); cursor: pointer; display: inline-flex;
+            align-items: center; justify-content: center; gap: 0.75rem; transition: all 0.3s ease;
+            text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+        .btn:disabled { background-color: #bdc3c7; cursor: not-allowed; transform: none; box-shadow: none; opacity: 0.6; }
+        .btn-primary { background: var(--gradient-primary); color: white; }
+        .btn-success { background-color: var(--success); color: white; }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-secondary { background-color: #bdc3c7; color: var(--text-dark); }
+        .btn-success:hover { background-color: #219d53; }
+        .btn-danger:hover { background-color: #c0392b; }
+        .btn-secondary:hover { background-color: #95a5a6; color: white;}
+        .search-controls { display: flex; gap: 1rem; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; }
+        .search-wrapper { position: relative; flex-grow: 1; }
+        .search-icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #909db1; }
+        .search-input { width: 100%; padding-left: 3rem; }
+        .table-container { overflow-x: auto; }
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .data-table th, .data-table td { padding: 16px 20px; vertical-align: middle; border-bottom: 1px solid var(--border-color); }
+        .data-table thead th {
+            background-color: #f8f9fa; color: var(--primary-dark); font-size: 13px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .data-table tbody tr { transition: background-color 0.2s ease; }
+        .data-table tbody tr:hover { background-color: #f5f5f5; cursor: pointer; }
+        .data-table tr.selected { background-color: rgba(52, 152, 219, 0.1) !important; box-shadow: inset 4px 0 0 0 var(--accent); }
+        .data-table td:nth-child(4), .data-table th:nth-child(4),
+        .data-table td:nth-child(5), .data-table th:nth-child(5),
+        .data-table td:nth-child(6), .data-table th:nth-child(6) { text-align: right; font-variant-numeric: tabular-nums; }
+        .feedback-state { text-align: center; padding: 4rem 1rem; font-size: 1.1rem; color: #6c757d; }
+        .feedback-state i { font-size: 2.5rem; display: block; margin-bottom: 1rem; color: var(--accent); }
+        .loading-spinner {
+            width: 50px; height: 50px; border: 4px solid var(--border-color); border-top-color: var(--accent);
+            border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1050; }
+        .toast { display: flex; align-items: center; padding: 15px 20px; border-radius: var(--border-radius-md); color: white; font-weight: 500; margin-bottom: 10px; box-shadow: var(--shadow); transform: translateX(120%); animation: slideIn 0.5s forwards; }
+        .toast.success { background-color: var(--success); }
+        .toast.error { background-color: var(--danger); }
+        .toast i { margin-right: 10px; font-size: 1.2rem; }
+        @keyframes slideIn { to { transform: translateX(0); } }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s ease; }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-content { background: white; padding: 2rem; border-radius: var(--border-radius-lg); width: 90%; max-width: 450px; text-align: center; transform: scale(0.9); transition: all 0.3s ease; }
+        .modal-overlay.active .modal-content { transform: scale(1); }
+        .modal-content h3 { margin-bottom: 1rem; color: var(--primary-dark); }
+        .modal-content p { margin-bottom: 2rem; color: var(--text-dark); }
+        .modal-buttons { display: flex; justify-content: center; gap: 1rem; }
+        @media (max-width: 768px) {
+            .container { margin: 1rem auto; padding: 0 1rem; }
+            .card { padding: 1.5rem; }
+            .content-title { font-size: 2rem; }
+            .buttons-container { flex-direction: column; }
+            .btn { width: 100%; }
+            .search-controls { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toastContainer" class="toast-container"></div>
+    <div id="confirmModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modalTitle">Confirmar Acción</h3>
+            <p id="modalMessage">¿Estás seguro?</p>
+            <div class="modal-buttons">
+                <button id="modalCancelBtn" class="btn btn-secondary">Cancelar</button>
+                <button id="modalConfirmBtn" class="btn btn-danger">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <header class="content-header">
+            <h1 class="content-title">Gestión de Clientes</h1>
+            <p class="content-subtitle">Una interfaz de alta precisión para administrar facturas, pagos y deudas de clientes.</p>
+        </header>
+        
+        <main>
+            <section class="card">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label" for="fechaInput">Fecha</label>
+                        <input type="date" id="fechaInput" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="facturaInput">Nº Factura</label>
+                        <input type="text" id="facturaInput" class="form-input" placeholder="F-001" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="referenciaInput">Referencia</label>
+                        <input type="text" id="referenciaInput" class="form-input" placeholder="Cliente o producto">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="valorInput">Valor</label>
+                        <input type="number" id="valorInput" class="form-input" placeholder="0.00" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="abonoInput">Abono</label>
+                        <input type="number" id="abonoInput" class="form-input" placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Total Deuda</label>
+                        <div id="totalDisplay" class="total-display">$0.00</div>
+                    </div>
+                </div>
+        
+                <div class="buttons-container">
+                    <button id="addBtn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Agregar</button>
+                    <button id="editBtn" class="btn btn-success"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
+                    <button id="deleteBtn" class="btn btn-danger"><i class="fa-solid fa-trash-can"></i> Eliminar</button>
+                    <button id="clearBtn" class="btn btn-secondary"><i class="fa-solid fa-eraser"></i> Limpiar</button>
+                    <button id="exportBtn" class="btn btn-secondary"><i class="fa-solid fa-file-excel"></i> Exportar</button>
+                </div>
+            </section>
+            
+            <section class="card">
+                <div class="search-controls">
+                    <div class="search-wrapper">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="searchInput" class="form-input search-input" placeholder="Buscar por Nº Factura o Referencia...">
+                    </div>
+                    <button id="clearSearchBtn" class="btn btn-secondary">
+                        <i class="fa-solid fa-xmark"></i> Limpiar
+                    </button>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Nº Factura</th>
+                                <th>Referencia</th>
+                                <th>Valor</th>
+                                <th>Abono</th>
+                                <th>Total Deuda</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientesTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // URL de la API corregida según lo solicitado.
+            const API_URL = 'https://harvey-unspoilt-judie.ngrok-free.dev';
+
+            let clientesData_local = [];
+            let currentlyDisplayedData = [];
+            let selectedRecordId = null;
+
+            const dom = {
+                fechaInput: document.getElementById('fechaInput'),
+                facturaInput: document.getElementById('facturaInput'),
+                referenciaInput: document.getElementById('referenciaInput'),
+                valorInput: document.getElementById('valorInput'),
+                abonoInput: document.getElementById('abonoInput'),
+                totalDisplay: document.getElementById('totalDisplay'),
+                searchInput: document.getElementById('searchInput'),
+                tableBody: document.getElementById('clientesTableBody'),
+                addBtn: document.getElementById('addBtn'),
+                editBtn: document.getElementById('editBtn'),
+                deleteBtn: document.getElementById('deleteBtn'),
+                clearBtn: document.getElementById('clearBtn'),
+                exportBtn: document.getElementById('exportBtn'),
+                clearSearchBtn: document.getElementById('clearSearchBtn'),
+            };
+
+            // --- Funciones de UI Mejoradas (Toast y Modal) ---
+            const showToast = (message, type = 'success') => {
+                const toastContainer = document.getElementById('toastContainer');
+                const icon = type === 'success' ? 'fa-check-circle' : 'fa-times-circle';
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.innerHTML = `<i class="fas ${icon}"></i> ${message}`;
+                toastContainer.appendChild(toast);
+                setTimeout(() => toast.remove(), 4000);
+            };
+
+            const showConfirmation = (message, onConfirm) => {
+                const confirmModal = document.getElementById('confirmModal');
+                document.getElementById('modalMessage').textContent = message;
+                confirmModal.classList.add('active');
+                const close = () => {
+                    confirmModal.classList.remove('active');
+                    document.getElementById('modalConfirmBtn').onclick = null;
+                    document.getElementById('modalCancelBtn').onclick = null;
+                };
+                document.getElementById('modalConfirmBtn').onclick = () => { close(); onConfirm(); };
+                document.getElementById('modalCancelBtn').onclick = close;
+            };
+
+            const setButtonsLoading = (loading) => {
+                [dom.addBtn, dom.editBtn, dom.deleteBtn, dom.exportBtn].forEach(btn => btn.disabled = loading);
+            };
+
+            // --- Lógica de la Aplicación ---
+            async function apiRequest(endpoint, method = 'GET', data = null) {
+                setButtonsLoading(true);
+                try {
+                    const options = {
+                        method,
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'ngrok-skip-browser-warning': 'true' // Necesario para ngrok
+                        },
+                        mode: 'cors',
+                    };
+                    if (data) options.body = JSON.stringify(data);
+                    
+                    const response = await fetch(`${API_URL}${endpoint}`, options);
+                    const responseData = await response.json();
+                    if (!response.ok) throw new Error(responseData.message || `Error del servidor: ${response.status}`);
+                    return responseData;
+                } catch (error) {
+                    showToast(error.message, 'error');
+                    throw error;
+                } finally {
+                    setButtonsLoading(false);
+                }
+            }
+
+            async function loadClientes() {
+                renderTable('loading');
+                try {
+                    const data = await apiRequest('/clientes');
+                    clientesData_local = data || [];
+                    filterRecords();
+                } catch (error) {
+                    renderTable('error', 'No se pudieron cargar los registros. Revise la conexión con el servidor.');
+                }
+            }
+            
+            async function addRecord() {
+                if (!validateForm()) return;
+                try {
+                    const data = collectFormData();
+                    const result = await apiRequest('/clientes', 'POST', data);
+                    showToast(result.message, 'success');
+                    clearForm();
+                    await loadClientes();
+                } catch (error) { /* El error ya se muestra en apiRequest */ }
+            }
+
+            async function editRecord() {
+                if (selectedRecordId === null) {
+                    showToast('Por favor, seleccione un registro para editar.', 'error');
+                    return;
+                }
+                if (!validateForm()) return;
+                try {
+                    const data = collectFormData();
+                    const result = await apiRequest(`/clientes/${selectedRecordId}`, 'PUT', data);
+                    showToast(result.message, 'success');
+                    clearForm();
+                    await loadClientes();
+                } catch (error) { /* El error ya se muestra en apiRequest */ }
+            }
+
+            async function deleteRecord() {
+                if (selectedRecordId === null) {
+                    showToast('Por favor, seleccione un registro para eliminar.', 'error');
+                    return;
+                }
+                const record = clientesData_local.find(r => String(r.id) === String(selectedRecordId));
+                if (!record) return;
+
+                showConfirmation(`¿Está seguro de que desea eliminar la factura ${record.factura}?`, async () => {
+                    try {
+                        const result = await apiRequest('/clientes', 'DELETE', { ids: [selectedRecordId] });
+                        showToast(result.message, 'success');
+                        clearForm();
+                        await loadClientes();
+                    } catch (error) { /* El error ya se muestra en apiRequest */ }
+                });
+            }
+
+            function exportToExcel() {
+                if (currentlyDisplayedData.length === 0) {
+                    showToast("No hay datos para exportar.", 'error');
+                    return;
+                }
+                const dataToExport = currentlyDisplayedData.map(record => {
+                    const valor = parseFloat(record.valor || 0);
+                    const abono = parseFloat(record.abono || 0);
+                    return {
+                        'Fecha': record.fecha, 'Nº Factura': record.factura, 'Referencia': record.referencia,
+                        'Valor': valor, 'Abono': abono, 'Total Deuda': valor - abono
+                    };
+                });
+                const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Clientes");
+                XLSX.writeFile(workbook, "Reporte_Clientes.xlsx");
+                showToast("Datos exportados a Excel.", "success");
+            }
+
+            function collectFormData() {
+                return {
+                    fecha: dom.fechaInput.value,
+                    factura: dom.facturaInput.value.trim(),
+                    referencia: dom.referenciaInput.value.trim(),
+                    valor: parseFloat(dom.valorInput.value) || 0,
+                    abono: parseFloat(dom.abonoInput.value) || 0
+                };
+            }
+
+            function validateForm() {
+                const data = collectFormData();
+                if (!data.fecha || !data.factura) {
+                    showToast('Los campos Fecha y Nº Factura son obligatorios.', 'error');
+                    return false;
+                }
+                if (data.valor <= 0) {
+                    showToast('El campo Valor debe ser un número mayor a cero.', 'error');
+                    return false;
+                }
+                return true;
+            }
+
+            function updateTotal() {
+                const valor = parseFloat(dom.valorInput.value) || 0;
+                const abono = parseFloat(dom.abonoInput.value) || 0;
+                const total = valor - abono;
+                dom.totalDisplay.textContent = `$${total.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            }
+
+            function clearForm() {
+                selectedRecordId = null;
+                dom.fechaInput.value = new Date().toISOString().split('T')[0];
+                dom.facturaInput.value = '';
+                dom.referenciaInput.value = '';
+                dom.valorInput.value = '';
+                dom.abonoInput.value = '';
+                dom.facturaInput.disabled = false;
+                updateTotal();
+                document.querySelectorAll('.data-table tr.selected').forEach(row => row.classList.remove('selected'));
+            }
+            
+            function clearSearch() {
+                dom.searchInput.value = '';
+                filterRecords();
+            }
+
+            function filterRecords() {
+                const searchTerm = dom.searchInput.value.toLowerCase().trim();
+                const filteredData = searchTerm ? clientesData_local.filter(record => 
+                    (String(record.factura) || '').toLowerCase().includes(searchTerm) ||
+                    (String(record.referencia) || '').toLowerCase().includes(searchTerm)
+                ) : clientesData_local;
+                renderTable('success', '', filteredData);
+            }
+            
+            function selectRecord(rowElement, recordId) {
+                const record = clientesData_local.find(r => String(r.id) === String(recordId));
+                if (!record) return;
+                
+                selectedRecordId = record.id;
+                
+                dom.fechaInput.value = record.fecha;
+                dom.facturaInput.value = record.factura;
+                dom.facturaInput.disabled = true; // No se puede editar la factura, es un identificador
+                dom.referenciaInput.value = record.referencia;
+                dom.valorInput.value = record.valor;
+                dom.abonoInput.value = record.abono;
+                updateTotal();
+                
+                document.querySelectorAll('.data-table tr.selected').forEach(row => row.classList.remove('selected'));
+                rowElement.classList.add('selected');
+            };
+
+            function renderTable(state, message = '', data = []) {
+                currentlyDisplayedData = data || [];
+                dom.tableBody.innerHTML = '';
+                const colspan = 6;
+
+                switch (state) {
+                    case 'loading':
+                        dom.tableBody.innerHTML = `<tr><td colspan="${colspan}" class="feedback-state"><div class="loading-spinner"></div>Cargando registros...</td></tr>`;
+                        break;
+                    case 'error':
+                        dom.tableBody.innerHTML = `<tr><td colspan="${colspan}" class="feedback-state"><i class="fa-solid fa-circle-exclamation"></i> ${message}</td></tr>`;
+                        break;
+                    case 'success':
+                         if (!data || data.length === 0) {
+                            const emptyMessage = dom.searchInput.value ? 'No se encontraron registros para su búsqueda.' : 'Aún no hay registros. ¡Agregue el primero!';
+                            const emptyIcon = dom.searchInput.value ? 'fa-solid fa-magnifying-glass' : 'fa-solid fa-file-lines';
+                            dom.tableBody.innerHTML = `<tr><td colspan="${colspan}" class="feedback-state"><i class="${emptyIcon}"></i> ${emptyMessage}</td></tr>`;
+                         } else {
+                            data.forEach((record) => {
+                                const valor = parseFloat(record.valor || 0);
+                                const abono = parseFloat(record.abono || 0);
+                                const total = valor - abono;
+                                
+                                const tr = document.createElement('tr');
+                                tr.onclick = () => selectRecord(tr, record.id);
+                                
+                                tr.innerHTML = `
+                                    <td>${record.fecha}</td>
+                                    <td>${record.factura}</td>
+                                    <td>${record.referencia || 'N/A'}</td>
+                                    <td>$${valor.toLocaleString('es-CO', { minimumFractionDigits: 2 })}</td>
+                                    <td>$${abono.toLocaleString('es-CO', { minimumFractionDigits: 2 })}</td>
+                                    <td>$${total.toLocaleString('es-CO', { minimumFractionDigits: 2 })}</td>
+                                `;
+                                dom.tableBody.appendChild(tr);
+                            });
+                        }
+                        break;
+                }
+            }
+
+            function init() {
+                clearForm();
+                
+                dom.valorInput.addEventListener('input', updateTotal);
+                dom.abonoInput.addEventListener('input', updateTotal);
+                dom.searchInput.addEventListener('input', filterRecords);
+                
+                dom.addBtn.addEventListener('click', addRecord);
+                dom.editBtn.addEventListener('click', editRecord);
+                dom.deleteBtn.addEventListener('click', deleteRecord);
+                dom.clearBtn.addEventListener('click', clearForm);
+                dom.exportBtn.addEventListener('click', exportToExcel);
+                dom.clearSearchBtn.addEventListener('click', clearSearch);
+
+                loadClientes();
+            }
+            
+            init();
+        });
+    </script>
+</body>
+</html>
