@@ -423,23 +423,21 @@ def handle_products():
         data = request.get_json()
         try:
             # --- SOLUCIÓN CRÍTICA DE CONCURRENCIA PARA UniqueViolation ---
-            # 1. Obtener el ID máximo actual.
-            # Usamos subquery y forzamos el bloqueo temporal (SELECT FOR UPDATE)
-            # para que las peticiones concurrentes esperen su turno para obtener
-            # el MAX(id) y minimizar las colisiones.
-            max_id_query = db.session.query(func.max(ProductoTerminado.id)).with_for_update()
+            # 1. Obtener el ID máximo actual SIN BLOQUEO para evitar el error FeatureNotSupported.
+            # 2. Reemplazamos with_for_update() que causó el error por una simple consulta MAX.
+            max_id_query = db.session.query(func.max(ProductoTerminado.id))
+            # -----------------------------------------------------------
+            # CORRECCIÓN FINAL: Ejecutamos la consulta para obtener el valor.
             max_id = max_id_query.scalar()
             
-            # 2. Asignar nuevo ID con un gran salto para mitigar el UniqueViolation en concurrencia.
-            # Usamos un salto de 100 para dar espacio a otras posibles peticiones concurrentes
-            # que hayan leído el MAX(id) un momento antes, asumiendo que no habrá 100 inserciones
-            # simultáneas leyendo el mismo MAX(id).
+            # 3. Asignar nuevo ID con un gran salto (+100) para mitigar el UniqueViolation en concurrencia.
+            # Este es el método más seguro cuando la BD no es SERIAL/AUTOINCREMENT y hay tráfico concurrente.
             new_id = int(max_id or 0) + 100 
             
-            # 3. Forzar la asignación del nuevo ID.
+            # 4. Forzar la asignación del nuevo ID.
             data['id'] = new_id
 
-            # Limpiamos 'lote' si viene nulo, ya que los logs indican que la base de datos lo espera.
+            # Limpiamos 'lote' si viene nulo
             if 'lote' in data and data['lote'] is None:
                 del data['lote']
             
