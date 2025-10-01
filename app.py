@@ -420,12 +420,16 @@ def handle_products():
     if request.method == 'POST':
         data = request.get_json()
         try:
-            # CORRECCIÓN 1: Limpiamos explícitamente el 'id' si viene en los datos del Excel.
-            # La base de datos debe generar el ID. Si el error NotNullViolation persiste,
-            # significa que la tabla 'productos_terminados' no es SERIAL/AUTOINCREMENT.
-            if 'id' in data:
-                del data['id']
-            # También limpiamos 'lote' si viene nulo, ya que los logs indican que la base de datos lo espera.
+            # --- SOLUCIÓN DE EMERGENCIA PARA NotNullViolation en 'id' ---
+            # Si el ID no es auto-incrementable en la DB, lo generamos manualmente.
+            # 1. Obtener el ID máximo actual.
+            max_id = db.session.query(func.max(ProductoTerminado.id)).scalar()
+            new_id = (max_id or 0) + 1
+            
+            # 2. Forzar la asignación del nuevo ID.
+            data['id'] = new_id
+
+            # Limpiamos 'lote' si viene nulo, ya que los logs indican que la base de datos lo espera.
             if 'lote' in data and data['lote'] is None:
                 del data['lote']
 
@@ -441,6 +445,9 @@ def handle_products():
                 quantity_used = float(item_mat['quantity_used']) if item_mat.get('quantity_used') else 0
                 
                 if not material or material.quantity_value < quantity_used:
+                    # Si falla, hacemos rollback de la sesión ANTES de retornar el error,
+                    # para que el id generado no quede en la transacción.
+                    db.session.rollback()
                     return jsonify({'success': False, 'message': f"Stock insuficiente para material ID {item_mat['id']}"}), 400
                 material.quantity_value -= quantity_used
             
@@ -451,6 +458,8 @@ def handle_products():
                 quantity_used_fab = float(item_fab['quantity_used']) if item_fab.get('quantity_used') else 0
 
                 if not tela or tela.cantidad_value < quantity_used_fab:
+                    # Si falla, hacemos rollback de la sesión ANTES de retornar el error.
+                    db.session.rollback()
                     return jsonify({'success': False, 'message': f"Stock insuficiente para tela ID {item_fab['id']}"}), 400
                 tela.cantidad_value -= quantity_used_fab
             
@@ -458,15 +467,16 @@ def handle_products():
             data['materials_used'] = json.dumps(materials_used)
             data['fabrics_used'] = json.dumps(fabrics_used)
 
-            # Crear y registrar el nuevo producto.
+            # Crear y registrar el nuevo producto (ahora 'data' contiene 'id').
             new_item = ProductoTerminado(**data)
             db.session.add(new_item)
             db.session.commit()
             return jsonify({'success': True, 'message': 'Producto registrado y stock actualizado.'}), 201
 
         except Exception as e:
+            # Rollback en caso de cualquier otro error crítico (ej. error de conexión o tipo de dato)
             db.session.rollback()
-            # Esto captura y registra el error de la BD, como el NotNullViolation
+            # Esto captura y registra el error de la BD, como el NotNullViolation (que esperamos que se evite ahora)
             logger.error(f"Error registrando producto: {e}")
             return jsonify({'success': False, 'message': 'Error interno al registrar producto.'}), 500
 
