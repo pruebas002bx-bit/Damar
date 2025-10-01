@@ -49,6 +49,12 @@ def model_to_dict(model_instance):
         # Usar datetime y date directamente, que ya fueron importadas.
         if isinstance(value, (datetime, date)):
             d[column.name] = value.isoformat()
+        # Convertir JSON a lista/dict si es necesario
+        elif isinstance(value, str) and (value.startswith('[') or value.startswith('{')):
+            try:
+                d[column.name] = json.loads(value)
+            except json.JSONDecodeError:
+                d[column.name] = value # Dejar como texto si no es un JSON válido
         else:
             d[column.name] = value
     return d
@@ -179,9 +185,9 @@ def handle_empleado(cedula):
     db.session.commit()
     return jsonify({'success': True, 'message': 'Empleado actualizado.'})
 
-@app.route('/empleados', methods=['DELETE'])
-@app.route('/employees', methods=['DELETE'])
-def delete_empleados():
+@app.route('/empleados/bulk', methods=['DELETE'])
+@app.route('/employees/bulk', methods=['DELETE'])
+def delete_empleados_bulk():
     data = request.get_json()
     cedulas_to_delete = data.get('cedulas', [])
     if not cedulas_to_delete:
@@ -471,8 +477,8 @@ def handle_product(product_id):
 
     if request.method == 'DELETE':
         try:
-            materials_to_return = json.loads(item.materials_used) if isinstance(item.materials_used, str) else item.materials_used or []
-            fabrics_to_return = json.loads(item.fabrics_used) if isinstance(item.fabrics_used, str) else item.fabrics_used or []
+            materials_to_return = json.loads(item.materials_used) if isinstance(item.materials_used, str) and item.materials_used else []
+            fabrics_to_return = json.loads(item.fabrics_used) if isinstance(item.fabrics_used, str) and item.fabrics_used else []
 
             for mat_item in materials_to_return:
                 material = LlegadaMaterial.query.get(mat_item['id'])
