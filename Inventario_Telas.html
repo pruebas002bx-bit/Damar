@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventario de Material - DAMAR</title>
+    <title>Inventario de Telas - DAMAR</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,7 +21,7 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: var(--font-family); background-color: var(--secondary-light); color: var(--text-dark); }
-        .container { max-width: 1400px; margin: 2rem auto; padding: 0 1.5rem; }
+        .container { max-width: 1600px; margin: 2rem auto; padding: 0 1.5rem; }
         .card { background-color: white; border-radius: var(--border-radius-lg); padding: 2.5rem; margin-bottom: 2rem; box-shadow: var(--shadow); }
         .content-header { text-align: center; margin-bottom: 2.5rem; }
         .content-title { font-size: 2.5rem; font-weight: 700; color: var(--primary-dark); }
@@ -47,9 +47,10 @@
         .btn-small { padding: 8px 12px; font-size: 0.8rem; text-transform: none; letter-spacing: 0; }
         .table-container { overflow-x: auto; }
         .data-table { width: 100%; border-collapse: collapse; text-align: left; }
-        .data-table th, .data-table td { padding: 16px; vertical-align: middle; border-bottom: 1px solid var(--border-color); }
-        .data-table thead th { background-color: #f8f9fa; color: var(--primary-dark); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; position: sticky; top: 0; }
+        .data-table th, .data-table td { padding: 16px; vertical-align: middle; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
+        .data-table thead th { background-color: #f8f9fa; color: var(--primary-dark); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
         .data-table tbody tr:hover { background-color: #f5f5f5; }
+        .table-img { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; cursor: pointer; }
         .log-ingreso { color: var(--success); font-weight: 500; }
         .log-salida { color: var(--danger); font-weight: 500; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s; }
@@ -83,24 +84,25 @@
 
 <div class="container">
     <header class="content-header">
-        <h1 class="content-title">Inventario de Material y Movimientos</h1>
+        <h1 class="content-title">Inventario de Telas y Movimientos</h1>
     </header>
     
     <main class="card">
         <nav class="tab-nav">
-            <button class="tab-btn active" data-tab="inventory-panel">Inventario de Material</button>
+            <button class="tab-btn active" data-tab="inventory-panel">Inventario de Telas</button>
             <button class="tab-btn" data-tab="history-panel">Historial de Movimientos</button>
         </nav>
 
         <div id="inventory-panel" class="tab-panel active">
             <div class="controls-bar">
-                <input type="text" id="materialFilter" class="form-input" placeholder="Filtrar por Nombre de Material...">
+                <input type="text" id="tipoTelaFilter" class="form-input" placeholder="Filtrar por Tipo de Tela...">
+                <input type="text" id="serialFilter" class="form-input" placeholder="Filtrar por Serial...">
                 <button id="showStockBtn" class="btn btn-primary">Existencia por Tipo</button>
             </div>
             <div class="table-container">
                 <table class="data-table">
                     <thead>
-                        <tr><th>Material</th><th>Tamaño</th><th>Unidad</th><th>Cantidad Total</th><th>Tipo</th><th>Acciones</th></tr>
+                        <tr><th>Tipo de Tela</th><th>Referencia</th><th>Cantidad</th><th>Rollos</th><th>Color</th><th>Serial</th><th>Acciones</th></tr>
                     </thead>
                     <tbody id="inventoryTableBody"></tbody>
                 </table>
@@ -109,18 +111,18 @@
 
         <div id="history-panel" class="tab-panel">
             <div class="controls-bar">
-                <input type="text" id="materialHistFilter" class="form-input" placeholder="Filtrar por Material o Detalle...">
+                <input type="text" id="serialHistFilter" class="form-input" placeholder="Filtrar por Serial o Detalle...">
                 <select id="tipoHistFilter" class="form-select">
                     <option value="Todos">Todos los Movimientos</option>
-                    <option value="Ingreso">Solo Ingresos</option>
-                    <option value="Salida">Solo Salidas</option>
-                    <option value="Reversión">Solo Reversiones</option>
+                    <option value="ingreso">Solo Ingresos</option>
+                    <option value="salida">Solo Salidas</option>
+                    <option value="reversión">Solo Reversiones</option>
                 </select>
                 <button id="unlockDeleteBtn" class="btn"><i class="fa-solid fa-lock"></i> Habilitar Borrado</button>
             </div>
             <div class="table-container">
                 <table class="data-table">
-                    <thead id="historyTableHeader"></thead>
+                    <thead></thead>
                     <tbody id="historyTableBody"></tbody>
                 </table>
             </div>
@@ -131,36 +133,35 @@
 <div id="stockModal" class="modal-overlay">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 class="modal-title">Existencia por Tipo de Material</h2>
+            <h2 class="modal-title">Existencia por Tipo</h2>
             <button id="closeStockModal" class="modal-close">&times;</button>
         </div>
         <div id="stockModalBody" class="table-container"></div>
     </div>
 </div>
 
-<div id="exitMaterialModal" class="modal-overlay">
+<div id="exitModal" class="modal-overlay">
     <div class="modal-content">
-        <form id="exitMaterialForm">
+        <form id="exitForm">
             <div class="modal-header">
-                <h2 class="modal-title">Registrar Salida de Material</h2>
-                <button type="button" class="modal-close" id="closeExitMaterialModal">&times;</button>
+                <h2 class="modal-title">Registrar Salida de Tela</h2>
+                <button type="button" class="modal-close" id="closeExitModal">&times;</button>
             </div>
             <div class="modal-body">
-                <p>Estás a punto de descontar del stock de:</p>
-                <p><strong><span id="exitMaterialModalName"></span></strong></p>
-                <p>Stock Actual: <strong><span id="exitMaterialModalStock"></span></strong></p>
+                <p>Estás a punto de descontar tela del rollo con <strong>Serial: <span id="exitModalSerial"></span></strong>.</p>
+                <p>Stock Actual: <strong><span id="exitModalStock"></span></strong></p>
                 <hr style="border:none; border-top: 1px solid #eee; margin: 1rem 0;">
                 <div class="form-group">
-                    <label for="exitMaterialQuantity">Cantidad a Descontar</label>
-                    <input type="number" id="exitMaterialQuantity" class="form-input" step="0.01" min="0.01" required>
+                    <label for="exitQuantity">Cantidad a Descontar</label>
+                    <input type="number" id="exitQuantity" class="form-input" step="0.01" min="0.01" required>
                 </div>
                 <div class="form-group">
-                    <label for="exitMaterialDetails">Observación (Opcional)</label>
-                    <input type="text" id="exitMaterialDetails" class="form-input" placeholder="Ej: Usado para muestra, merma, etc.">
+                    <label for="exitDetails">Observación (Opcional)</label>
+                    <input type="text" id="exitDetails" class="form-input" placeholder="Ej: Muestra para cliente, merma, etc.">
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn" id="cancelExitMaterialBtn">Cancelar</button>
+                <button type="button" class="btn" id="cancelExitBtn">Cancelar</button>
                 <button type="submit" class="btn btn-primary">Confirmar Salida</button>
             </div>
         </form>
@@ -169,27 +170,27 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const API_URL = 'https://harvey-unspoilt-judie.ngrok-free.dev';
+    const API_URL = 'https://damar-app.onrender.com';
     let inventoryMasterData = [];
     let historyMasterData = [];
     let deleteUnlocked = false;
 
     const dom = {
         tabs: document.querySelectorAll('.tab-btn'), panels: document.querySelectorAll('.tab-panel'),
-        materialFilter: document.getElementById('materialFilter'), showStockBtn: document.getElementById('showStockBtn'),
-        inventoryTableBody: document.getElementById('inventoryTableBody'),
-        materialHistFilter: document.getElementById('materialHistFilter'), tipoHistFilter: document.getElementById('tipoHistFilter'),
-        historyTableBody: document.getElementById('historyTableBody'), historyTableHeader: document.getElementById('historyTableHeader'),
+        tipoTelaFilter: document.getElementById('tipoTelaFilter'), serialFilter: document.getElementById('serialFilter'),
+        showStockBtn: document.getElementById('showStockBtn'), inventoryTableBody: document.getElementById('inventoryTableBody'),
+        serialHistFilter: document.getElementById('serialHistFilter'), tipoHistFilter: document.getElementById('tipoHistFilter'),
+        historyTableBody: document.getElementById('historyTableBody'),
         stockModal: document.getElementById('stockModal'), closeStockModal: document.getElementById('closeStockModal'),
         stockModalBody: document.getElementById('stockModalBody'),
-        exitMaterialModal: document.getElementById('exitMaterialModal'),
-        closeExitMaterialModal: document.getElementById('closeExitMaterialModal'),
-        cancelExitMaterialBtn: document.getElementById('cancelExitMaterialBtn'),
-        exitMaterialForm: document.getElementById('exitMaterialForm'),
-        exitMaterialModalName: document.getElementById('exitMaterialModalName'),
-        exitMaterialModalStock: document.getElementById('exitMaterialModalStock'),
-        exitMaterialQuantity: document.getElementById('exitMaterialQuantity'),
-        exitMaterialDetails: document.getElementById('exitMaterialDetails'),
+        exitModal: document.getElementById('exitModal'),
+        closeExitModal: document.getElementById('closeExitModal'),
+        cancelExitBtn: document.getElementById('cancelExitBtn'),
+        exitForm: document.getElementById('exitForm'),
+        exitModalSerial: document.getElementById('exitModalSerial'),
+        exitModalStock: document.getElementById('exitModalStock'),
+        exitQuantity: document.getElementById('exitQuantity'),
+        exitDetails: document.getElementById('exitDetails'),
         unlockDeleteBtn: document.getElementById('unlockDeleteBtn')
     };
 
@@ -202,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
         toastContainer.appendChild(toast);
         setTimeout(() => toast.remove(), 4000);
     };
-
+    
     async function apiRequest(endpoint, method = 'GET', data = null) {
         try {
             const options = {
@@ -223,23 +224,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderInventoryTable() {
-        const materialFilter = dom.materialFilter.value.toLowerCase();
+        const tipoFilter = dom.tipoTelaFilter.value.toLowerCase();
+        const serialFilter = dom.serialFilter.value.toLowerCase();
         
-        const filteredData = inventoryMasterData.filter(item =>
-            (item.material_name || '').toLowerCase().includes(materialFilter)
+        const filteredData = inventoryMasterData.filter(f =>
+            (f.tipo_de_tela || '').toLowerCase().includes(tipoFilter) &&
+            (f.serial_rollo || '').toLowerCase().includes(serialFilter)
         );
 
         dom.inventoryTableBody.innerHTML = '';
         if (filteredData.length === 0) {
-            dom.inventoryTableBody.innerHTML = `<tr><td colspan="6" class="feedback-state">No hay materiales que coincidan con el filtro.</td></tr>`;
+            dom.inventoryTableBody.innerHTML = `<tr><td colspan="7" class="feedback-state">No hay telas que coincidan con los filtros.</td></tr>`;
             return;
         }
 
-        const WARNING_THRESHOLD = 10;
+        const WARNING_THRESHOLD = 5;
 
-        filteredData.forEach(item => {
+        filteredData.forEach(fab => {
             const tr = document.createElement('tr');
-            const quantity = parseFloat(item.total_quantity) || 0;
+            const quantity = parseFloat(fab.cantidad_value) || 0;
             let alertIconHtml = '';
 
             if (quantity === 0) {
@@ -251,18 +254,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             tr.innerHTML = `
-                <td>${alertIconHtml} ${item.material_name || 'N/A'}</td>
-                <td>${item.size_value || 'N/A'}</td>
-                <td>${item.size_unit || 'N/A'}</td>
-                <td>${quantity.toLocaleString('es-CO')}</td>
-                <td>${item.quantity_type || 'N/A'}</td>
+                <td>${alertIconHtml} ${fab.tipo_de_tela}</td>
+                <td>${fab.referencia_de_tela}</td>
+                <td>${quantity.toFixed(2)} ${fab.cantidad_type}</td>
+                <td>${parseFloat(fab.size_value).toFixed(2)} ${fab.size_unit}</td>
+                <td><img src="${fab.color_image_path || 'https://placehold.co/40x40/ECF0F1/2C3E50?text=?'}" alt="color" class="table-img"></td>
+                <td>${fab.serial_rollo}</td>
                 <td>
                     <button class="btn btn-small btn-danger-outline btn-exit" 
-                            data-name="${item.material_name}" 
-                            data-size-value="${item.size_value}"
-                            data-size-unit="${item.size_unit}"
-                            data-quantity-type="${item.quantity_type}"
-                            data-stock="${quantity}"
+                            data-id="${fab.id}" 
+                            data-serial="${fab.serial_rollo}" 
+                            data-stock="${quantity.toFixed(2)}"
+                            data-unit="${fab.cantidad_type}"
                             ${quantity === 0 ? 'disabled' : ''}>
                         <i class="fa-solid fa-minus"></i> Descontar
                     </button>
@@ -273,43 +276,55 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function renderHistoryTable() {
-        const materialFilter = dom.materialHistFilter.value.toLowerCase();
+        const serialFilter = dom.serialHistFilter.value.toLowerCase();
         const tipoFilter = dom.tipoHistFilter.value.toLowerCase();
 
         const filteredData = historyMasterData.filter(item => {
-            const materialMatch = (item.material_name || '').toLowerCase().includes(materialFilter) || (item.details || '').toLowerCase().includes(materialFilter);
+            const serialRolloMatch = (item.serial_rollo || '').toLowerCase().includes(serialFilter);
+            const detailsMatch = (item.details || '').toLowerCase().includes(serialFilter);
+            const serialMatch = serialRolloMatch || detailsMatch;
             const typeMatch = (tipoFilter === 'todos') || (item.type || '').toLowerCase().includes(tipoFilter);
-            return materialMatch && typeMatch;
+            return serialMatch && typeMatch;
         });
         
-        dom.historyTableHeader.innerHTML = `<tr><th>Fecha y Hora</th><th>Material</th><th>Tipo Movimiento</th><th>Cantidad</th><th>Detalles</th><th></th></tr>`;
+        const historyHeader = document.querySelector('#history-panel .data-table thead');
         dom.historyTableBody.innerHTML = '';
 
+        historyHeader.innerHTML = `
+            <tr>
+                <th>Fecha y Hora</th><th>Serial Rollo</th><th>Tipo de Tela</th><th>Referencia</th>
+                <th>Proveedor</th><th>Tipo Movimiento</th><th>Cantidad</th><th>Detalles</th><th></th>
+            </tr>
+        `;
+
         if (filteredData.length === 0) {
-            dom.historyTableBody.innerHTML = `<tr><td colspan="6" class="feedback-state">No hay movimientos que coincidan con los filtros.</td></tr>`;
+            dom.historyTableBody.innerHTML = `<tr><td colspan="9" class="feedback-state">No hay movimientos que coincidan con los filtros.</td></tr>`;
             return;
         }
         
         filteredData.forEach(item => {
             const tr = document.createElement('tr');
-            const quantity = parseFloat(item.quantity_change || 0);
+            const quantity = parseFloat(item.quantity_change || 0).toFixed(2);
             const typeLower = (item.type || '').toLowerCase();
             const isSalida = typeLower.includes('salida');
-
-            let movementTypeClass = 'log-ingreso';
-            let quantityDisplay = `+${quantity.toLocaleString('es-CO')}`;
-
-            if(isSalida) {
-                movementTypeClass = 'log-salida';
-                quantityDisplay = `-${quantity.toLocaleString('es-CO')}`;
-            }
-
-            const canDelete = isSalida && deleteUnlocked;
             
+            let movementTypeClass = 'log-ingreso';
+            let quantityDisplay = `+${quantity}`;
+
+            if (isSalida) {
+                movementTypeClass = 'log-salida';
+                quantityDisplay = `-${quantity}`;
+            }
+            
+            const canDelete = isSalida && deleteUnlocked;
+
             tr.innerHTML = `
-                <td>${item.timestamp || 'N/A'}</td>
-                <td>${item.material_name || 'N/A'}</td>
-                <td class="${movementTypeClass}">${item.type || 'N/A'}</td>
+                <td>${item.timestamp || ''}</td>
+                <td>${item.serial_rollo || ''}</td>
+                <td>${item.tipo_de_tela || ''}</td>
+                <td>${item.referencia_de_tela || ''}</td>
+                <td>${item.proveedor || ''}</td>
+                <td class="${movementTypeClass}">${item.type || ''}</td>
                 <td class="${movementTypeClass}"><strong>${quantityDisplay}</strong></td>
                 <td>${item.details || ''}</td>
                 <td>
@@ -326,17 +341,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showStock() {
         const stock = {};
-        inventoryMasterData.forEach(item => {
-            const key = `${item.material_name} (${item.quantity_type})`;
-            stock[key] = (stock[key] || 0) + (parseFloat(item.total_quantity) || 0);
+        inventoryMasterData.forEach(fab => {
+            const key = `${fab.tipo_de_tela} (${fab.cantidad_type})`;
+            stock[key] = (stock[key] || 0) + parseFloat(fab.cantidad_value);
         });
 
-        let tableHtml = `<table class="data-table" style="width:100%;"><thead><tr><th>Tipo de Material (Unidad)</th><th>Cantidad Total</th></tr></thead><tbody>`;
+        let tableHtml = `<table class="data-table" style="width:100%;"><thead><tr><th>Tipo de Tela (Unidad)</th><th>Cantidad Total</th></tr></thead><tbody>`;
         if (Object.keys(stock).length === 0) {
             tableHtml += `<tr><td colspan="2" class="feedback-state">No hay datos de inventario.</td></tr>`;
         } else {
             Object.entries(stock).sort().forEach(([key, total]) => {
-                tableHtml += `<tr><td>${key}</td><td>${total.toLocaleString('es-CO', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>`;
+                tableHtml += `<tr><td>${key}</td><td>${total.toFixed(2)}</td></tr>`;
             });
         }
         tableHtml += `</tbody></table>`;
@@ -344,47 +359,41 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.stockModal.classList.add('visible');
     }
 
-    function openExitMaterialModal(dataset) {
-        dom.exitMaterialModal.dataset.materialInfo = JSON.stringify(dataset);
-        dom.exitMaterialModalName.textContent = `${dataset.name} (${dataset.sizeValue} ${dataset.sizeUnit})`;
-        dom.exitMaterialModalStock.textContent = `${parseFloat(dataset.stock).toLocaleString('es-CO')} ${dataset.quantityType}`;
-        dom.exitMaterialQuantity.value = '';
-        dom.exitMaterialDetails.value = '';
-        dom.exitMaterialQuantity.max = dataset.stock;
-        dom.exitMaterialModal.classList.add('visible');
-        dom.exitMaterialQuantity.focus();
+    function openExitModal(id, serial, stock, unit) {
+        dom.exitModal.dataset.fabricId = id;
+        dom.exitModalSerial.textContent = serial;
+        dom.exitModalStock.textContent = `${stock} ${unit}`;
+        dom.exitQuantity.value = '';
+        dom.exitDetails.value = '';
+        dom.exitQuantity.max = stock;
+        dom.exitModal.classList.add('visible');
+        dom.exitQuantity.focus();
     }
 
-    function closeExitMaterialModal() {
-        dom.exitMaterialModal.classList.remove('visible');
+    function closeExitModal() {
+        dom.exitModal.classList.remove('visible');
     }
 
-    async function handleMaterialExitSubmit(e) {
+    async function handleExitSubmit(e) {
         e.preventDefault();
-        const materialInfo = JSON.parse(dom.exitMaterialModal.dataset.materialInfo);
-        const exit_quantity = parseFloat(dom.exitMaterialQuantity.value);
-        const details = dom.exitMaterialDetails.value.trim();
+        const id = dom.exitModal.dataset.fabricId;
+        const exit_quantity = parseFloat(dom.exitQuantity.value);
+        const details = dom.exitDetails.value.trim();
+        const maxStock = parseFloat(dom.exitQuantity.max);
 
         if (isNaN(exit_quantity) || exit_quantity <= 0) {
             showToast('Por favor, ingresa una cantidad válida y mayor a cero.', 'error');
             return;
         }
-        if (exit_quantity > parseFloat(materialInfo.stock)) {
+        if (exit_quantity > maxStock) {
             showToast(`La cantidad a retirar no puede exceder el stock actual.`, 'error');
             return;
         }
 
         try {
-            await apiRequest('/inventory/materials/register-exit', 'POST', { 
-                material_name: materialInfo.name,
-                size_value: materialInfo.sizeValue,
-                size_unit: materialInfo.sizeUnit,
-                quantity_type: materialInfo.quantityType,
-                exit_quantity: exit_quantity,
-                details: details
-            });
-            showToast('Salida de material registrada correctamente.');
-            closeExitMaterialModal();
+            await apiRequest('/inventory/fabrics/register-exit', 'POST', { id, exit_quantity, details });
+            showToast('Salida de tela registrada correctamente.');
+            closeExitModal();
             loadData();
         } catch (error) { /* Error handled by apiRequest */ }
     }
@@ -394,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         try {
-            await apiRequest(`/inventory/materials/history/${historyId}`, 'DELETE');
+            await apiRequest(`/inventory/fabrics/history/${historyId}`, 'DELETE');
             showToast('Registro de historial eliminado y stock revertido.');
             loadData();
         } catch (error) { /* Error handled by apiRequest */ }
@@ -424,13 +433,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadData() {
         const loadingHtml = (cols) => `<tr><td colspan="${cols}" class="feedback-state"><div class="loading-spinner"></div></td></tr>`;
-        dom.inventoryTableBody.innerHTML = loadingHtml(6);
-        dom.historyTableBody.innerHTML = loadingHtml(6);
+        dom.inventoryTableBody.innerHTML = loadingHtml(7);
+        dom.historyTableBody.innerHTML = loadingHtml(9);
 
         try {
             const [inventoryData, historyData] = await Promise.all([
-                apiRequest('/inventory/summary'),
-                apiRequest('/inventory/history')
+                apiRequest('/inventory/fabrics'),
+                apiRequest('/inventory/fabrics-history')
             ]);
             inventoryMasterData = inventoryData || [];
             historyMasterData = (historyData || []).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -438,8 +447,8 @@ document.addEventListener('DOMContentLoaded', () => {
             renderInventoryTable();
             renderHistoryTable();
         } catch (error) {
-            dom.inventoryTableBody.innerHTML = `<tr><td colspan="6" class="feedback-state"><i class="fa-solid fa-circle-exclamation"></i> Error al cargar inventario.</td></tr>`;
-            dom.historyTableBody.innerHTML = `<tr><td colspan="6" class="feedback-state"><i class="fa-solid fa-circle-exclamation"></i> Error al cargar historial.</td></tr>`;
+            dom.inventoryTableBody.innerHTML = `<tr><td colspan="7" class="feedback-state"><i class="fa-solid fa-circle-exclamation"></i> Error al cargar inventario.</td></tr>`;
+            dom.historyTableBody.innerHTML = `<tr><td colspan="9" class="feedback-state"><i class="fa-solid fa-circle-exclamation"></i> Error al cargar historial.</td></tr>`;
         }
     }
 
@@ -451,8 +460,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById(tab.dataset.tab).classList.add('active');
         }));
 
-        dom.materialFilter.addEventListener('input', renderInventoryTable);
-        dom.materialHistFilter.addEventListener('input', renderHistoryTable);
+        dom.tipoTelaFilter.addEventListener('input', renderInventoryTable);
+        dom.serialFilter.addEventListener('input', renderInventoryTable);
+        dom.serialHistFilter.addEventListener('input', renderHistoryTable);
         dom.tipoHistFilter.addEventListener('change', renderHistoryTable);
         
         dom.showStockBtn.addEventListener('click', showStock);
@@ -462,14 +472,15 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.inventoryTableBody.addEventListener('click', (e) => {
             const exitBtn = e.target.closest('.btn-exit');
             if (exitBtn) {
-                openExitMaterialModal(exitBtn.dataset);
+                const { id, serial, stock, unit } = exitBtn.dataset;
+                openExitModal(id, serial, stock, unit);
             }
         });
 
-        dom.exitMaterialForm.addEventListener('submit', handleMaterialExitSubmit);
-        dom.closeExitMaterialModal.addEventListener('click', closeExitMaterialModal);
-        dom.cancelExitMaterialBtn.addEventListener('click', closeExitMaterialModal);
-        dom.exitMaterialModal.addEventListener('click', (e) => { if (e.target === dom.exitMaterialModal) closeExitMaterialModal(); });
+        dom.exitForm.addEventListener('submit', handleExitSubmit);
+        dom.closeExitModal.addEventListener('click', closeExitModal);
+        dom.cancelExitBtn.addEventListener('click', closeExitModal);
+        dom.exitModal.addEventListener('click', (e) => { if (e.target === dom.exitModal) closeExitModal(); });
         
         dom.unlockDeleteBtn.addEventListener('click', handleUnlockDelete);
         dom.historyTableBody.addEventListener('click', (e) => {

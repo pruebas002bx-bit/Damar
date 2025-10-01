@@ -259,15 +259,31 @@ class DynamicCode(db.Model):
 def model_to_dict(model_instance):
     if model_instance is None:
         return None
-    return {c.name: getattr(model_instance, c.name) for c in model_instance.__table__.columns}
+    # Especialmente para fechas y JSON
+    d = {}
+    for c in model_instance.__table__.columns:
+        val = getattr(model_instance, c.name)
+        if isinstance(val, datetime):
+            d[c.name] = val.isoformat()
+        else:
+            d[c.name] = val
+    return d
 
 @app.route('/')
 def index():
     return send_from_directory('.', 'index.html')
 
+# --- ** INICIO DE LA MODIFICACIÓN ** ---
+# Esta ruta ahora servirá cualquier archivo .html que exista en la carpeta raíz.
 @app.route('/<path:filename>')
-def serve_static(filename):
+def serve_static_or_html(filename):
+    if filename.endswith('.html'):
+        return send_from_directory('.', filename)
+    # Si no es un HTML, puedes decidir servir otros archivos estáticos (js, css)
+    # o simplemente devolver un 404 si no se encuentra.
+    # Por ahora, la configuración inicial de Flask ya maneja esto.
     return send_from_directory('.', filename)
+# --- ** FIN DE LA MODIFICACIÓN ** ---
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -293,8 +309,6 @@ def handle_login():
     else:
         return jsonify({'success': False, 'message': 'Usuario o contraseña incorrectos.'}), 401
 
-# --- ** INICIO DE LA CORRECCIÓN ** ---
-# Se añade el parámetro 'endpoint' en cada @app.route para darles un nombre único.
 def create_crud_routes(model, model_name):
     @app.route(f'/{model_name}', methods=['GET'], endpoint=f'get_all_{model_name}')
     def get_all():
@@ -342,6 +356,12 @@ def create_crud_routes(model, model_name):
         try:
             for key, value in data.items():
                 if hasattr(item, key) and key != 'id':
+                    # Conversión de fecha si es necesario
+                    if isinstance(getattr(item, key), datetime) and isinstance(value, str):
+                        try:
+                            value = datetime.fromisoformat(value)
+                        except ValueError:
+                            pass # Mantener como string si no es formato ISO
                     setattr(item, key, value)
             db.session.commit()
             return jsonify({'success': True, 'message': 'Registro actualizado.', 'item': model_to_dict(item)})
@@ -368,8 +388,6 @@ def create_crud_routes(model, model_name):
             db.session.rollback()
             logger.error(f"Error al eliminar en {model_name}: {e}")
             return jsonify({'success': False, 'message': 'Error en la base de datos al eliminar.'}), 500
-# --- ** FIN DE LA CORRECCIÓN ** ---
-
 
 create_crud_routes(Usuario, Usuario.__tablename__)
 create_crud_routes(Empleado, Empleado.__tablename__)
