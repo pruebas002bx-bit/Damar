@@ -6,6 +6,8 @@
     <title>Gestión de Materiales - DAMAR</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- Librería para leer archivos Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
             --primary-dark: #2C3E50; --secondary-light: #ECF0F1; --accent: #3498DB;
@@ -41,45 +43,19 @@
         .toast.success { background-color: var(--success); }
         .toast.error { background-color: var(--danger); }
         @keyframes slideIn { to { transform: translateX(0); } }
-        .info-panel {
-            max-width: 900px; margin: 1.5rem auto 0 auto; padding: 1.5rem; background-color: #eaf5fc;
-            border-radius: var(--border-radius-md); border-left: 5px solid var(--accent); text-align: left;
-        }
-        .info-panel p { margin-bottom: 0; line-height: 1.6; font-size: 1rem; color: var(--text-dark); }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); display: none; z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: white; border-radius: var(--border-radius-lg); padding: 2rem; max-width: 500px; width: 90%; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); margin-bottom: 1.5rem; }
+        .modal-title { font-size: 1.5rem; }
+        .close-btn { background: none; border: none; font-size: 1.8rem; cursor: pointer; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; }
         .tab-nav { display: flex; border-bottom: 2px solid var(--border-color); margin-bottom: 2rem; }
         .tab-btn { padding: 12px 20px; font-size: 1rem; font-weight: 600; cursor: pointer; border: none; background-color: transparent; color: var(--text-dark); border-bottom: 3px solid transparent; transition: all 0.3s ease; }
         .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
         .tab-panel { display: none; }
         .tab-panel.active { display: block; animation: fadeIn 0.4s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5);
-            display: none; z-index: 1000; justify-content: center; align-items: center;
-        }
-        .modal-overlay.show { display: flex; }
-        .modal {
-            background: white; border-radius: var(--border-radius-lg); padding: 2rem; max-width: 500px;
-            width: 90%; max-height: 90vh; overflow-y: auto;
-        }
-        .modal-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);
-        }
-        .modal-title { font-size: 1.5rem; font-weight: 600; color: var(--primary-dark); }
-        .close-btn {
-            background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-dark);
-            padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
-        }
-        .modal-body { margin-bottom: 2rem; }
-        .modal-footer { display: flex; gap: 1rem; justify-content: flex-end; }
-        .missing-value {
-            color: var(--danger);
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9em;
-        }
     </style>
 </head>
 <body>
@@ -92,6 +68,7 @@
                 <button class="close-btn" id="closeModal">&times;</button>
             </div>
             <div class="modal-body">
+                <input type="hidden" id="editItemId">
                 <div class="form-group">
                     <label class="form-label" for="editCode">Material</label>
                     <input type="text" id="editCode" class="form-input" required>
@@ -121,16 +98,11 @@
     <div class="container">
         <header class="content-header">
             <h1 class="content-title">Gestión de Materiales</h1>
-            <div class="info-panel">
-                <p>
-                    Desde aquí puedes agregar, editar y eliminar todos los <strong>Materiales Base</strong>. Los valores que agregues aquí se usarán como sugerencias en <strong>Llegada de Material</strong>.
-                </p>
-            </div>
         </header>
         <main>
             <nav class="tab-nav">
                 <button class="tab-btn active" data-tab="agregar-panel">Gestionar Materiales</button>
-                <button class="tab-btn" data-tab="ver-todas-panel">Ver Historial Completo</button>
+                <button class="tab-btn" data-tab="ver-todas-panel">Ver Todas las Referencias</button>
             </nav>
 
             <div id="agregar-panel" class="tab-panel active">
@@ -138,12 +110,12 @@
                     <div id="mainForm">
                         <div class="form-section">
                             <div class="form-group">
-                                <label class="form-label" for="mainInput">Nuevo Material</label>
+                                <label class="form-label" id="mainLabel" for="mainInput">Nuevo Material</label>
                                 <input type="text" id="mainInput" class="form-input" placeholder="EJ: HILO CALIBRE 120" required>
                             </div>
                             <div class="form-group">
                                 <label class="form-label" for="barcodeInput">Código de Barras (Opcional)</label>
-                                <input type="text" id="barcodeInput" class="form-input" placeholder="EJ: 770987654321">
+                                <input type="text" id="barcodeInput" class="form-input" placeholder="EJ: 770123456789">
                             </div>
                         </div>
                         <div id="addCostsContainer">
@@ -161,9 +133,9 @@
                     </div>
                      <div class="buttons-container">
                         <button id="addBtn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Agregar</button>
-                        <button id="editBtn" class="btn btn-warning" disabled><i class="fa-solid fa-edit"></i> Editar Seleccionado</button>
-                        <button id="deleteBtn" class="btn btn-danger" disabled><i class="fa-solid fa-trash"></i> Eliminar Seleccionados</button>
-                    </div>
+                        <button id="uploadExcelBtn" class="btn btn-secondary"><i class="fa-solid fa-file-excel"></i> Subir desde Excel</button>
+                        <input type="file" id="excelFileInput" class="hidden" accept=".xlsx, .xls">
+                     </div>
                 </section>
                 
                 <section class="card" id="tableSection">
@@ -175,28 +147,23 @@
                             <tbody id="dataTableBody"></tbody>
                         </table>
                     </div>
+                     <div class="buttons-container" style="justify-content: flex-end;">
+                        <button id="editBtn" class="btn btn-warning" disabled><i class="fa-solid fa-edit"></i> Editar Seleccionado</button>
+                        <button id="deleteBtn" class="btn btn-danger" disabled><i class="fa-solid fa-trash"></i> Eliminar Seleccionados</button>
+                    </div>
                 </section>
             </div>
 
             <div id="ver-todas-panel" class="tab-panel">
                 <section class="card">
-                    <h3 style="margin-bottom: 1.5rem;">Historial de Todos los Códigos</h3>
-                    <div class="view-all-section">
-                        <div class="form-section" style="margin-bottom: 1.5rem;">
-                            <input type="text" id="allReferencesSearch" class="form-input" placeholder="Buscar por material, código de barras...">
-                        </div>
-                        <div class="buttons-container" style="border: none; padding: 0; margin: 1rem 0;">
-                            <button id="refreshAllBtn" class="btn btn-secondary"><i class="fa-solid fa-refresh"></i> Actualizar</button>
-                            <button id="editSelectedBtn" class="btn btn-warning" disabled><i class="fa-solid fa-edit"></i> Editar Seleccionado</button>
-                            <button id="deleteSelectedBtn" class="btn btn-danger" disabled><i class="fa-solid fa-trash"></i> Eliminar Seleccionados</button>
-                        </div>
-                    </div>
+                    <h3 style="margin-bottom: 1.5rem;">Historial de Todas las Referencias</h3>
+                     <input type="text" id="allReferencesSearch" class="form-input" placeholder="Buscar por referencia, código de barras, categoría..." style="margin-bottom: 1.5rem; max-width: 400px;">
                     <div class="table-container">
                         <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th><input type="checkbox" id="selectAllAllReferences"></th>
-                                    <th>Material</th>
+                                    <th>Categoría</th>
+                                    <th>Referencia</th>
                                     <th>Código de Barras</th>
                                     <th>Costo Venta</th>
                                     <th>Costo Confección</th>
@@ -211,13 +178,12 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-        const API_URL = 'https://harvey-unspoilt-judie.ngrok-free.dev';
+    document.addEventListener('DOMContentLoaded', () => {
+        const API_URL = 'https://damar-app.onrender.com';
         let masterData = [];
         let allReferencesData = [];
+        const currentCategory = 'ref_materials';
         const currentType = 'references';
-        const currentCategory = 'materiales';
-        let editingItem = null;
 
         const dom = {
             tabs: document.querySelectorAll('.tab-btn'),
@@ -225,20 +191,20 @@
             barcodeInput: document.getElementById('barcodeInput'),
             costoVentaInput: document.getElementById('costoVentaInput'),
             costoConfeccionInput: document.getElementById('costoConfeccionInput'),
+            tableTitle: document.getElementById('tableTitle'),
             dataTableHeader: document.getElementById('dataTableHeader'),
             dataTableBody: document.getElementById('dataTableBody'),
             searchInput: document.getElementById('searchInput'),
             addBtn: document.getElementById('addBtn'),
             editBtn: document.getElementById('editBtn'),
             deleteBtn: document.getElementById('deleteBtn'),
+            uploadExcelBtn: document.getElementById('uploadExcelBtn'),
+            excelFileInput: document.getElementById('excelFileInput'),
             allReferencesTableBody: document.getElementById('allReferencesTableBody'),
             allReferencesSearch: document.getElementById('allReferencesSearch'),
-            refreshAllBtn: document.getElementById('refreshAllBtn'),
-            editSelectedBtn: document.getElementById('editSelectedBtn'),
-            deleteSelectedBtn: document.getElementById('deleteSelectedBtn'),
-            selectAllAllReferences: document.getElementById('selectAllAllReferences'),
             editModal: document.getElementById('editModal'),
             closeModal: document.getElementById('closeModal'),
+            editItemId: document.getElementById('editItemId'),
             editCode: document.getElementById('editCode'),
             editDescription: document.getElementById('editDescription'),
             editCostoVenta: document.getElementById('editCostoVenta'),
@@ -251,21 +217,32 @@
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
-            toast.innerHTML = `<i class="fa ${type === 'success' ? 'fa-check-circle' : 'fa-times-circle'}"></i> ${message}`;
+            toast.textContent = message;
             container.appendChild(toast);
-            setTimeout(() => toast.remove(), 4000);
+            setTimeout(() => toast.remove(), 5000);
         };
         
         async function apiRequest(endpoint, method = 'GET', data = null) {
             try {
-                const options = { method, headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, mode: 'cors' };
+                const options = { method, headers: { 'Content-Type': 'application/json' }, mode: 'cors' };
                 if (data) options.body = JSON.stringify(data);
                 const response = await fetch(`${API_URL}${endpoint}`, options);
-                const responseData = await response.json();
-                if (!response.ok) throw new Error(responseData.message || `Error ${response.status}`);
+                
+                if (response.status === 204) return null;
+                
+                const textResponse = await response.text();
+                let responseData;
+                try {
+                    responseData = JSON.parse(textResponse);
+                } catch (e) {
+                    throw new Error(`Respuesta inválida del servidor. Status: ${response.status}`);
+                }
+
+                if (!response.ok) {
+                    throw new Error(responseData.message || `Error del servidor: ${response.status}`);
+                }
                 return responseData;
             } catch (error) {
-                showToast(error.message, 'error');
                 console.error("API Request Error:", error);
                 throw error;
             }
@@ -273,8 +250,8 @@
         
         function formatCostCell(value) {
             const numValue = parseFloat(value);
-            if (isNaN(numValue) || numValue === 0) {
-                return `<span class="missing-value"><i class="fa-solid fa-triangle-exclamation"></i> Sin Asignar</span>`;
+            if (isNaN(numValue) || !numValue) {
+                return `<span style="color: #95a5a6;">N/A</span>`;
             }
             return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(numValue);
         }
@@ -286,11 +263,13 @@
                 document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
                 tab.classList.add('active');
                 document.getElementById(target).classList.add('active');
-                if (target === 'ver-todas-panel') loadAllData();
+                if (target === 'ver-todas-panel') {
+                    loadAllData();
+                }
             });
         });
 
-        function updateSimpleTableButtons() {
+        function updateActionButtons() {
             const checkedBoxes = dom.dataTableBody.querySelectorAll('input[type="checkbox"]:checked');
             dom.editBtn.disabled = checkedBoxes.length !== 1;
             dom.deleteBtn.disabled = checkedBoxes.length === 0;
@@ -308,10 +287,6 @@
                     <th>Costo Confección</th>
                 </tr>
             `;
-            document.getElementById('selectAllCheckbox').addEventListener('change', e => {
-                 dom.dataTableBody.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = e.target.checked);
-                 updateSimpleTableButtons();
-            });
 
             const filteredData = masterData.filter(item => 
                 (item.code || '').toLowerCase().includes(filter) || 
@@ -322,46 +297,38 @@
             filteredData.forEach(item => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>
-                        <input type="checkbox" 
-                               data-id="${item.id}" 
-                               data-code="${item.code || ''}" 
-                               data-description="${item.description || ''}"
-                               data-costo-venta="${item.costo_venta || ''}"
-                               data-costo-confeccion="${item.costo_confeccion || ''}">
-                    </td>
+                    <td><input type="checkbox" data-id="${item.id}"></td>
                     <td>${item.code || ''}</td>
-                    <td>${item.description || ''}</td>
+                    <td>${item.description || 'N/A'}</td>
                     <td>${formatCostCell(item.costo_venta)}</td>
                     <td>${formatCostCell(item.costo_confeccion)}</td>
                 `;
                 dom.dataTableBody.appendChild(tr);
             });
-            updateSimpleTableButtons();
+            
+            document.getElementById('selectAllCheckbox').addEventListener('change', e => {
+                 dom.dataTableBody.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = e.target.checked);
+                 updateActionButtons();
+            });
+            updateActionButtons();
         }
 
         async function loadData() {
-            const endpoint = `/dynamic-codes/${currentType}/${currentCategory}`;
             try {
-                masterData = await apiRequest(endpoint);
+                masterData = await apiRequest(`/dynamic-codes/${currentType}/${currentCategory}`);
                 renderTable();
             } catch (error) {
+                showToast('Error al cargar los materiales.', 'error');
                 dom.dataTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Error al cargar datos.</td></tr>`;
             }
         }
-
+        
         async function loadAllData() {
             try {
-                const [references, barcodes] = await Promise.all([
-                    apiRequest('/dynamic-codes/references/materiales'),
-                    apiRequest('/dynamic-codes/barcodes/materiales')
-                ]);
-                allReferencesData = [
-                    ...references.map(item => ({...item, type: 'Material'})),
-                    ...barcodes.map(item => ({...item, type: 'Código de Barras'}))
-                ];
+                allReferencesData = await apiRequest('/dynamic-codes/all-references');
                 renderAllReferencesTable();
             } catch (error) {
+                showToast('Error al cargar el historial de referencias.', 'error');
                 dom.allReferencesTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Error al cargar datos.</td></tr>`;
             }
         }
@@ -370,86 +337,92 @@
             const searchFilter = dom.allReferencesSearch.value.toLowerCase();
             
             const filteredData = allReferencesData.filter(item => {
+                const categoryText = item.category === 'ref_products' ? 'producto' : 'material';
                 return !searchFilter || 
                        (item.code || '').toLowerCase().includes(searchFilter) || 
-                       (item.description || '').toLowerCase().includes(searchFilter);
+                       (item.description || '').toLowerCase().includes(searchFilter) ||
+                       categoryText.includes(searchFilter);
             });
             
             dom.allReferencesTableBody.innerHTML = '';
             filteredData.forEach(item => {
                 const tr = document.createElement('tr');
+                const categoryCell = item.category === 'ref_products' 
+                    ? `<span style="background-color: #3498db; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8em;">Producto</span>`
+                    : `<span style="background-color: #f39c12; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8em;">Material</span>`;
                 tr.innerHTML = `
-                    <td><input type="checkbox" data-id="${item.id}" data-type="${item.type}" data-category="${item.category}" data-code="${item.code}" data-description="${item.description || ''}" data-costo-venta="${item.costo_venta || ''}" data-costo-confeccion="${item.costo_confeccion || ''}"></td>
+                    <td>${categoryCell}</td>
                     <td>${item.code || ''}</td>
-                    <td>${item.description || ''}</td>
+                    <td>${item.description || 'N/A'}</td>
                     <td>${formatCostCell(item.costo_venta)}</td>
                     <td>${formatCostCell(item.costo_confeccion)}</td>
                 `;
                 dom.allReferencesTableBody.appendChild(tr);
             });
-            updateAllReferencesButtons();
         }
+        
+        function openEditModal() {
+            const checkedBox = dom.dataTableBody.querySelector('input[type="checkbox"]:checked');
+            if (!checkedBox) return;
+            
+            const itemToEdit = masterData.find(item => item.id == checkedBox.dataset.id);
+            if (!itemToEdit) return;
 
-        function updateAllReferencesButtons() {
-            const checkedBoxes = dom.allReferencesTableBody.querySelectorAll('input[type="checkbox"]:checked');
-            dom.editSelectedBtn.disabled = checkedBoxes.length !== 1;
-            dom.deleteSelectedBtn.disabled = checkedBoxes.length === 0;
-        }
-
-        function openEditModal(item) {
-            editingItem = item;
-            dom.editCode.value = item.code;
-            dom.editDescription.value = item.description || '';
-            dom.editCostoVenta.value = item.costo_venta || '';
-            dom.editCostoConfeccion.value = item.costo_confeccion || '';
+            dom.editItemId.value = itemToEdit.id;
+            dom.editCode.value = itemToEdit.code;
+            dom.editDescription.value = itemToEdit.description || '';
+            dom.editCostoVenta.value = itemToEdit.costo_venta || '';
+            dom.editCostoConfeccion.value = itemToEdit.costo_confeccion || '';
             dom.editModal.classList.add('show');
         }
 
         function closeEditModal() {
-            editingItem = null;
             dom.editModal.classList.remove('show');
         }
 
         async function saveEditedItem() {
-            if (!editingItem) return;
+            const itemId = dom.editItemId.value;
+            if (!itemId) return;
             
             const newCode = dom.editCode.value.trim();
-            if (!newCode) return showToast('El nombre del Material es obligatorio.', 'error');
+            if (!newCode) return showToast('El nombre del material es obligatorio.', 'error');
             
             const payload = {
                 code: newCode,
                 description: dom.editDescription.value.trim(),
-                costo_venta: dom.editCostoVenta.value || '0',
-                costo_confeccion: dom.editCostoConfeccion.value || '0'
+                costo_venta: dom.editCostoVenta.value || null,
+                costo_confeccion: dom.editCostoConfeccion.value || null
             };
 
             try {
-                const endpoint = `/dynamic-codes/references/${currentCategory}/${editingItem.id}`;
+                const endpoint = `/dynamic-codes/${currentType}/${currentCategory}/${itemId}`;
                 await apiRequest(endpoint, 'PUT', payload);
-                
-                showToast('Registro actualizado.', 'success');
+                showToast('Material actualizado.', 'success');
                 closeEditModal();
-                loadAllData();
-                loadData();
-            } catch (error) {}
+                await loadData();
+                await loadAllData();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
         }
 
-        async function deleteSelectedItems(isFromAllView) {
-            const container = isFromAllView ? dom.allReferencesTableBody : dom.dataTableBody;
-            const checkedBoxes = container.querySelectorAll('input[type="checkbox"]:checked');
+        async function deleteSelectedItems() {
+            const checkedBoxes = Array.from(dom.dataTableBody.querySelectorAll('input[type="checkbox"]:checked'));
+            if (checkedBoxes.length === 0) return showToast('Seleccione materiales para eliminar.', 'error');
             
-            if (checkedBoxes.length === 0) return showToast('Seleccione registros para eliminar.', 'error');
-            if (!confirm(`¿Seguro que desea eliminar ${checkedBoxes.length} registro(s)?`)) return;
+            if (!confirm(`¿Seguro que desea eliminar ${checkedBoxes.length} material(es)?`)) return;
+
+            const idsToDelete = checkedBoxes.map(cb => parseInt(cb.dataset.id));
 
             try {
-                const idsToDelete = Array.from(checkedBoxes).map(cb => cb.dataset.id);
-                const endpoint = `/dynamic-codes/references/${currentCategory}`;
+                const endpoint = `/dynamic-codes/${currentType}/${currentCategory}`;
                 await apiRequest(endpoint, 'DELETE', { ids: idsToDelete });
-                
-                showToast('Registros eliminados.', 'success');
-                loadAllData();
-                loadData();
-            } catch (error) {}
+                showToast('Materiales eliminados.', 'success');
+                await loadData();
+                await loadAllData();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
         }
         
         dom.addBtn.addEventListener('click', async () => {
@@ -461,59 +434,128 @@
             const payload = {
                 code: code,
                 description: dom.barcodeInput.value.trim(),
-                costo_venta: dom.costoVentaInput.value || '0',
-                costo_confeccion: dom.costoConfeccionInput.value || '0'
+                costo_venta: dom.costoVentaInput.value || null,
+                costo_confeccion: dom.costoConfeccionInput.value || null
             };
 
             try {
                 await apiRequest(endpoint, 'POST', payload);
-                showToast('Registro agregado.', 'success');
+                showToast('Material agregado.', 'success');
                 dom.mainInput.value = '';
                 dom.barcodeInput.value = '';
                 dom.costoVentaInput.value = '';
                 dom.costoConfeccionInput.value = '';
-                loadData();
-                loadAllData();
-            } catch (error) {}
+                await loadData();
+                await loadAllData();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
         });
+        
+        const handleFileUpload = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
 
-        dom.editBtn.addEventListener('click', () => {
-            const checkedBox = dom.dataTableBody.querySelector('input[type="checkbox"]:checked');
-            if (checkedBox) openEditModal({ ...checkedBox.dataset });
-        });
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+                        raw: false
+                    });
+                    
+                    if (jsonData.length === 0) {
+                        return showToast('El archivo Excel está vacío.', 'error');
+                    }
 
-        dom.deleteBtn.addEventListener('click', () => deleteSelectedItems(false));
+                    const headers = Object.keys(jsonData[0]);
+                    const columnMap = {
+                        code: headers.find(h => h.trim().toLowerCase().includes('referencia') || h.trim().toLowerCase().includes('material')),
+                        description: headers.find(h => h.trim().toLowerCase().includes('barras')),
+                        costo_venta: headers.find(h => h.trim().toLowerCase().includes('venta')),
+                        costo_confeccion: headers.find(h => h.trim().toLowerCase().includes('confección') || h.trim().toLowerCase().includes('confeccion')),
+                    };
+
+                    if (!columnMap.code) {
+                        return showToast('No se encontró una columna que contenga "Referencia" o "Material".', 'error');
+                    }
+
+                    const validData = jsonData.map(row => {
+                        const costoVentaRaw = row[columnMap.costo_venta];
+                        const costoConfeccionRaw = row[columnMap.costo_confeccion];
+                        
+                        const costoVenta = costoVentaRaw ? parseFloat(String(costoVentaRaw).replace(/[^0-9.,-]/g, '').replace(',', '.')) : null;
+                        const costoConfeccion = costoConfeccionRaw ? parseFloat(String(costoConfeccionRaw).replace(/[^0-9.,-]/g, '').replace(',', '.')) : null;
+
+                        return {
+                            code: row[columnMap.code] ? String(row[columnMap.code]).trim() : null,
+                            description: row[columnMap.description] ? String(row[columnMap.description]).trim() : null,
+                            costo_venta: !isNaN(costoVenta) ? costoVenta : null,
+                            costo_confeccion: !isNaN(costoConfeccion) ? costoConfeccion : null,
+                        };
+                    }).filter(row => row.code);
+
+
+                    if (validData.length === 0) {
+                        return showToast('No se encontraron filas con una "Referencia" o "Material" válido.', 'error');
+                    }
+
+                    showToast(`Iniciando subida de ${validData.length} materiales...`, 'success');
+                    
+                    const endpoint = `/dynamic-codes/${currentType}/${currentCategory}`;
+                    
+                    let successCount = 0;
+                    let errorCount = 0;
+
+                    for (const row of validData) {
+                        try {
+                            await apiRequest(endpoint, 'POST', row);
+                            successCount++;
+                        } catch (error) {
+                            errorCount++;
+                            console.error(`Error subiendo la fila: ${JSON.stringify(row)}`, error);
+                        }
+                    }
+                    
+                    let finalMessage = `${successCount} de ${validData.length} materiales subidos correctamente.`;
+                    if (errorCount > 0) {
+                        finalMessage += ` ${errorCount} fallaron. Revise la consola.`;
+                    }
+                    showToast(finalMessage, errorCount > 0 ? 'error' : 'success');
+                    
+                    await loadData();
+                    await loadAllData();
+
+                } catch (error) {
+                    showToast('Error crítico al procesar el archivo Excel.', 'error');
+                    console.error("Error processing Excel file:", error);
+                } finally {
+                    dom.excelFileInput.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        };
+
+        // --- Event Listeners ---
+        dom.editBtn.addEventListener('click', openEditModal);
+        dom.deleteBtn.addEventListener('click', deleteSelectedItems);
         dom.searchInput.addEventListener('input', renderTable);
-        dom.dataTableBody.addEventListener('change', (e) => { if(e.target.type === 'checkbox') updateSimpleTableButtons(); });
-        
         dom.allReferencesSearch.addEventListener('input', renderAllReferencesTable);
-        dom.refreshAllBtn.addEventListener('click', loadAllData);
+        dom.dataTableBody.addEventListener('change', (e) => { if(e.target.type === 'checkbox') updateActionButtons(); });
         
-        dom.selectAllAllReferences.addEventListener('change', e => {
-            dom.allReferencesTableBody.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = e.target.checked);
-            updateAllReferencesButtons();
-        });
-        dom.allReferencesTableBody.addEventListener('change', e => { if (e.target.type === 'checkbox') updateAllReferencesButtons(); });
-
-        dom.editSelectedBtn.addEventListener('click', () => {
-            const checkedBox = dom.allReferencesTableBody.querySelector('input[type="checkbox"]:checked');
-            if (checkedBox) openEditModal({ ...checkedBox.dataset });
-        });
-
-        dom.deleteSelectedBtn.addEventListener('click', () => deleteSelectedItems(true));
-
         dom.closeModal.addEventListener('click', closeEditModal);
         dom.cancelEdit.addEventListener('click', closeEditModal);
         dom.saveEdit.addEventListener('click', saveEditedItem);
         dom.editModal.addEventListener('click', (e) => { if (e.target === dom.editModal) closeEditModal(); });
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && dom.editModal.classList.contains('show')) closeEditModal();
-            if (e.key === 'Enter' && dom.editModal.classList.contains('show') && document.activeElement.tagName !== 'TEXTAREA') {
-                e.preventDefault();
-                saveEditedItem();
-            }
-        });
         
+        dom.uploadExcelBtn.addEventListener('click', () => dom.excelFileInput.click());
+        dom.excelFileInput.addEventListener('change', handleFileUpload);
+        
+        // --- Carga Inicial ---
         loadData();
         loadAllData();
     });
