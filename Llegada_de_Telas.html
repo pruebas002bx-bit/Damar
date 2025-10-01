@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
         :root {
@@ -173,25 +174,25 @@
                         <div class="form-group"><label class="form-label" for="proveedorInput">Proveedor</label><input type="text" id="proveedorInput" class="form-input" placeholder="Nombre del proveedor"></div>
                         <div class="form-group"><label class="form-label" for="valorFacturaInput">Valor Factura (COP)</label><input type="text" id="valorFacturaInput" class="form-input" placeholder="0"></div>
                          <div class="form-group">
-                            <label class="form-label" for="cantidadValueInput">Tamaño</label>
+                            <label class="form-label" for="cantidadValueInput">Cantidad</label>
                             <div class="input-group">
                                <input type="number" id="cantidadValueInput" class="form-input" placeholder="Valor">
                                <select id="cantidadTypeSelect" class="form-select">
-                                    <option>cm</option>
-                                    <option>mm</option>
-                                    <option>m</option>
-                                    <option>lunas</option>
+                                    <option>Metraje</option>
+                                    <option>Kilos</option>
+                                    <option>Unidades</option>
                                </select>
                             </div>
                         </div>
                          <div class="form-group">
-                            <label class="form-label" for="sizeValueInput">Cantidad</label>
+                            <label class="form-label" for="sizeValueInput">Tamaño</label>
                              <div class="input-group">
                                <input type="number" id="sizeValueInput" class="form-input" placeholder="Valor">
                                <select id="sizeUnitSelect" class="form-select">
-                                    <option>Metraje</option>
-                                    <option>Kilos</option>
-                                    <option>Unidades</option>
+                                    <option>cm</option>
+                                    <option>mm</option>
+                                    <option>m</option>
+                                    <option>lunas</option>
                                </select>
                             </div>
                         </div>
@@ -247,7 +248,7 @@
                     </div>
                     <button id="clearSearchBtn" class="btn btn-secondary"><i class="fa-solid fa-xmark"></i></button>
                     <input type="file" id="excelUploadInput" class="hidden" accept=".xlsx, .xls">
-                    <button id="uploadBtn" class="btn btn-info"><i class="fa-solid fa-file-arrow-up"></i> Cargar Excel</button>
+                    <button id="uploadExcelBtn" class="btn btn-info"><i class="fa-solid fa-file-arrow-up"></i> Cargar Excel</button>
                     <button id="downloadBtn" class="btn btn-info"><i class="fa-solid fa-file-arrow-down"></i> Descargar Excel</button>
                 </div>
                 
@@ -269,7 +270,7 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const API_URL = window.parent.API_BASE_URL || 'https://harvey-unspoilt-judie.ngrok-free.dev';
+        const API_URL = 'https://damar-app.onrender.com';
         let masterData = [];
         let displayedData = [];
         let selectedRecordId = null;
@@ -305,7 +306,7 @@
             clearSearchBtn: document.getElementById('clearSearchBtn'),
             imageModal: document.getElementById('imageModal'),
             fullImage: document.getElementById('fullImage'),
-            uploadBtn: document.getElementById('uploadBtn'),
+            uploadExcelBtn: document.getElementById('uploadExcelBtn'),
             downloadBtn: document.getElementById('downloadBtn'),
             excelUploadInput: document.getElementById('excelUploadInput'),
         };
@@ -334,7 +335,7 @@
         };
 
         const setButtonsLoading = (loading) => {
-            [dom.addBtn, dom.editBtn, dom.deleteBtn, dom.uploadBtn, dom.downloadBtn].forEach(btn => btn.disabled = loading);
+            [dom.addBtn, dom.editBtn, dom.deleteBtn, dom.uploadExcelBtn, dom.downloadBtn].forEach(btn => btn.disabled = loading);
         };
 
         const formatCurrency = (value) => (parseFloat(value) || 0).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
@@ -343,7 +344,7 @@
         async function apiRequest(endpoint, method = 'GET', data = null, isJson = true) {
             setButtonsLoading(true);
             try {
-                const options = { method, headers: { 'ngrok-skip-browser-warning': 'true' }, mode: 'cors' };
+                const options = { method, headers: {}, mode: 'cors' };
                 if (data) {
                     if (isJson) {
                         options.headers['Content-Type'] = 'application/json';
@@ -354,6 +355,11 @@
                 }
                 const response = await fetch(`${API_URL}${endpoint}`, options);
                 if (response.headers.get("content-type")?.includes("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) return response.blob();
+                
+                if (response.status === 204 || response.headers.get("content-length") === "0") {
+                    return null;
+                }
+
                 const responseData = await response.json();
                 if (!response.ok) throw new Error(responseData.message || `Error del servidor: ${response.status}`);
                 return responseData;
@@ -371,10 +377,10 @@
                 serial_rollo: dom.serialInput.value.trim(), barcode: dom.barrasInput.value.trim(),
                 tipo_de_tela: dom.tipoTelaInput.value.trim(), referencia_de_tela: dom.refTelaInput.value.trim(),
                 proveedor: dom.proveedorInput.value.trim(),
-                invoice_value: parseFloat(parseCurrency(dom.valorFacturaInput.value)) || 0,
-                unit_value: parseFloat(parseCurrency(dom.valorUnidadInput.value)) || 0,
-                cantidad_value: parseFloat(dom.cantidadValueInput.value) || 0, cantidad_type: dom.cantidadTypeSelect.value,
-                size_value: parseFloat(dom.sizeValueInput.value) || 0, size_unit: dom.sizeUnitSelect.value,
+                invoice_value: parseFloat(parseCurrency(dom.valorFacturaInput.value)) || null,
+                unit_value: parseFloat(parseCurrency(dom.valorUnidadInput.value)) || null,
+                cantidad_value: parseFloat(dom.cantidadValueInput.value) || null, cantidad_type: dom.cantidadTypeSelect.value,
+                size_value: parseFloat(dom.sizeValueInput.value) || null, size_unit: dom.sizeUnitSelect.value,
                 color_image_path: dom.colorZone.dataset.filePath || null, qr_image_path: dom.qrZone.dataset.filePath || null,
                 pdf_path: dom.pdfZone.dataset.filePath || null,
             };
@@ -392,8 +398,7 @@
         function clearForm() {
             selectedRecordId = null; dom.form.reset(); dom.fechaInput.valueAsDate = new Date();
             dom.cantidadTypeSelect.value = 'Metraje'; dom.sizeUnitSelect.value = 'cm';
-            clearUploadZone(dom.colorZone, dom.colorInput); clearUploadZone(dom.qrZone, dom.qrInput);
-            clearUploadZone(dom.pdfZone, dom.pdfInput);
+            clearUploadZone(dom.colorZone, dom.colorInput); clearUploadZone(dom.qrZone, dom.qrInput); clearUploadZone(dom.pdfZone, dom.pdfInput);
             document.querySelectorAll('.data-table tr.selected').forEach(row => row.classList.remove('selected'));
         }
 
@@ -441,43 +446,41 @@
 
         async function loadReferencesForDatalist() {
             try {
-                const references = await apiRequest('/dynamic-codes/references/Telas');
-                const datalist = document.getElementById('referencesDatalist');
-                datalist.innerHTML = '';
+                const [references, barcodes] = await Promise.all([
+                    apiRequest('/dynamic-codes/all-references'),
+                    apiRequest('/dynamic-codes/all-barcodes')
+                ]);
+
+                const refDatalist = document.getElementById('referencesDatalist');
+                refDatalist.innerHTML = '';
                 (references || []).forEach(ref => {
                     if (ref.code) {
                         const option = document.createElement('option');
                         option.value = ref.code;
-                        datalist.appendChild(option);
+                        refDatalist.appendChild(option);
                     }
                 });
-            } catch (error) {
-                console.error('Error al cargar las referencias de tela:', error);
-            }
-        }
 
-        async function loadBarcodesForDatalist() {
-            try {
-                const barcodes = await apiRequest('/dynamic-codes/barcodes/Telas');
-                const datalist = document.getElementById('barcodesDatalist');
-                datalist.innerHTML = '';
+                const barcodeDatalist = document.getElementById('barcodesDatalist');
+                barcodeDatalist.innerHTML = '';
                 (barcodes || []).forEach(bc => {
                     if (bc.code) {
                         const option = document.createElement('option');
                         option.value = bc.code;
-                        datalist.appendChild(option);
+                        barcodeDatalist.appendChild(option);
                     }
                 });
             } catch (error) {
-                console.error('Error al cargar los códigos de barras de tela:', error);
+                console.error('Error al cargar referencias y códigos de barras:', error);
             }
         }
+
 
         async function addRecord() {
             if (!validateForm()) return;
             try {
                 const result = await apiRequest('/fabrics', 'POST', collectFormData());
-                showToast(result.message, 'success');
+                showToast(result.message || 'Tela registrada con éxito', 'success');
                 clearForm();
                 await loadInitialData();
             } catch (error) {}
@@ -488,7 +491,7 @@
             if (!validateForm()) return;
             try {
                 const result = await apiRequest(`/fabrics/${selectedRecordId}`, 'PUT', collectFormData());
-                showToast(result.message, 'success');
+                showToast(result.message || 'Tela actualizada con éxito', 'success');
                 clearForm();
                 await loadInitialData();
             } catch (error) {}
@@ -500,8 +503,8 @@
             const idsToDelete = Array.from(checkedBoxes).map(cb => cb.dataset.id);
             showConfirmation(`¿Está seguro de que desea eliminar ${idsToDelete.length} registro(s)?`, async () => {
                 try {
-                    const result = await apiRequest('/fabrics', 'DELETE', { ids: idsToDelete });
-                    showToast(result.message, 'success');
+                    const result = await apiRequest('/fabrics/bulk', 'DELETE', { ids: idsToDelete });
+                    showToast(result.message || 'Telas eliminadas con éxito', 'success');
                     clearForm();
                     await loadInitialData();
                 } catch (error) {}
@@ -567,36 +570,87 @@
         };
 
         async function handleDownloadExcel() {
-            showToast('Generando archivo Excel...', 'info');
-            try {
-                const blob = await apiRequest('/fabrics/download', 'GET', null, false);
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.style.display = 'none'; a.href = url;
-                a.download = `inventario_telas_${new Date().toISOString().split('T')[0]}.xlsx`;
-                document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); a.remove();
-                showToast('Descarga iniciada.', 'success');
-            } catch (error) {}
+            showToast('Esta función aún no está implementada.', 'info');
         }
 
-        async function handleUploadExcel() {
-            const file = dom.excelUploadInput.files[0]; if (!file) return;
-            showToast('Cargando archivo...', 'info');
-            const formData = new FormData(); formData.append('file', file);
-            try {
-                const result = await apiRequest('/fabrics/upload', 'POST', formData, false);
-                showToast(result.message, 'success'); await loadInitialData();
-            } catch (error) {} finally { dom.excelUploadInput.value = ''; }
-        }
+        const handleExcelUpload = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false });
+                    
+                    if (jsonData.length === 0) return showToast('El archivo Excel está vacío.', 'error');
+
+                    // Mapeo directo a los encabezados que especificaste
+                    const expectedHeaders = [
+                        'serial_rollo', 'barcode', 'tipo_de_tela', 'referencia_de_tela', 'proveedor',
+                        'invoice_value', 'unit_value', 'cantidad_value', 'cantidad_type', 
+                        'size_value', 'size_unit'
+                    ];
+
+                    const validData = jsonData.map(row => {
+                        let newRow = {};
+                        for (const header of expectedHeaders) {
+                            newRow[header] = row[header] !== undefined ? row[header] : null;
+                        }
+                        return newRow;
+                    }).filter(row => row.serial_rollo);
+
+
+                    if (validData.length === 0) return showToast('No se encontraron filas con un "serial_rollo" válido.', 'error');
+
+                    showToast(`Iniciando subida de ${validData.length} registros...`, 'info');
+                    let successCount = 0, errorCount = 0;
+
+                    for (const row of validData) {
+                        try {
+                            // Asignar fecha actual si no viene en el excel
+                            row.entry_date = row.entry_date ? new Date(row.entry_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+                            await apiRequest('/fabrics', 'POST', row);
+                            successCount++;
+                        } catch (error) {
+                            errorCount++;
+                            console.error(`Error subiendo la fila: ${JSON.stringify(row)}`, error);
+                        }
+                    }
+
+                    let finalMessage = `${successCount} de ${validData.length} telas registradas.`;
+                    if (errorCount > 0) finalMessage += ` ${errorCount} fallaron.`;
+                    showToast(finalMessage, errorCount > 0 ? 'error' : 'success');
+                    
+                    await loadInitialData();
+
+                } catch (error) {
+                    showToast('Error crítico al procesar el archivo.', 'error');
+                } finally {
+                    dom.excelUploadInput.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        };
+
 
         function init() {
-            dom.addBtn.addEventListener('click', addRecord); dom.editBtn.addEventListener('click', editRecord);
-            dom.deleteBtn.addEventListener('click', deleteSelectedRecords); dom.clearBtn.addEventListener('click', clearForm);
+            dom.addBtn.addEventListener('click', addRecord);
+            dom.editBtn.addEventListener('click', editRecord);
+            dom.deleteBtn.addEventListener('click', deleteSelectedRecords);
+            dom.clearBtn.addEventListener('click', clearForm);
             dom.searchInput.addEventListener('input', applyFiltersAndRender);
             dom.clearSearchBtn.addEventListener('click', () => { dom.searchInput.value = ''; applyFiltersAndRender(); });
             dom.downloadBtn.addEventListener('click', handleDownloadExcel);
-            dom.uploadBtn.addEventListener('click', () => dom.excelUploadInput.click());
-            dom.excelUploadInput.addEventListener('change', handleUploadExcel);
-            setupUploadZone('colorInput', 'colorZone'); setupUploadZone('qrInput', 'qrZone'); setupUploadZone('pdfInput', 'pdfZone');
+            dom.uploadExcelBtn.addEventListener('click', () => dom.excelUploadInput.click());
+            dom.excelUploadInput.addEventListener('change', handleExcelUpload);
+            setupUploadZone('colorInput', 'colorZone');
+            setupUploadZone('qrInput', 'qrZone');
+            setupUploadZone('pdfInput', 'pdfZone');
             dom.selectAllCheckbox.onchange = (e) => dom.tableBody.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = e.target.checked);
             dom.imageModal.onclick = () => dom.imageModal.classList.remove('active');
             [dom.valorFacturaInput, dom.valorUnidadInput].forEach(input => {
@@ -605,10 +659,13 @@
                     e.target.value = value ? parseFloat(value).toLocaleString('es-CO') : '';
                 };
             });
-            clearForm(); loadInitialData(); loadReferencesForDatalist(); loadBarcodesForDatalist();
+            clearForm();
+            loadInitialData();
+            loadReferencesForDatalist();
         }
         init();
     });
     </script>
 </body>
 </html>
+
