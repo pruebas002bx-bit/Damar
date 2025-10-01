@@ -411,7 +411,6 @@ def get_fabrics_history():
     items = HistorialTela.query.order_by(HistorialTela.timestamp.desc()).all()
     return jsonify([model_to_dict(item) for item in items])
 
-
 @app.route('/products', methods=['GET', 'POST'])
 def handle_products():
     if request.method == 'GET':
@@ -420,7 +419,9 @@ def handle_products():
     if request.method == 'POST':
         data = request.get_json()
         try:
-            # CORRECCIÓN: Eliminar el ID para que la BD lo genere
+            # CORRECCIÓN 1: Eliminamos la lógica de 'del data['id']'.
+            # Dejamos que SQLAlchemy y la base de datos manejen la autogeneración del 'id'.
+            # La tabla de la base de datos debe estar configurada correctamente (SERIAL/AUTOINCREMENT).
             if 'id' in data:
                 del data['id']
 
@@ -432,19 +433,28 @@ def handle_products():
 
             for item_mat in materials_used:
                 material = LlegadaMaterial.query.get(item_mat['id'])
-                if not material or material.quantity_value < float(item_mat['quantity_used']):
+                # Asegurarse de que los valores sean float antes de comparar o restar
+                quantity_used = float(item_mat['quantity_used']) if item_mat.get('quantity_used') else 0
+                
+                if not material or material.quantity_value < quantity_used:
                     return jsonify({'success': False, 'message': f"Stock insuficiente para material ID {item_mat['id']}"}), 400
-                material.quantity_value -= float(item_mat['quantity_used'])
+                material.quantity_value -= quantity_used
             
+            # CORRECCIÓN 2: Se usa la variable de iteración correcta 'item_fab' en lugar de 'fab_item'.
             for item_fab in fabrics_used:
-                tela = LlegadaTela.query.get(item_fab['id'])
-                if not tela or tela.cantidad_value < float(item_fab['quantity_used']):
+                tela = LlegadaTela.query.get(item_fab['id']) # <-- CORRECCIÓN APLICADA AQUÍ
+                # Asegurarse de que los valores sean float antes de comparar o restar
+                quantity_used_fab = float(item_fab['quantity_used']) if item_fab.get('quantity_used') else 0
+
+                if not tela or tela.cantidad_value < quantity_used_fab:
                     return jsonify({'success': False, 'message': f"Stock insuficiente para tela ID {item_fab['id']}"}), 400
-                tela.cantidad_value -= float(item_fab['quantity_used'])
+                tela.cantidad_value -= quantity_used_fab
             
+            # Serializar listas de uso a JSON string antes de guardar
             data['materials_used'] = json.dumps(materials_used)
             data['fabrics_used'] = json.dumps(fabrics_used)
 
+            # Crear y registrar el nuevo producto.
             new_item = ProductoTerminado(**data)
             db.session.add(new_item)
             db.session.commit()
@@ -452,10 +462,9 @@ def handle_products():
 
         except Exception as e:
             db.session.rollback()
+            # Esto captura y registra el error de la BD, como el NotNullViolation
             logger.error(f"Error registrando producto: {e}")
             return jsonify({'success': False, 'message': 'Error interno al registrar producto.'}), 500
-
-
 
 
 @app.route('/products/last', methods=['GET'])
