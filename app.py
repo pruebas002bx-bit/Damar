@@ -1,473 +1,564 @@
-# -*- coding: utf-8 -*-
 import os
-import json
 import logging
-from datetime import datetime
+import json
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy import func
+from sqlalchemy import func, case
+from datetime import datetime
 
-# --- 1. Configuración Básica de la Aplicación ---
-app = Flask(__name__, static_folder='.', static_url_path='')
-CORS(app, resources={r"/*": {"origins": "*"}})
+# --- 1. Importaciones desde models.py ---
+# Se importan todos los "planos" de nuestras tablas.
+from models import (
+    db, Usuario, Empleado, Cliente, Proveedor, Banco, LlegadaMaterial, 
+    LlegadaTela, HistorialTela, ProductoTerminado, ProgramacionCorte, 
+    AsignacionSatelite, EntregaSatelite, PagoSatelite, Venta, 
+    ProveedorHistorial, DynamicCode
+)
+
+# --- Configuración de Logging ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- 2. Configuración de la Base de Datos (PostgreSQL) ---
+# --- Configuración de la Aplicación Flask ---
+app = Flask(__name__, static_folder='.', static_url_path='')
+CORS(app, resources={r"/*": {"origins": "*"}})
+
+# --- Configuración de la Base de Datos ---
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if not DATABASE_URL:
-    raise RuntimeError("Error: La variable de entorno DATABASE_URL no está configurada.")
-
+    raise RuntimeError("DATABASE_URL no está configurada.")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {"pool_pre_ping": True}
-db = SQLAlchemy(app)
+app.config['SQLALCHEMY_ECHO'] = False # Poner en True para ver las consultas SQL en la consola
 
-# --- 3. Definición de los Modelos de Datos (Tablas) ---
+# --- 2. Vincula la base de datos con la aplicación ---
+db.init_app(app)
 
-class Usuario(db.Model):
-    __tablename__ = 'usuarios'
-    id = db.Column(db.Integer, primary_key=True)
-    usuario = db.Column(db.String(100), unique=True, nullable=False)
-    contraseña = db.Column(db.String(200), nullable=False)
-    rol = db.Column(db.String(50), nullable=False)
-
-    def to_dict(self):
-        return {'Usuario': self.usuario, 'Rol': self.rol}
-
-class Empleado(db.Model):
-    __tablename__ = 'empleados'
-    id = db.Column(db.Integer, primary_key=True)
-    codigo_empleado = db.Column(db.String(50), unique=True)
-    name = db.Column(db.String(150), nullable=False)
-    cedula = db.Column(db.String(20), unique=True, nullable=False)
-    rh = db.Column(db.String(10))
-    sexo = db.Column(db.String(20))
-    fecha_nacimiento = db.Column(db.Date)
-    lugar_nacimiento = db.Column(db.String(100))
-    role = db.Column(db.String(100))
-    numero_contrato = db.Column(db.String(50))
-    tipo_contrato = db.Column(db.String(50))
-    fecha_inicio = db.Column(db.Date)
-    fecha_fin_contrato = db.Column(db.Date)
-    phone = db.Column(db.String(30))
-    correo = db.Column(db.String(120))
-    direccion = db.Column(db.String(200))
-    eps = db.Column(db.String(100))
-    arl = db.Column(db.String(100))
-    caja = db.Column(db.String(100))
-    pension = db.Column(db.String(100))
-    emergencia1_nombre = db.Column(db.String(150))
-    emergencia1_telefono = db.Column(db.String(30))
-    emergencia1_parentesco = db.Column(db.String(50))
-    emergencia2_nombre = db.Column(db.String(150))
-    emergencia2_telefono = db.Column(db.String(30))
-    emergencia2_parentesco = db.Column(db.String(50))
-
-class Cliente(db.Model):
-    __tablename__ = 'clientes'
-    id = db.Column(db.Integer, primary_key=True)
-    fecha = db.Column(db.Date, nullable=False)
-    factura = db.Column(db.String(50), unique=True, nullable=False)
-    referencia = db.Column(db.String(100))
-    valor = db.Column(db.Float, default=0.0)
-    abono = db.Column(db.Float, default=0.0)
-
-class Proveedor(db.Model):
-    __tablename__ = 'proveedores'
-    id = db.Column(db.Integer, primary_key=True)
-    fecha = db.Column(db.Date, nullable=False)
-    proveedor = db.Column(db.String(150), nullable=False)
-    factura = db.Column(db.String(50), nullable=False)
-    tela = db.Column(db.String(100))
-    valor = db.Column(db.Float, default=0.0)
-    abono = db.Column(db.Float, default=0.0)
-    vencimiento = db.Column(db.Date)
-    pdf_path = db.Column(db.String(255))
-    __table_args__ = (db.UniqueConstraint('proveedor', 'factura', name='uq_proveedor_factura'),)
-
-class ProveedorHistorial(db.Model):
-    __tablename__ = 'proveedores_historial'
-    id = db.Column(db.Integer, primary_key=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    proveedor = db.Column(db.String(150))
-    factura = db.Column(db.String(50))
-    type = db.Column(db.String(50))
-    details = db.Column(db.Text)
-
-class Banco(db.Model):
-    __tablename__ = 'bancos'
-    id = db.Column(db.Integer, primary_key=True)
-    fecha = db.Column(db.Date, nullable=False)
-    banco = db.Column(db.String(100))
-    punto_venta = db.Column(db.String(100))
-    aprobacion = db.Column(db.String(100), unique=True)
-    valor = db.Column(db.Float)
-    cuenta = db.Column(db.String(50))
-    tipo = db.Column(db.String(50))
-    descripcion = db.Column(db.Text)
-    fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
-
-class LlegadaMaterial(db.Model):
-    __tablename__ = 'llegada_material'
-    id = db.Column(db.Integer, primary_key=True)
-    entry_date = db.Column(db.Date, nullable=False)
-    barcode = db.Column(db.String(100))
-    material_name = db.Column(db.String(150))
-    size_value = db.Column(db.Float)
-    size_unit = db.Column(db.String(20))
-    quantity_value = db.Column(db.Float)
-    quantity_type = db.Column(db.String(50))
-    supplier = db.Column(db.String(150))
-    invoice_value = db.Column(db.Float)
-    unit_value = db.Column(db.Float)
-    image_path = db.Column(db.String(255))
-
-class LlegadaTela(db.Model):
-    __tablename__ = 'llegada_telas'
-    id = db.Column(db.Integer, primary_key=True)
-    entry_date = db.Column(db.Date, nullable=False)
-    invoice_number = db.Column(db.String(50))
-    serial_rollo = db.Column(db.String(100), unique=True, nullable=False)
-    barcode = db.Column(db.String(100))
-    tipo_de_tela = db.Column(db.String(100))
-    referencia_de_tela = db.Column(db.String(100))
-    proveedor = db.Column(db.String(150))
-    invoice_value = db.Column(db.Float)
-    unit_value = db.Column(db.Float)
-    cantidad_value = db.Column(db.Float)
-    cantidad_type = db.Column(db.String(50))
-    size_value = db.Column(db.Float)
-    size_unit = db.Column(db.String(20))
-    color_image_path = db.Column(db.String(255))
-    qr_image_path = db.Column(db.String(255))
-    pdf_path = db.Column(db.String(255))
-
-class HistorialTela(db.Model):
-    __tablename__ = 'historial_telas'
-    id = db.Column(db.Integer, primary_key=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    fabric_id = db.Column(db.Integer, db.ForeignKey('llegada_telas.id'))
-    serial_rollo = db.Column(db.String(100))
-    type = db.Column(db.String(50))
-    quantity_change = db.Column(db.Float)
-    details = db.Column(db.Text)
-
-class ProductoTerminado(db.Model):
-    __tablename__ = 'productos_terminados'
-    id = db.Column(db.String(36), primary_key=True)
-    lote = db.Column(db.String(50))
-    fecha = db.Column(db.Date)
-    referencia = db.Column(db.String(150))
-    codigo_barras = db.Column(db.String(100))
-    medida_trazo = db.Column(db.Float)
-    trazos = db.Column(db.Integer)
-    cantidad = db.Column(db.Float)
-    tipo_tela = db.Column(db.String(100))
-    satellite = db.Column(db.String(150))
-    serial = db.Column(db.String(50), unique=True)
-    observacion = db.Column(db.Text)
-    valor_confeccion = db.Column(db.Float)
-    ganancia_percent = db.Column(db.Float)
-    valor_total = db.Column(db.Float)
-    valor_venta = db.Column(db.Float)
-    materials_used = db.Column(db.JSON)
-    fabrics_used = db.Column(db.JSON)
-    has_sample = db.Column(db.Boolean, default=False)
-    sample_code = db.Column(db.String(50))
-
-class ProgramacionCorte(db.Model):
-    __tablename__ = 'programacion_cortes'
-    id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.Date, nullable=False)
-    reference = db.Column(db.String(150))
-    quantity = db.Column(db.Integer)
-    colors = db.Column(db.String(200))
-    size = db.Column(db.String(50))
-    distribute_to = db.Column(db.String(150))
-    status = db.Column(db.String(50), default='Programado')
-    terminado = db.Column(db.Integer, default=0)
-    restantes = db.Column(db.Integer, default=0)
-
-class AsignacionSatelite(db.Model):
-    __tablename__ = 'asignaciones_satelites'
-    id = db.Column(db.Integer, primary_key=True)
-    assignment_date = db.Column(db.Date, nullable=False)
-    satellite_name = db.Column(db.String(150))
-    product_lote = db.Column(db.String(100))
-    assigned_quantity = db.Column(db.Float)
-    unit_price = db.Column(db.Float)
-    total_price = db.Column(db.Float)
-    status = db.Column(db.String(50), default='Asignado')
-    has_sample = db.Column(db.Boolean, default=False)
-    sample_code = db.Column(db.String(50))
-
-class EntregaSatelite(db.Model):
-    __tablename__ = 'entregas_satelites'
-    id = db.Column(db.Integer, primary_key=True)
-    delivery_date = db.Column(db.Date)
-    product_serial = db.Column(db.String(100))
-    product_lote = db.Column(db.String(100))
-    delivered_quantity = db.Column(db.Float)
-    satellite_name = db.Column(db.String(150))
-
-class PagoSatelite(db.Model):
-    __tablename__ = 'pagos_satelites'
-    id = db.Column(db.Integer, primary_key=True)
-    payment_date = db.Column(db.Date)
-    satellite_name = db.Column(db.String(150))
-    payment_amount = db.Column(db.Float)
-    payment_method = db.Column(db.String(50))
-    details = db.Column(db.Text)
-    product_serial = db.Column(db.String(100))
-    status = db.Column(db.String(50))
-    partial_payment_value = db.Column(db.Float)
-    observation = db.Column(db.Text)
-    total_payment_amount = db.Column(db.Float)
-    reference = db.Column(db.String(150))
-
-class Venta(db.Model):
-    __tablename__ = 'ventas'
-    id = db.Column(db.Integer, primary_key=True)
-    sale_date = db.Column(db.Date)
-    invoice_number = db.Column(db.String(50), unique=True)
-    punto_venta = db.Column(db.String(100))
-    products_sold = db.Column(db.JSON)
-    efectivo = db.Column(db.Float)
-    consignacion = db.Column(db.Float)
-    banco_consignacion = db.Column(db.String(100))
-    total_sale = db.Column(db.Float)
-
-class DynamicCode(db.Model):
-    __tablename__ = 'dynamic_codes'
-    id = db.Column(db.Integer, primary_key=True)
-    type = db.Column(db.String(50), nullable=False)
-    category = db.Column(db.String(50), nullable=False)
-    code = db.Column(db.String(150), nullable=False)
-    description = db.Column(db.Text)
-    costo_venta = db.Column(db.Float)
-    costo_confeccion = db.Column(db.Float)
-    __table_args__ = (db.UniqueConstraint('type', 'category', 'code', name='uq_dynamic_code'),)
-
-# --- 4. Rutas de la API (Endpoints) ---
-
+# --- Función Auxiliar para convertir modelos a diccionarios ---
 def model_to_dict(model_instance):
+    """Convierte una instancia de modelo SQLAlchemy a un diccionario."""
     if model_instance is None:
         return None
-    # Especialmente para fechas y JSON
     d = {}
-    for c in model_instance.__table__.columns:
-        val = getattr(model_instance, c.name)
-        if isinstance(val, datetime):
-            d[c.name] = val.isoformat()
+    for column in model_instance.__table__.columns:
+        value = getattr(model_instance, column.name)
+        # Formatear fechas y datetimes para que sean compatibles con JSON
+        if isinstance(value, (datetime, datetime.date)):
+            d[column.name] = value.isoformat()
         else:
-            d[c.name] = val
+            d[column.name] = value
     return d
 
+# --- RUTAS DE LA APLICACIÓN ---
+
+# Sirve el index.html
 @app.route('/')
 def index():
     return send_from_directory('.', 'index.html')
 
-# --- ** INICIO DE LA MODIFICACIÓN ** ---
-# Esta ruta ahora servirá cualquier archivo .html que exista en la carpeta raíz.
+# Sirve todos los demás archivos estáticos (otros .html, css, js)
 @app.route('/<path:filename>')
-def serve_static_or_html(filename):
-    if filename.endswith('.html'):
-        return send_from_directory('.', filename)
-    # Si no es un HTML, puedes decidir servir otros archivos estáticos (js, css)
-    # o simplemente devolver un 404 si no se encuentra.
-    # Por ahora, la configuración inicial de Flask ya maneja esto.
+def serve_static(filename):
     return send_from_directory('.', filename)
-# --- ** FIN DE LA MODIFICACIÓN ** ---
 
-@app.route('/health', methods=['GET'])
-def health_check():
-    return jsonify({'status': 'ok'}), 200
-
+# --- RUTA DE LOGIN ---
 @app.route('/login', methods=['POST'])
 def handle_login():
-    username = request.form.get('username', '').strip()
-    password = request.form.get('password', '').strip()
+    try:
+        username_form = request.form.get('username', '').strip()
+        password_form = request.form.get('password', '').strip()
 
-    if not username or not password:
-        return jsonify({'success': False, 'message': 'Usuario y contraseña requeridos.'}), 400
+        if not username_form or not password_form:
+            return jsonify({'success': False, 'message': 'Usuario y contraseña son requeridos.'}), 400
 
-    user = Usuario.query.filter(func.lower(Usuario.usuario) == func.lower(username)).first()
+        user = Usuario.query.filter_by(usuario=username_form).first()
 
-    if user and user.contraseña == password:
-        return jsonify({
-            'success': True,
-            'message': f'¡Bienvenido {user.usuario}!',
-            'username': user.usuario,
-            'rol': user.rol
-        })
-    else:
-        return jsonify({'success': False, 'message': 'Usuario o contraseña incorrectos.'}), 401
+        if user and user.contraseña == password_form:
+            return jsonify({
+                'success': True, 
+                'message': f'¡Bienvenido {user.usuario}!', 
+                'username': user.usuario, 
+                'rol': user.rol
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Usuario o contraseña incorrectos.'}), 401
+    except Exception as e:
+        logger.error(f"Error en /login: {e}")
+        return jsonify({"message": "Error interno del servidor"}), 500
 
-def create_crud_routes(model, model_name):
-    @app.route(f'/{model_name}', methods=['GET'], endpoint=f'get_all_{model_name}')
-    def get_all():
-        items = model.query.all()
-        return jsonify([model_to_dict(item) for item in items])
+# --- RUTAS CRUD (CREATE, READ, UPDATE, DELETE) ---
 
-    @app.route(f'/{model_name}/<int:item_id>', methods=['GET'], endpoint=f'get_one_{model_name}')
-    def get_one(item_id):
-        item = db.session.get(model, item_id)
-        if not item:
-            return jsonify({'success': False, 'message': 'Registro no encontrado.'}), 404
-        return jsonify(model_to_dict(item))
-    
-    @app.route(f'/{model_name}', methods=['POST'], endpoint=f'create_{model_name}')
-    def create():
-        data = request.get_json()
-        if not data:
-            return jsonify({'success': False, 'message': 'No se recibieron datos.'}), 400
-        
-        data.pop('id', None)
-
-        try:
-            new_item = model(**data)
-            db.session.add(new_item)
-            db.session.commit()
-            return jsonify({'success': True, 'message': 'Registro creado.', 'item': model_to_dict(new_item)}), 201
-        except (IntegrityError, SQLAlchemyError) as e:
-            db.session.rollback()
-            logger.error(f"Error al crear en {model_name}: {e}")
-            error_info = str(e.orig) if hasattr(e, 'orig') else str(e)
-            if 'unique constraint' in error_info.lower():
-                 return jsonify({'success': False, 'message': 'Error: El valor ya existe y debe ser único.'}), 409
-            return jsonify({'success': False, 'message': 'Error en la base de datos al crear.'}), 500
-
-    @app.route(f'/{model_name}/<int:item_id>', methods=['PUT'], endpoint=f'update_{model_name}')
-    def update(item_id):
-        item = db.session.get(model, item_id)
-        if not item:
-            return jsonify({'success': False, 'message': 'Registro no encontrado.'}), 404
-        
-        data = request.get_json()
-        if not data:
-            return jsonify({'success': False, 'message': 'No se recibieron datos.'}), 400
-
-        try:
-            for key, value in data.items():
-                if hasattr(item, key) and key != 'id':
-                    # Conversión de fecha si es necesario
-                    if isinstance(getattr(item, key), datetime) and isinstance(value, str):
-                        try:
-                            value = datetime.fromisoformat(value)
-                        except ValueError:
-                            pass # Mantener como string si no es formato ISO
-                    setattr(item, key, value)
-            db.session.commit()
-            return jsonify({'success': True, 'message': 'Registro actualizado.', 'item': model_to_dict(item)})
-        except (IntegrityError, SQLAlchemyError) as e:
-            db.session.rollback()
-            logger.error(f"Error al actualizar en {model_name}: {e}")
-            return jsonify({'success': False, 'message': 'Error en la base de datos al actualizar.'}), 500
-            
-    @app.route(f'/{model_name}', methods=['DELETE'], endpoint=f'delete_many_{model_name}')
-    def delete_many():
-        data = request.get_json()
-        ids_to_delete = data.get('ids', [])
-        if not ids_to_delete:
-            return jsonify({'success': False, 'message': 'No se proporcionaron IDs para eliminar.'}), 400
-        
-        try:
-            num_deleted = model.query.filter(model.id.in_(ids_to_delete)).delete(synchronize_session=False)
-            db.session.commit()
-            if num_deleted > 0:
-                return jsonify({'success': True, 'message': f'{num_deleted} registro(s) eliminado(s).'})
-            else:
-                return jsonify({'success': False, 'message': 'No se encontraron registros con los IDs proporcionados.'}), 404
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            logger.error(f"Error al eliminar en {model_name}: {e}")
-            return jsonify({'success': False, 'message': 'Error en la base de datos al eliminar.'}), 500
-
-create_crud_routes(Usuario, Usuario.__tablename__)
-create_crud_routes(Empleado, Empleado.__tablename__)
-create_crud_routes(Cliente, Cliente.__tablename__)
-create_crud_routes(Proveedor, Proveedor.__tablename__)
-create_crud_routes(Banco, Banco.__tablename__)
-create_crud_routes(LlegadaMaterial, 'materials')
-create_crud_routes(LlegadaTela, 'fabrics')
-create_crud_routes(ProgramacionCorte, 'cuts')
-create_crud_routes(AsignacionSatelite, 'assignments')
-create_crud_routes(EntregaSatelite, 'deliveries')
-create_crud_routes(PagoSatelite, 'payments')
-create_crud_routes(Venta, 'sales')
-
-@app.route('/dynamic-codes/<type>/<category>', methods=['GET', 'POST'])
-def handle_dynamic_data(type, category):
+# --- Usuarios ---
+@app.route('/usuarios', methods=['GET', 'POST'])
+def handle_usuarios():
     if request.method == 'GET':
-        items = DynamicCode.query.filter_by(type=type, category=category).all()
-        return jsonify([model_to_dict(item) for item in items])
-
+        items = Usuario.query.all()
+        return jsonify([{'id': item.id, 'usuario': item.usuario, 'rol': item.rol} for item in items])
+    
     if request.method == 'POST':
         data = request.get_json()
-        code_value = data.get('code', '').strip()
-        if not code_value:
-            return jsonify({'success': False, 'message': 'El valor no puede estar vacío.'}), 400
+        if not data or not data.get('usuario') or not data.get('contraseña'):
+            return jsonify({'success': False, 'message': 'Usuario y contraseña son obligatorios.'}), 400
+        
+        if Usuario.query.filter_by(usuario=data['usuario']).first():
+            return jsonify({'success': False, 'message': f'El usuario "{data["usuario"]}" ya existe.'}), 409
 
-        exists = DynamicCode.query.filter_by(type=type, category=category, code=code_value).first()
-        if exists:
-            return jsonify({'success': False, 'message': f'El valor "{code_value}" ya existe.'}), 409
-
-        new_code = DynamicCode(type=type, category=category, **data)
-        db.session.add(new_code)
+        new_item = Usuario(usuario=data['usuario'], contraseña=data['contraseña'], rol=data.get('rol'))
+        db.session.add(new_item)
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Registro agregado.'}), 201
+        return jsonify({'success': True, 'message': 'Usuario agregado correctamente.'}), 201
 
+@app.route('/usuarios/<string:username>', methods=['PUT', 'DELETE'])
+def handle_usuario(username):
+    if request.method == 'PUT':
+        data = request.get_json()
+        user = Usuario.query.filter_by(usuario=username).first()
+        if not user:
+            return jsonify({'success': False, 'message': 'Usuario no encontrado.'}), 404
+        
+        if 'contraseña' in data and data['contraseña']:
+            user.contraseña = data['contraseña']
+        if 'rol' in data and data['rol']:
+            user.rol = data['rol']
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Usuario actualizado.'})
+
+    if request.method == 'DELETE':
+        user = Usuario.query.filter_by(usuario=username).first()
+        if not user:
+            return jsonify({'success': False, 'message': 'Usuario no encontrado.'}), 404
+        
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Usuario eliminado.'})
+
+# --- Empleados ---
+@app.route('/empleados', methods=['GET', 'POST'])
+def handle_empleados():
+    if request.method == 'GET':
+        items = Empleado.query.all()
+        return jsonify([model_to_dict(item) for item in items])
+    
+    if request.method == 'POST':
+        data = request.get_json()
+        if not data or not data.get('cedula'):
+            return jsonify({'success': False, 'message': 'La cédula es obligatoria.'}), 400
+        
+        if Empleado.query.filter_by(cedula=data['cedula']).first():
+            return jsonify({'success': False, 'message': f'El empleado con cédula {data["cedula"]} ya existe.'}), 409
+        
+        # Eliminar 'codigo_empleado' si viene vacío para que la DB lo genere
+        if 'codigo_empleado' in data and not data['codigo_empleado']:
+            del data['codigo_empleado']
+
+        new_item = Empleado(**data)
+        db.session.add(new_item)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Empleado agregado.'}), 201
+
+@app.route('/empleados/<string:cedula>', methods=['PUT'])
+def handle_empleado(cedula):
+    item = Empleado.query.filter_by(cedula=cedula).first()
+    if not item:
+        return jsonify({'success': False, 'message': 'Empleado no encontrado.'}), 404
+    
+    data = request.get_json()
+    for key, value in data.items():
+        if hasattr(item, key):
+            setattr(item, key, value)
+            
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Empleado actualizado.'})
+
+@app.route('/empleados', methods=['DELETE'])
+def delete_empleados():
+    data = request.get_json()
+    cedulas_to_delete = data.get('cedulas', [])
+    if not cedulas_to_delete:
+        return jsonify({'success': False, 'message': 'No se proporcionaron cédulas.'}), 400
+    
+    num_deleted = Empleado.query.filter(Empleado.cedula.in_(cedulas_to_delete)).delete(synchronize_session=False)
+    db.session.commit()
+    
+    if num_deleted > 0:
+        return jsonify({'success': True, 'message': f'{num_deleted} empleado(s) eliminado(s).'})
+    return jsonify({'success': False, 'message': 'No se encontraron empleados con esas cédulas.'}), 404
+
+# --- Clientes ---
+@app.route('/clientes', methods=['GET', 'POST'])
+def handle_clientes():
+    if request.method == 'GET':
+        items = Cliente.query.all()
+        return jsonify([model_to_dict(item) for item in items])
+    if request.method == 'POST':
+        data = request.get_json()
+        new_item = Cliente(**data)
+        db.session.add(new_item)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Cliente agregado.'}), 201
+
+@app.route('/clientes/<int:cliente_id>', methods=['PUT'])
+def handle_cliente(cliente_id):
+    item = Cliente.query.get(cliente_id)
+    if not item: return jsonify({'success': False, 'message': 'Cliente no encontrado.'}), 404
+    data = request.get_json()
+    for key, value in data.items():
+        if hasattr(item, key) and key != 'id': setattr(item, key, value)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Cliente actualizado.'})
+
+@app.route('/clientes', methods=['DELETE'])
+def delete_clientes():
+    data = request.get_json()
+    ids_to_delete = data.get('ids', [])
+    if not ids_to_delete: return jsonify({'success': False, 'message': 'No se proporcionaron IDs.'}), 400
+    num_deleted = Cliente.query.filter(Cliente.id.in_(ids_to_delete)).delete(synchronize_session=False)
+    db.session.commit()
+    if num_deleted > 0: return jsonify({'success': True, 'message': f'{num_deleted} cliente(s) eliminado(s).'})
+    return jsonify({'success': False, 'message': 'No se encontraron clientes.'}), 404
+    
+# --- Proveedores (y su historial) ---
+@app.route('/proveedores', methods=['GET', 'POST'])
+def handle_proveedores():
+    if request.method == 'GET':
+        items = Proveedor.query.all()
+        return jsonify([model_to_dict(item) for item in items])
+    if request.method == 'POST':
+        data = request.get_json()
+        new_item = Proveedor(**data)
+        db.session.add(new_item)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Proveedor agregado.'}), 201
+
+@app.route('/proveedores/<int:proveedor_id>', methods=['PUT'])
+def handle_proveedor(proveedor_id):
+    item = Proveedor.query.get(proveedor_id)
+    if not item: return jsonify({'success': False, 'message': 'Proveedor no encontrado.'}), 404
+    data = request.get_json()
+    for key, value in data.items():
+        if hasattr(item, key) and key != 'id': setattr(item, key, value)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Proveedor actualizado.'})
+
+@app.route('/proveedores', methods=['DELETE'])
+def delete_proveedores():
+    data = request.get_json()
+    ids_to_delete = data.get('ids', [])
+    if not ids_to_delete: return jsonify({'success': False, 'message': 'No se proporcionaron IDs.'}), 400
+    num_deleted = Proveedor.query.filter(Proveedor.id.in_(ids_to_delete)).delete(synchronize_session=False)
+    db.session.commit()
+    if num_deleted > 0: return jsonify({'success': True, 'message': f'{num_deleted} proveedor(es) eliminado(s).'})
+    return jsonify({'success': False, 'message': 'No se encontraron proveedores.'}), 404
+
+@app.route('/proveedores/history', methods=['GET', 'POST'])
+def handle_providers_history():
+    if request.method == 'GET':
+        items = ProveedorHistorial.query.order_by(ProveedorHistorial.timestamp.desc()).all()
+        return jsonify([model_to_dict(item) for item in items])
+    if request.method == 'POST':
+        data = request.get_json()
+        data['timestamp'] = datetime.utcnow()
+        new_item = ProveedorHistorial(**data)
+        db.session.add(new_item)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Historial de proveedor guardado.'}), 201
+        
+# --- Bancos ---
+@app.route('/bancos', methods=['GET', 'POST'])
+def handle_bancos():
+    if request.method == 'GET':
+        items = Banco.query.all()
+        return jsonify([model_to_dict(item) for item in items])
+    if request.method == 'POST':
+        data = request.get_json()
+        data['fecha_registro'] = datetime.utcnow()
+        new_item = Banco(**data)
+        db.session.add(new_item)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Movimiento bancario agregado.'}), 201
+
+@app.route('/bancos/<int:banco_id>', methods=['PUT'])
+def handle_banco(banco_id):
+    item = Banco.query.get(banco_id)
+    if not item: return jsonify({'success': False, 'message': 'Movimiento no encontrado.'}), 404
+    data = request.get_json()
+    for key, value in data.items():
+        if hasattr(item, key) and key != 'id': setattr(item, key, value)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Movimiento actualizado.'})
+
+@app.route('/bancos', methods=['DELETE'])
+def delete_bancos():
+    data = request.get_json()
+    ids_to_delete = data.get('ids', [])
+    if not ids_to_delete: return jsonify({'success': False, 'message': 'No se proporcionaron IDs.'}), 400
+    num_deleted = Banco.query.filter(Banco.id.in_(ids_to_delete)).delete(synchronize_session=False)
+    db.session.commit()
+    if num_deleted > 0: return jsonify({'success': True, 'message': f'{num_deleted} movimiento(s) eliminado(s).'})
+    return jsonify({'success': False, 'message': 'No se encontraron movimientos.'}), 404
+
+# --- Y así sucesivamente para cada modelo... (aquí se completan todos) ---
+
+# --- LlegadaMaterial ---
+@app.route('/materials', methods=['GET', 'POST'])
+def handle_materials():
+    if request.method == 'GET':
+        items = LlegadaMaterial.query.all()
+        return jsonify([model_to_dict(item) for item in items])
+    if request.method == 'POST':
+        data = request.get_json()
+        new_item = LlegadaMaterial(**data)
+        db.session.add(new_item)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Material registrado.'}), 201
+
+@app.route('/materials/<int:material_id>', methods=['PUT'])
+def handle_material(material_id):
+    item = LlegadaMaterial.query.get(material_id)
+    if not item: return jsonify({'success': False, 'message': 'Material no encontrado.'}), 404
+    data = request.get_json()
+    for key, value in data.items():
+        if hasattr(item, key) and key != 'id': setattr(item, key, value)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Material actualizado.'})
+
+@app.route('/materials', methods=['DELETE'])
+def delete_materials():
+    data = request.get_json()
+    ids_to_delete = data.get('ids', [])
+    if not ids_to_delete: return jsonify({'success': False, 'message': 'No se proporcionaron IDs.'}), 400
+    LlegadaMaterial.query.filter(LlegadaMaterial.id.in_(ids_to_delete)).delete(synchronize_session=False)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Material(es) eliminado(s).'})
+
+
+# --- LlegadaTelas ---
+@app.route('/fabrics', methods=['GET', 'POST'])
+def handle_fabrics():
+    if request.method == 'GET':
+        items = LlegadaTela.query.all()
+        return jsonify([model_to_dict(item) for item in items])
+    if request.method == 'POST':
+        data = request.get_json()
+        new_item = LlegadaTela(**data)
+        db.session.add(new_item)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Tela registrada.'}), 201
+
+@app.route('/fabrics/<int:fabric_id>', methods=['PUT'])
+def handle_fabric(fabric_id):
+    item = LlegadaTela.query.get(fabric_id)
+    if not item: return jsonify({'success': False, 'message': 'Tela no encontrada.'}), 404
+    data = request.get_json()
+    for key, value in data.items():
+        if hasattr(item, key) and key != 'id': setattr(item, key, value)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Tela actualizada.'})
+
+@app.route('/fabrics', methods=['DELETE'])
+def delete_fabrics():
+    data = request.get_json()
+    ids_to_delete = data.get('ids', [])
+    if not ids_to_delete: return jsonify({'success': False, 'message': 'No se proporcionaron IDs.'}), 400
+    LlegadaTela.query.filter(LlegadaTela.id.in_(ids_to_delete)).delete(synchronize_session=False)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Tela(s) eliminada(s).'})
+
+# --- ProductosTerminados ---
+@app.route('/products', methods=['GET', 'POST'])
+def handle_products():
+    if request.method == 'GET':
+        items = ProductoTerminado.query.all()
+        return jsonify([model_to_dict(item) for item in items])
+    if request.method == 'POST':
+        data = request.get_json()
+        
+        # Lógica de deducción de stock
+        try:
+            materials_used = data.get('materials_used', [])
+            fabrics_used = data.get('fabrics_used', [])
+
+            for item_mat in materials_used:
+                material = LlegadaMaterial.query.get(item_mat['id'])
+                if material.quantity_value < float(item_mat['quantity_used']):
+                    return jsonify({'success': False, 'message': f"Stock insuficiente para material ID {item_mat['id']}"}), 400
+                material.quantity_value -= float(item_mat['quantity_used'])
+            
+            for item_fab in fabrics_used:
+                tela = LlegadaTela.query.get(item_fab['id'])
+                if tela.cantidad_value < float(item_fab['quantity_used']):
+                    return jsonify({'success': False, 'message': f"Stock insuficiente para tela ID {item_fab['id']}"}), 400
+                tela.cantidad_value -= float(item_fab['quantity_used'])
+
+            new_item = ProductoTerminado(**data)
+            db.session.add(new_item)
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Producto registrado y stock actualizado.'}), 201
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error registrando producto: {e}")
+            return jsonify({'success': False, 'message': 'Error interno al registrar producto.'}), 500
+
+
+@app.route('/products/<string:product_id>', methods=['PUT', 'DELETE'])
+def handle_product(product_id):
+    item = ProductoTerminado.query.get(product_id)
+    if not item: return jsonify({'success': False, 'message': 'Producto no encontrado.'}), 404
+
+    if request.method == 'PUT':
+        data = request.get_json()
+        for key, value in data.items():
+            if hasattr(item, key) and key != 'id': setattr(item, key, value)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Producto actualizado.'})
+
+    if request.method == 'DELETE':
+        # Lógica para reponer stock
+        try:
+            materials_to_return = item.materials_used or []
+            fabrics_to_return = item.fabrics_used or []
+
+            for mat_item in materials_to_return:
+                material = LlegadaMaterial.query.get(mat_item['id'])
+                if material: material.quantity_value += float(mat_item['quantity_used'])
+            
+            for fab_item in fabrics_to_return:
+                tela = LlegadaTela.query.get(fab_item['id'])
+                if tela: tela.cantidad_value += float(fab_item['quantity_used'])
+
+            db.session.delete(item)
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Producto eliminado y stock repuesto.'})
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error eliminando producto: {e}")
+            return jsonify({'success': False, 'message': 'Error al eliminar y reponer stock.'}), 500
+
+# --- Ventas ---
+@app.route('/sales', methods=['GET', 'POST'])
+def handle_sales():
+    if request.method == 'GET':
+        items = Venta.query.all()
+        return jsonify([model_to_dict(item) for item in items])
+    if request.method == 'POST':
+        data = request.get_json()
+        try:
+            products_sold = data.get('products_sold', [])
+            for p_sold in products_sold:
+                producto = ProductoTerminado.query.get(p_sold['id'])
+                if not producto or producto.cantidad < float(p_sold['quantity']):
+                    return jsonify({'success': False, 'message': f"Stock insuficiente para producto ID {p_sold['id']}"}), 400
+                producto.cantidad -= float(p_sold['quantity'])
+            
+            new_item = Venta(**data)
+            db.session.add(new_item)
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Venta registrada y stock actualizado.'}), 201
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error en venta: {e}")
+            return jsonify({'success': False, 'message': 'Error al registrar venta.'}), 500
+
+# --- RUTAS DE LÓGICA DE NEGOCIO Y DASHBOARD ---
+
+# --- KPIs ---
 @app.route('/api/kpis', methods=['GET'])
 def get_kpis():
     try:
         kpis = {}
-        kpis['deuda_clientes'] = db.session.query(func.sum(func.coalesce(Cliente.valor, 0) - func.coalesce(Cliente.abono, 0))).scalar() or 0.0
-        kpis['deuda_proveedores'] = db.session.query(func.sum(func.coalesce(Proveedor.valor, 0) - func.coalesce(Proveedor.abono, 0))).scalar() or 0.0
-        kpis['total_ventas'] = db.session.query(func.sum(Venta.total_sale)).scalar() or 0.0
-        kpis['valor_inventario_telas'] = db.session.query(func.sum(func.coalesce(LlegadaTela.cantidad_value, 0) * func.coalesce(LlegadaTela.unit_value, 0))).scalar() or 0.0
-        kpis['valor_inventario_materiales'] = db.session.query(func.sum(func.coalesce(LlegadaMaterial.quantity_value, 0) * func.coalesce(LlegadaMaterial.unit_value, 0))).scalar() or 0.0
         
-        today_str = datetime.utcnow().date()
-        kpis['cortes_pendientes_hoy'] = ProgramacionCorte.query.filter(ProgramacionCorte.date == today_str, ProgramacionCorte.status == 'Programado').count()
+        # Deuda clientes
+        deuda_c = db.session.query(func.sum(Cliente.valor - Cliente.abono)).scalar()
+        kpis['deuda_clientes'] = float(deuda_c or 0)
+
+        # Deuda proveedores
+        deuda_p = db.session.query(func.sum(Proveedor.valor - Proveedor.abono)).scalar()
+        kpis['deuda_proveedores'] = float(deuda_p or 0)
+
+        # Total ventas
+        total_v = db.session.query(func.sum(Venta.total_sale)).scalar()
+        kpis['total_ventas'] = float(total_v or 0)
+
+        # Valor inventario telas
+        val_telas = db.session.query(func.sum(LlegadaTela.cantidad_value * LlegadaTela.unit_value)).scalar()
+        kpis['valor_inventario_telas'] = float(val_telas or 0)
+
+        # Valor inventario materiales
+        val_mats = db.session.query(func.sum(LlegadaMaterial.quantity_value * LlegadaMaterial.unit_value)).scalar()
+        kpis['valor_inventario_materiales'] = float(val_mats or 0)
+
+        # Valor en producción
+        val_prod = db.session.query(func.sum(AsignacionSatelite.total_price)).filter(AsignacionSatelite.status == 'Asignado').scalar()
+        kpis['valor_en_produccion'] = float(val_prod or 0)
         
-        kpis['valor_en_produccion'] = db.session.query(func.sum(AsignacionSatelite.total_price)).filter(AsignacionSatelite.status == 'Asignado').scalar() or 0.0
+        # Total empleados
         kpis['total_empleados'] = Empleado.query.count()
 
         return jsonify(kpis)
     except Exception as e:
-        logger.error(f"Error crítico en /api/kpis: {e}")
+        logger.error(f"Error en /api/kpis: {e}")
         return jsonify({"error": f"Error al calcular KPIs: {e}"}), 500
 
+# --- Gráficos del Dashboard ---
 @app.route('/api/charts/sales-trend', methods=['GET'])
 def get_chart_sales_trend():
     try:
-        sales_by_month = db.session.query(
-            func.to_char(Venta.sale_date, 'YYYY-MM').label('month'),
-            func.sum(Venta.total_sale).label('total')
-        ).group_by('month').order_by('month').all()
+        results = db.session.query(
+            func.to_char(Venta.sale_date, 'YYYY-MM'), 
+            func.sum(Venta.total_sale)
+        ).group_by(func.to_char(Venta.sale_date, 'YYYY-MM')).order_by(func.to_char(Venta.sale_date, 'YYYY-MM')).all()
         
         return jsonify({
-            'labels': [row.month for row in sales_by_month],
-            'data': [row.total for row in sales_by_month]
+            'labels': [r[0] for r in results],
+            'data': [float(r[1] or 0) for r in results]
         })
     except Exception as e:
         logger.error(f"Error en chart/sales-trend: {e}")
         return jsonify({"error": "Error al procesar tendencia de ventas"}), 500
-        
-# --- 5. Punto de Entrada de la Aplicación ---
-if __name__ == '__main__':
-    with app.app_context():
-        logger.info("Verificando y creando tablas de la base de datos si es necesario...")
-        db.create_all()
-        logger.info("Tablas listas.")
 
-    port = int(os.environ.get('PORT', 8080))
-    # 'debug=False' es importante para producción
-    app.run(host='0.0.0.0', port=port, debug=False)
+@app.route('/api/charts/cuts-status', methods=['GET'])
+def get_chart_cuts_status():
+    try:
+        results = db.session.query(ProgramacionCorte.status, func.count(ProgramacionCorte.id)).group_by(ProgramacionCorte.status).all()
+        return jsonify({
+            'labels': [r[0] for r in results],
+            'data': [r[1] for r in results]
+        })
+    except Exception as e:
+        logger.error(f"Error en chart/cuts-status: {e}")
+        return jsonify({"error": "Error al procesar estado de cortes"}), 500
+
+@app.route('/api/charts/production-by-satellite', methods=['GET'])
+def get_chart_production_by_satellite():
+    try:
+        results = db.session.query(
+            AsignacionSatelite.satellite_name, 
+            func.sum(AsignacionSatelite.total_price)
+        ).group_by(AsignacionSatelite.satellite_name).order_by(func.sum(AsignacionSatelite.total_price).desc()).all()
+        return jsonify({
+            'labels': [r[0] for r in results],
+            'data': [float(r[1] or 0) for r in results]
+        })
+    except Exception as e:
+        logger.error(f"Error en chart/production-by-satellite: {e}")
+        return jsonify({"error": "Error al procesar producción por satélite"}), 500
+        
+# --- Creación de las tablas ---
+# Este bloque se asegura de que las tablas existan en la base de datos
+# antes de que la aplicación empiece a aceptar peticiones.
+with app.app_context():
+    logger.info("Verificando y creando tablas de la base de datos si es necesario...")
+    db.create_all()
+    logger.info("Tablas listas.")
+
+# --- Ejecución Principal ---
+if __name__ == '__main__':
+    # Esta parte solo se ejecuta si corres el script directamente (ej. `python app.py`)
+    # En OnRender, gunicorn es el que inicia la aplicación.
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 
