@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventario de Telas - DAMAR</title>
 
-    <link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)">
-    <link rel="preconnect" href="[https://fonts.gstatic.com](https://fonts.gstatic.com)" crossorigin>
-    <link href="[https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap](https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap)" rel="stylesheet">
-    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css)">
-    <script src="[https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js](https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js)"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
         :root {
@@ -175,7 +175,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const API_URL = '[https://damar-app.onrender.com](https://damar-app.onrender.com)';
+    const API_URL = 'https://damar-app.onrender.com';
     let inventoryMasterData = [];
     let historyMasterData = [];
     let deleteUnlocked = false;
@@ -266,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${fab.referencia_de_tela}</td>
                 <td>${quantity.toFixed(2)} ${fab.cantidad_type}</td>
                 <td>${parseFloat(fab.size_value || 0).toFixed(2)} ${fab.size_unit}</td>
-                <td><img src="${fab.color_image_path || '[https://placehold.co/40x40/ECF0F1/2C3E50?text=](https://placehold.co/40x40/ECF0F1/2C3E50?text=)?'}" alt="color" class="table-img"></td>
+                <td><img src="${fab.color_image_path || 'https://placehold.co/40x40/ECF0F1/2C3E50?text=?'}" alt="color" class="table-img"></td>
                 <td>${fab.serial_rollo}</td>
                 <td>
                     <button class="btn btn-small btn-danger-outline btn-exit" 
@@ -569,3 +569,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
+
