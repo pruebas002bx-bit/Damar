@@ -428,103 +428,110 @@ def handle_products():
         if 'id' in data:
             del data['id']
             
-        try:
-            # --- SOLUCIÓN CRÍTICA DE CONCURRENCIA PARA UniqueViolation ---
-            # 1. Obtener el ID máximo actual SIN BLOQUEO (para evitar FeatureNotSupported)
-            max_id_query = db.session.query(func.max(ProductoTerminado.id))
-            max_id = max_id_query.scalar()
-            
-            # 2. Asignar nuevo ID con un gran salto (+100) para mitigar el UniqueViolation en concurrencia.
-            new_id = int(max_id or 0) + 100 
-            
-            # 3. Forzar la asignación del nuevo ID.
-            data['id'] = new_id
+        # Intentaremos la inserción con ID generado manualmente, con reintentos en caso de colisión
+        MAX_RETRIES = 5
+        for attempt in range(MAX_RETRIES):
+            db.session.begin_nested() # Inicia sub-transacción para rollback en caso de colisión de ID
 
-            # Limpiamos 'lote' y 'fecha' si vienen nulos
-            if 'lote' in data and data['lote'] is None:
-                del data['lote']
-            
-            if 'fecha' in data and data['fecha'] is None:
-                del data['fecha']
-            
-            # --- CONVERSIÓN ROBUSTA DE TIPOS ---
-            for key in ['medida_trazo', 'trazos', 'cantidad', 'valor_confeccion', 'ganancia_percent', 'valor_total', 'valor_venta']:
-                if key in data and isinstance(data[key], str):
-                    try:
-                        # Intentamos convertir a float (para evitar errores de tipo en la BD)
-                        data[key] = float(data[key])
-                    except ValueError:
-                        # Si falla, puede ser un valor vacío, lo dejamos como string
-                        pass
-            
-            materials_used = data.get('materials_used', [])
-            if isinstance(materials_used, str): materials_used = json.loads(materials_used)
-            
-            fabrics_used = data.get('fabrics_used', [])
-            if isinstance(fabrics_used, str): fabrics_used = json.loads(fabrics_used)
-
-            # --- DEDUCCIÓN DE MATERIALES ---
-            for item_mat in materials_used:
-                material = LlegadaMaterial.query.get(item_mat['id'])
-                # Usamos float() para asegurar la compatibilidad matemática
-                quantity_used = float(item_mat.get('quantity_used', 0))
+            try:
+                # 1. Obtener el ID máximo actual (sin bloqueo, ya que PostgreSQL lo rechaza)
+                max_id = db.session.query(func.max(ProductoTerminado.id)).scalar()
                 
-                if not material or material.quantity_value < quantity_used:
-                    db.session.rollback()
-                    return jsonify({'success': False, 'message': f"Stock insuficiente para material ID {str(item_mat['id'])}"}), 400
-                material.quantity_value -= quantity_used
-            
-            # --- DEDUCCIÓN DE TELAS ---
-            for item_fab in fabrics_used:
-                # CORRECCIÓN: Aseguramos el uso de la variable correcta item_fab
-                tela = LlegadaTela.query.get(item_fab['id'])
-                quantity_used_fab = float(item_fab.get('quantity_used', 0))
+                # 2. Asignar nuevo ID con un gran salto (+100) para mitigar el UniqueViolation en concurrencia.
+                # Si es el primer intento, usamos +100. Si es un reintento, sumamos el intento para garantizar unicidad.
+                if attempt == 0:
+                    new_id = int(max_id or 0) + 100
+                else:
+                    new_id = int(max_id or 0) + 1 + attempt # Salto de +1 o más si hay muchos reintentos
 
-                if not tela or tela.cantidad_value < quantity_used_fab:
-                    db.session.rollback()
-                    return jsonify({'success': False, 'message': f"Stock insuficiente para tela ID {str(item_fab['id'])}"}), 400
-                tela.cantidad_value -= quantity_used_fab
-            
-            # Serializar listas de uso a JSON string antes de guardar
-            data['materials_used'] = json.dumps(materials_used)
-            data['fabrics_used'] = json.dumps(fabrics_used)
+                data['id'] = new_id
 
-            # Crear y registrar el nuevo producto.
-            new_item = ProductoTerminado(**data)
-            db.session.add(new_item)
-            db.session.commit()
-            return jsonify({'success': True, 'message': 'Producto registrado y stock actualizado.'}), 201
-
-        # Manejo de errores de clave única (IntegrityError de SQLAlchemy)
-        except IntegrityError as e:
-            db.session.rollback()
-            # Intenta determinar si la violación es por ID (PKEY) o Serial (Unique Key)
-            message = "Error de clave única (ID o Serial). El registro ya existe. Revise su hoja de cálculo."
-            if "productos_terminados_pkey" in str(e):
-                message = f"Error de ID: El ID {data.get('id', 'generado')} ya existe. Por favor, vuelva a intentar la subida para generar un nuevo ID."
-            elif "productos_terminados_serial_key" in str(e):
-                message = f"Error de Serial: El número de serial {data.get('serial', 'desconocido')} ya existe."
+                # Limpiamos 'lote' y 'fecha' si vienen nulos
+                temp_data = data.copy()
+                if 'lote' in temp_data and temp_data['lote'] is None:
+                    del temp_data['lote']
                 
-            logger.error(f"Error registrando producto (IntegrityError): {e}")
-            return jsonify({'success': False, 'message': message}), 409 
-            
-        except PgUniqueViolation as e:
-            # Captura directa del error de PostgreSQL
-            db.session.rollback()
-            message = "Error de clave única (ID o Serial). El registro ya existe. Revise su hoja de cálculo."
-            if "productos_terminados_pkey" in str(e):
-                message = f"Error de ID: El ID {data.get('id', 'generado')} ya existe. Por favor, vuelva a intentar la subida para generar un nuevo ID."
-            elif "productos_terminados_serial_key" in str(e):
-                message = f"Error de Serial: El número de serial {data.get('serial', 'desconocido')} ya existe."
+                if 'fecha' in temp_data and temp_data['fecha'] is None:
+                    del temp_data['fecha']
                 
-            logger.error(f"Error registrando producto (PgUniqueViolation): {e}")
-            return jsonify({'success': False, 'message': message}), 409
-            
-        except Exception as e:
-            db.session.rollback()
-            # Mantenemos la captura de errores general para otros posibles fallos.
-            logger.error(f"Error registrando producto: {e}")
-            return jsonify({'success': False, 'message': 'Error interno al registrar producto.'}), 500
+                # --- CONVERSIÓN ROBUSTA DE TIPOS ---
+                for key in ['medida_trazo', 'trazos', 'cantidad', 'valor_confeccion', 'ganancia_percent', 'valor_total', 'valor_venta']:
+                    if key in temp_data and isinstance(temp_data[key], str):
+                        try:
+                            temp_data[key] = float(temp_data[key])
+                        except ValueError:
+                            pass
+                
+                materials_used = temp_data.get('materials_used', [])
+                if isinstance(materials_used, str): materials_used = json.loads(materials_used)
+                
+                fabrics_used = temp_data.get('fabrics_used', [])
+                if isinstance(fabrics_used, str): fabrics_used = json.loads(fabrics_used)
+
+                # --- VALIDACIÓN Y DEDUCCIÓN DE STOCK ---
+                
+                # Deducción de Materiales
+                for item_mat in materials_used:
+                    material = LlegadaMaterial.query.get(item_mat['id'])
+                    quantity_used = float(item_mat.get('quantity_used', 0))
+                    
+                    if not material or material.quantity_value < quantity_used:
+                        db.session.rollback() # Rollback de la sub-transacción
+                        # Enviamos un 400 (Bad Request)
+                        return jsonify({'success': False, 'message': f"Stock insuficiente para material ID {str(item_mat['id'])}"}), 400
+                    material.quantity_value -= quantity_used
+                
+                # Deducción de Telas
+                for item_fab in fabrics_used:
+                    tela = LlegadaTela.query.get(item_fab['id'])
+                    quantity_used_fab = float(item_fab.get('quantity_used', 0))
+
+                    if not tela or tela.cantidad_value < quantity_used_fab:
+                        db.session.rollback() # Rollback de la sub-transacción
+                        # Enviamos un 400 (Bad Request)
+                        return jsonify({'success': False, 'message': f"Stock insuficiente para tela ID {str(item_fab['id'])}"}), 400
+                    tela.cantidad_value -= quantity_used_fab
+                
+                # Serializar listas de uso a JSON string antes de guardar
+                temp_data['materials_used'] = json.dumps(materials_used)
+                temp_data['fabrics_used'] = json.dumps(fabrics_used)
+
+                # Crear y registrar el nuevo producto.
+                new_item = ProductoTerminado(**temp_data)
+                db.session.add(new_item)
+                db.session.commit() # Confirma la sub-transacción
+                db.session.commit() # Confirma la transacción principal
+                return jsonify({'success': True, 'message': 'Producto registrado y stock actualizado.'}), 201
+
+            except IntegrityError as e:
+                db.session.rollback() # Rollback de la sub-transacción
+                # Si el error es una colisión de clave primaria (ID), reintenta.
+                if "productos_terminados_pkey" in str(e):
+                    logger.warning(f"Colisión de ID ({data['id']}) en intento {attempt+1}/{MAX_RETRIES}. Reintentando con nuevo ID.")
+                    continue 
+                
+                # Si el error es por UniqueViolation en el Serial, es un dato duplicado, no se reintenta.
+                elif "productos_terminados_serial_key" in str(e):
+                    message = f"Error de Serial: El número de serial {data.get('serial', 'desconocido')} ya existe. Fila duplicada en la hoja de cálculo."
+                    logger.error(message)
+                    db.session.commit()
+                    return jsonify({'success': False, 'message': message}), 409
+                
+                # Otros errores de integridad (e.g., Not Null Violation)
+                else:
+                    logger.error(f"Error de integridad no recuperable: {e}")
+                    db.session.commit()
+                    return jsonify({'success': False, 'message': 'Error de integridad en los datos. Revise campos obligatorios.'}), 400
+
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error registrando producto: {e}")
+                db.session.commit()
+                return jsonify({'success': False, 'message': 'Error interno al registrar producto.'}), 500
+
+        # Si el bucle termina sin éxito
+        logger.error(f"Fallo al registrar producto después de {MAX_RETRIES} intentos debido a colisión de ID persistente.")
+        return jsonify({'success': False, 'message': 'Fallo al generar un ID único después de varios intentos. Intente nuevamente.'}), 500
 
 
 @app.route('/products/last', methods=['GET'])
