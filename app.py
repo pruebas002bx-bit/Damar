@@ -411,7 +411,8 @@ def get_fabrics_history():
     items = HistorialTela.query.order_by(HistorialTela.timestamp.desc()).all()
     return jsonify([model_to_dict(item) for item in items])
 
-# --- ProductosTerminados ---
+
+
 @app.route('/products', methods=['GET', 'POST'])
 def handle_products():
     if request.method == 'GET':
@@ -420,6 +421,13 @@ def handle_products():
     if request.method == 'POST':
         data = request.get_json()
         try:
+            # --- INICIO DE LA CORRECCIÓN ---
+            # Eliminar el ID del diccionario si es que viene, 
+            # para que la base de datos lo genere automáticamente.
+            if 'id' in data:
+                del data['id']
+            # --- FIN DE LA CORRECCIÓN ---
+
             materials_used = data.get('materials_used', [])
             if isinstance(materials_used, str): materials_used = json.loads(materials_used)
             
@@ -450,6 +458,64 @@ def handle_products():
             db.session.rollback()
             logger.error(f"Error registrando producto: {e}")
             return jsonify({'success': False, 'message': 'Error interno al registrar producto.'}), 500
+
+
+@app.route('/products/last', methods=['GET'])
+def get_last_product():
+    try:
+        # Ordena por el ID de forma descendente para obtener el último registro ingresado
+        last_product = ProductoTerminado.query.order_by(ProductoTerminado.id.desc()).first()
+        if last_product:
+            return jsonify(model_to_dict(last_product))
+        else:
+            # Si no hay productos, devuelve un serial base para que el frontend pueda calcular el siguiente
+            return jsonify({'serial': '7300'})
+    except Exception as e:
+        logger.error(f"Error al obtener el último producto: {e}")
+        return jsonify({"message": "Error interno del servidor"}), 500
+
+
+@app.route('/products/bulk', methods=['DELETE'])
+def delete_products_bulk():
+    data = request.get_json()
+    ids_to_delete = data.get('ids', [])
+    if not ids_to_delete:
+        return jsonify({'success': False, 'message': 'No se proporcionaron IDs.'}), 400
+
+    try:
+        products_to_delete = ProductoTerminado.query.filter(ProductoTerminado.id.in_(ids_to_delete)).all()
+        
+        for item in products_to_delete:
+            # Lógica para reponer el stock de materiales
+            try:
+                materials_to_return = json.loads(item.materials_used) if isinstance(item.materials_used, str) and item.materials_used else []
+                for mat_item in materials_to_return:
+                    material = LlegadaMaterial.query.get(mat_item['id'])
+                    if material:
+                        material.quantity_value += float(mat_item['quantity_used'])
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"No se pudo procesar 'materials_used' para el producto ID {item.id}: {e}")
+
+            # Lógica para reponer el stock de telas
+            try:
+                fabrics_to_return = json.loads(item.fabrics_used) if isinstance(item.fabrics_used, str) and item.fabrics_used else []
+                for fab_item in fabrics_to_return:
+                    tela = LlegadaTela.query.get(fab_item['id'])
+                    if tela:
+                        tela.cantidad_value += float(fab_item['quantity_used'])
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"No se pudo procesar 'fabrics_used' para el producto ID {item.id}: {e}")
+            
+            db.session.delete(item)
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'{len(products_to_delete)} producto(s) eliminado(s) y stock repuesto.'})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error en la eliminación masiva de productos: {e}")
+        return jsonify({'success': False, 'message': 'Error al eliminar productos y reponer stock.'}), 500
+
 
 @app.route('/products/<string:product_id>', methods=['PUT', 'DELETE'])
 def handle_product(product_id):
