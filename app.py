@@ -4,7 +4,7 @@ import json
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from sqlalchemy import func
-from datetime import datetime, date
+import datetime # <-- MODIFICACIÓN: Cambiado el import
 
 # --- 1. Importaciones desde models.py ---
 from models import (
@@ -44,7 +44,9 @@ def model_to_dict(model_instance):
     d = {}
     for column in model_instance.__table__.columns:
         value = getattr(model_instance, column.name)
-        if isinstance(value, (datetime, date)):
+        # --- CORRECCIÓN ---
+        # Se usa datetime.datetime y datetime.date para ser explícitos
+        if isinstance(value, (datetime.datetime, datetime.date)):
             d[column.name] = value.isoformat()
         elif isinstance(value, str) and (value.startswith('[') or value.startswith('{')):
             try:
@@ -503,7 +505,7 @@ def handle_payments():
         db.session.add(new_item)
         db.session.commit()
         return jsonify({'success': True, 'message': 'Pago registrado.'}), 201
-        
+# ... (Sin cambios hasta el final de la sección de Ventas) ...
 # --- Ventas ---
 @app.route('/sales', methods=['GET', 'POST'])
 def handle_sales():
@@ -533,29 +535,75 @@ def handle_sales():
             return jsonify({'success': False, 'message': 'Error al registrar venta.'}), 500
 
 # --- Rutas que Faltaban ---
-@app.route('/cuts', methods=['GET', 'POST'])
+@app.route('/cuts', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def handle_cuts():
     if request.method == 'GET':
         items = ProgramacionCorte.query.all()
         return jsonify([model_to_dict(item) for item in items])
+    
     if request.method == 'POST':
         data = request.get_json()
         new_item = ProgramacionCorte(**data)
         db.session.add(new_item)
         db.session.commit()
         return jsonify(model_to_dict(new_item)), 201
+        
+    if request.method == 'PUT':
+        data = request.get_json()
+        updates = data.get('updates', [])
+        if not updates:
+            return jsonify({'success': False, 'message': 'No se proporcionaron actualizaciones.'}), 400
+        for update in updates:
+            item = ProgramacionCorte.query.get(update.get('id'))
+            if item:
+                item.status = update.get('status')
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Estados actualizados.'})
 
-@app.route('/assignments', methods=['GET', 'POST'])
+    if request.method == 'DELETE':
+        data = request.get_json()
+        ids_to_delete = data.get('ids', [])
+        if not ids_to_delete: return jsonify({'success': False, 'message': 'No se proporcionaron IDs.'}), 400
+        ProgramacionCorte.query.filter(ProgramacionCorte.id.in_(ids_to_delete)).delete(synchronize_session=False)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Corte(s) eliminado(s).'})
+
+
+@app.route('/assignments', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def handle_assignments():
     if request.method == 'GET':
         items = AsignacionSatelite.query.all()
         return jsonify([model_to_dict(item) for item in items])
     if request.method == 'POST':
         data = request.get_json()
+        # Calcular precio total si no viene
+        if not data.get('total_price'):
+            quantity = float(data.get('assigned_quantity', 0))
+            price = float(data.get('unit_price', 0))
+            data['total_price'] = quantity * price
         new_item = AsignacionSatelite(**data)
         db.session.add(new_item)
         db.session.commit()
         return jsonify(model_to_dict(new_item)), 201
+
+    if request.method == 'PUT':
+        data = request.get_json()
+        item_id = data.get('id')
+        item = AsignacionSatelite.query.get(item_id)
+        if not item: return jsonify({'success': False, 'message': 'Asignación no encontrada.'}), 404
+        for key, value in data.items():
+            if hasattr(item, key): setattr(item, key, value)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Asignación actualizada.'})
+        
+    if request.method == 'DELETE':
+        data = request.get_json()
+        ids_to_delete = data.get('ids', [])
+        if not ids_to_delete: return jsonify({'success': False, 'message': 'No se proporcionaron IDs.'}), 400
+        AsignacionSatelite.query.filter(AsignacionSatelite.id.in_(ids_to_delete)).delete(synchronize_session=False)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Asignación(es) eliminada(s).'})
+
 
 @app.route('/deliveries', methods=['GET', 'POST'])
 def handle_deliveries():
@@ -600,7 +648,7 @@ def get_inventory_history():
     results = [dict(row._mapping) for row in items]
     for r in results:
         r['type'] = 'Ingreso'
-        if isinstance(r['date'], (datetime, date)):
+        if isinstance(r['date'], (datetime.datetime, datetime.date)):
             r['date'] = r['date'].isoformat()
     return jsonify(results)
 
@@ -777,4 +825,5 @@ if __name__ == '__main__':
     # Esta parte solo se ejecuta si corres el script directamente (ej. `python app.py`)
     # En OnRender, gunicorn es el que inicia la aplicación.
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+
 
