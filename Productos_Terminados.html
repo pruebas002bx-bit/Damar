@@ -16,584 +16,833 @@
             --primary-dark: #2C3E50; --secondary-light: #ECF0F1; --accent: #3498DB;
             --text-dark: #34495E; --text-light: white; --hover-accent: #2980B9;
             --success: #27AE60; --warning: #F39C12; --danger: #E74C3C;
-            --border-color: #dfe4ea; --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --shadow: 0 10px 30px rgba(44, 62, 80, 0.1); --shadow-hover: 0 15px 35px rgba(44, 62, 80, 0.15);
-            --font-family: 'Poppins', sans-serif; --border-radius-lg: 12px; --border-radius-md: 8px;
+            --border-color: #dfe4ea; --gradient-primary: linear-gradient(135deg, #2C3E50, #1A252F);
+            font-family: 'Poppins', sans-serif;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: var(--font-family); background-color: var(--secondary-light); color: var(--text-dark); }
-        .container { max-width: 1400px; margin: 2rem auto; padding: 0 1.5rem; }
-        .card { background-color: white; border-radius: var(--border-radius-lg); padding: 2.5rem; margin-bottom: 2rem; box-shadow: var(--shadow); }
-        .content-header { text-align: center; margin-bottom: 2.5rem; }
-        .content-title { font-size: 2.5rem; font-weight: 700; color: var(--primary-dark); }
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 2rem; }
-        .form-group { display: flex; flex-direction: column; }
-        .form-label { font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem; }
-        .form-input, .form-select { width: 100%; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--border-radius-md); font-size: 1rem; }
-        .form-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15); }
-        .buttons-container { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1.5rem; padding-top: 1.5rem; justify-content: center; border-top: 1px solid var(--border-color); }
-        .btn {
-            border: none; border-radius: var(--border-radius-md); padding: 12px 24px; font-size: 0.95rem;
-            font-weight: 600; font-family: var(--font-family); cursor: pointer; display: inline-flex;
-            align-items: center; justify-content: center; gap: 0.75rem; transition: all 0.3s ease;
-            text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+
+        body { margin: 0; padding: 0; background-color: var(--secondary-light); color: var(--text-dark); }
+        .container { max-width: 1400px; margin: 20px auto; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); }
+        h1 { color: var(--primary-dark); text-align: center; margin-bottom: 25px; }
+        .controls { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; align-items: center; justify-content: space-between; }
+        .input-group { flex-grow: 1; min-width: 200px; }
+        .input-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9em; }
+        .form-input, .form-select { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; transition: border-color 0.3s; }
+        .form-input:focus, .form-select:focus { border-color: var(--accent); outline: none; }
+        
+        .btn { padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background-color 0.3s; border: none; }
+        .btn-primary { background: var(--accent); color: var(--text-light); }
+        .btn-primary:hover { background: var(--hover-accent); }
+        .btn-danger { background: var(--danger); color: var(--text-light); }
+        .btn-danger:hover { background: #C0392B; }
+        .btn-success { background: var(--success); color: var(--text-light); }
+        .btn-success:hover { background: #229954; }
+
+        .table-container { overflow-x: auto; margin-top: 20px; }
+        .data-table { width: 100%; border-collapse: collapse; min-width: 1000px; }
+        .data-table th, .data-table td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.9em; }
+        .data-table th { background-color: var(--primary-dark); color: var(--text-light); font-weight: 700; position: sticky; top: 0; }
+        .data-table tr:hover { background-color: #f7f9fa; }
+
+        .actions button { margin-right: 5px; background: none; border: none; cursor: pointer; color: var(--accent); font-size: 1.1em; }
+        .actions button:hover { color: var(--hover-accent); }
+        
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 500px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); }
+        .modal h2 { margin-top: 0; border-bottom: 2px solid var(--accent); padding-bottom: 10px; color: var(--primary-dark); }
+        .modal footer { text-align: right; margin-top: 20px; }
+
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; }
+        .toast { padding: 10px 20px; margin-bottom: 10px; border-radius: 6px; color: white; opacity: 0; transition: opacity 0.5s, transform 0.5s; transform: translateY(20px); }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        
+        /* Estilos específicos del formulario */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .full-width { grid-column: 1 / -1; }
+
+        /* Estilo para inputs de stock */
+        .stock-inputs { margin-top: 10px; border: 1px dashed var(--border-color); padding: 10px; border-radius: 6px; }
+        .stock-item { display: flex; gap: 10px; margin-bottom: 5px; }
+        .stock-item label { flex: 1; display: flex; align-items: center; }
+        .stock-item input { flex: 2; }
+        .stock-item span { flex: 1; text-align: right; }
+        .fabrics-used-list { max-height: 200px; overflow-y: auto; }
+
+        /* Loader */
+        #loading-indicator {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.8); z-index: 3000;
+            display: none; justify-content: center; align-items: center;
         }
-        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-primary { background: var(--gradient-primary); color: white; }
-        .btn-danger { background-color: var(--danger); color: white; }
-        .btn-secondary { background-color: var(--secondary-light); color: var(--text-dark); border: 1px solid var(--border-color); }
-        .btn-info { background-color: var(--accent); color: white; }
-        .table-container { overflow-x: auto; }
-        .data-table { width: 100%; border-collapse: collapse; text-align: left; }
-        .data-table th, .data-table td { padding: 12px 10px; border-bottom: 1px solid var(--border-color); white-space: nowrap; vertical-align: middle; }
-        .data-table thead th { background-color: #f8f9fa; color: var(--primary-dark); font-weight: 600; text-transform: uppercase; font-size: 0.8rem; }
-        .modal-overlay { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background-color: rgba(0,0,0,0.6); 
-            display: flex; justify-content: center; align-items: center; 
-            z-index: 1000; 
-            opacity: 0; visibility: hidden; transition: all 0.3s ease; 
-        }
-        .modal-overlay.active { 
-            opacity: 1; visibility: visible; 
-        }
-        .modal-content { 
-            background: white; padding: 2rem; border-radius: var(--border-radius-lg); 
-            transform: scale(0.9); transition: all 0.3s ease; 
-        }
-        .modal-overlay.active .modal-content { 
-            transform: scale(1); 
-        }
-        .data-table tbody tr { transition: background-color 0.2s ease; }
-        .data-table tbody tr:hover { background-color: #f5f5f5; cursor: pointer; }
-        .data-table tr.selected { background-color: rgba(52, 152, 219, 0.1) !important; box-shadow: inset 4px 0 0 0 var(--accent); }
-        .deduction-container { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1.5rem; }
-        .deduction-section h3 { margin-bottom: 0.5rem; }
-        .deduction-table-wrapper { border-radius: var(--border-radius-md); overflow: hidden; height: 280px; display: flex; flex-direction: column;}
-        .deduction-table { flex-grow: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--border-radius-md); }
-        .deduction-table thead th { position: sticky; top: 0; z-index: 1; background-color: #f8f9fa; }
-        .deduction-table .form-input { max-width: 80px; padding: 4px 8px; font-size: 0.9rem; text-align: center;}
-        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1050; }
-        .toast { display: flex; align-items: center; padding: 15px 20px; border-radius: var(--border-radius-md); color: white; font-weight: 500; margin-bottom: 10px; box-shadow: var(--shadow); transform: translateX(120%); animation: slideIn 0.5s forwards; }
-        @keyframes slideIn { to { transform: translateX(0); } }
-        .form-input.observacion-input { min-height: 60px; resize: vertical; }
-        .hidden { display: none; }
+        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: var(--accent); animation: spin 1s ease infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-<div id="toastContainer" class="toast-container"></div>
-
-<div id="deletePasswordModal" class="modal-overlay">
-    <div class="modal-content" style="max-width: 400px; text-align: center;">
-        <h3><i class="fa-solid fa-lock" style="color: var(--warning);"></i> Confirmar Eliminación</h3>
-        <p style="margin: 1rem 0;">Por favor, ingrese la contraseña para eliminar los productos seleccionados.</p>
-        <div class="form-group" style="margin-bottom: 1.5rem;">
-            <input type="password" id="passwordInput" class="form-input" placeholder="Contraseña de administrador">
-        </div>
-        <div style="display: flex; justify-content: center; gap: 1rem;">
-            <button id="passwordCancelBtn" class="btn btn-secondary">Cancelar</button>
-            <button id="passwordSubmitBtn" class="btn btn-danger">Confirmar y Eliminar</button>
-        </div>
-    </div>
-</div>
-
-<div id="editPasswordModal" class="modal-overlay">
-    <div class="modal-content" style="max-width: 400px; text-align: center;">
-        <h3><i class="fa-solid fa-lock" style="color: var(--warning);"></i> Confirmar Edición</h3>
-        <p style="margin: 1rem 0;">Por favor, ingrese la contraseña para guardar los cambios.</p>
-        <div class="form-group" style="margin-bottom: 1.5rem;">
-            <input type="password" id="editPasswordInput" class="form-input" placeholder="Contraseña de administrador">
-        </div>
-        <div style="display: flex; justify-content: center; gap: 1rem;">
-            <button id="editPasswordCancelBtn" class="btn btn-secondary">Cancelar</button>
-            <button id="editPasswordSubmitBtn" class="btn btn-primary">Confirmar y Guardar</button>
-        </div>
-    </div>
-</div>
+<div id="loading-indicator"><div class="spinner"></div></div>
 
 <div class="container">
-    <header class="content-header">
-        <h1 class="content-title">Inventario de Productos Terminados</h1>
-    </header>
-    <main>
-        <section class="card">
-            <div id="main-panel" class="tab-panel active">
-                <div class="form-grid">
-                    <div class="form-group"><label class="form-label">Fecha</label><input type="text" id="fechaInput" class="form-input" readonly style="background-color: #f8f9fa;"></div>
-                    <div class="form-group"><label class="form-label">Referencia</label><input type="text" id="referenciaInput" class="form-input" list="references-datalist"><datalist id="references-datalist"></datalist></div>
-                    <div class="form-group"><label class="form-label">Cód. Barras</label><input type="text" id="barrasInput" class="form-input" readonly style="background-color: #f8f9fa;"></div>
-                    <div class="form-group"><label class="form-label">Medida Trazo</label><input type="number" id="trazoInput" class="form-input" step="0.01"></div>
-                    <div class="form-group"><label class="form-label">Trazos</label><input type="number" id="trazosInput" class="form-input" step="1"></div>
-                    <div class="form-group"><label class="form-label">Cantidad</label><input type="number" id="cantidadInput" class="form-input" readonly style="background-color: #f8f9fa;"></div>
-                    <div class="form-group"><label class="form-label">Tipo de Tela</label><input type="text" id="tipoTelaInput" class="form-input"></div>
-                    <div class="form-group"><label class="form-label">Serial</label><input type="text" id="serialInput" class="form-input" readonly style="background-color: #f8f9fa;"></div>
-                    <div class="form-group"><label class="form-label">Observación</label><textarea id="observacionInput" class="form-input observacion-input" rows="3"></textarea></div>
-                </div>
-                <div class="deduction-container">
-                    <div class="deduction-section">
-                        <h3>Materiales a Deducir</h3>
-                        <input type="text" id="materialSearch" class="form-input" placeholder="Buscar material..." style="margin-bottom: 0.5rem;">
-                        <div class="deduction-table-wrapper"><div class="deduction-table"><table class="data-table"><thead><tr><th>Material</th><th>Disponible</th><th>Descontar</th></tr></thead><tbody id="materialDeductionBody"></tbody></table></div></div>
-                    </div>
-                    <div class="deduction-section">
-                        <h3>Telas a Deducir</h3>
-                        <input type="text" id="fabricSearch" class="form-input" placeholder="Buscar tela..." style="margin-bottom: 0.5rem;">
-                        <div class="deduction-table-wrapper"><div class="deduction-table"><table class="data-table">
-                            <thead><tr><th>Serial</th><th>Disponible</th><th>Factor Desc.</th><th>Terminado</th><th>Restantes</th></tr></thead>
-                            <tbody id="fabricDeductionBody"></tbody>
-                        </table></div></div>
-                    </div>
-                </div>
-            </div>
-            <div class="buttons-container">
-                <button id="addBtn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Registrar</button>
-                <button id="editBtn" class="btn btn-primary"><i class="fa-solid fa-save"></i> Guardar Cambios</button>
-                <button id="clearBtn" class="btn btn-secondary"><i class="fa-solid fa-eraser"></i> Limpiar</button>
-            </div>
-        </section>
-        <section class="card">
-             <input type="text" id="productSearch" class="form-input" placeholder="Buscar por Fecha, Referencia o Serial..." style="margin-bottom: 1rem;">
-             <div class="table-container"><table class="data-table">
-                <thead><tr><th><input type="checkbox" id="selectAllCheckbox"></th><th>Fecha</th><th>Referencia</th><th>Serial</th><th>Cantidad</th><th>Trazos</th><th>Medida Trazo</th><th>Observación</th></tr></thead>
-                <tbody id="productsTableBody"></tbody>
-             </table></div>
-             <div class="buttons-container" style="border:none; padding-top:1rem; justify-content: flex-start;">
-                <input type="file" id="excelUploadInput" class="hidden" accept=".xlsx, .xls">
-                <button id="uploadExcelBtn" class="btn btn-info"><i class="fa-solid fa-file-arrow-up"></i> Cargar Excel</button>
-                <button id="deleteBtn" class="btn btn-danger"><i class="fa-solid fa-trash"></i> Eliminar Seleccionados</button>
-            </div>
-        </section>
-    </main>
+    <h1>Gestión de Productos Terminados</h1>
+
+    <!-- Controles y Formulario de Registro -->
+    <div class="controls">
+        <button id="show-add-modal-btn" class="btn btn-primary"><i class="fas fa-plus-circle"></i> Nuevo Producto</button>
+        <button id="upload-excel-btn" class="btn btn-success"><i class="fas fa-file-excel"></i> Subir Excel (Bulk)</button>
+        <input type="file" id="excel-upload-input" accept=".xlsx, .xls, .csv" style="display: none;">
+        <button id="delete-selected-btn" class="btn btn-danger"><i class="fas fa-trash"></i> Eliminar Seleccionados</button>
+        <div class="input-group" style="min-width: 300px;">
+            <input type="text" id="product-search" class="form-input" placeholder="Buscar por Referencia o Serial...">
+        </div>
+    </div>
+
+    <!-- Tabla de Datos -->
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 30px;"><input type="checkbox" id="select-all-checkbox"></th>
+                    <th>ID</th>
+                    <th>Serial</th>
+                    <th>Referencia</th>
+                    <th>Fecha</th>
+                    <th>Cantidad</th>
+                    <th>Trazos</th>
+                    <th>Tipo Tela</th>
+                    <th>Satélite</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="products-table-body">
+                <!-- Data rows will be injected here -->
+            </tbody>
+        </table>
+    </div>
 </div>
 
+<!-- Modal de Añadir/Editar Producto -->
+<div id="add-edit-modal" class="modal">
+    <div class="modal-content">
+        <h2 id="modal-title">Registrar Nuevo Producto</h2>
+        <form id="product-form">
+            <input type="hidden" id="product-id">
+            <div class="form-grid">
+                
+                <div class="input-group">
+                    <label for="fecha">Fecha</label>
+                    <input type="date" id="fecha" name="fecha" class="form-input" required>
+                </div>
+                <div class="input-group">
+                    <label for="referencia">Referencia</label>
+                    <select id="referencia" name="referencia" class="form-select" required></select>
+                </div>
+                <div class="input-group">
+                    <label for="serial">Serial</label>
+                    <input type="text" id="serial" name="serial" class="form-input" placeholder="Ej: 7301" required>
+                </div>
+                <div class="input-group">
+                    <label for="codigo_barras">Código Barras</label>
+                    <input type="text" id="codigo_barras" name="codigo_barras" class="form-input" placeholder="Ej: 701053558007.0">
+                </div>
+                <div class="input-group">
+                    <label for="medida_trazo">Medida Trazo (m)</label>
+                    <input type="number" step="0.01" id="medida_trazo" name="medida_trazo" class="form-input" placeholder="Ej: 1.6" required>
+                </div>
+                <div class="input-group">
+                    <label for="trazos">Trazos</label>
+                    <input type="number" step="1" id="trazos" name="trazos" class="form-input" placeholder="Ej: 1" required>
+                </div>
+                <div class="input-group">
+                    <label for="cantidad">Cantidad (Unidades)</label>
+                    <input type="number" step="1" id="cantidad" name="cantidad" class="form-input" placeholder="Calculado" readonly>
+                </div>
+                <div class="input-group">
+                    <label for="tipo_tela">Tipo Tela</label>
+                    <input type="text" id="tipo_tela" name="tipo_tela" class="form-input" placeholder="RID, P ROMA, CHALIS">
+                </div>
+                <div class="input-group">
+                    <label for="satellite">Satélite</label>
+                    <input type="text" id="satellite" name="satellite" class="form-input" placeholder="N°10 FLOR ALBA">
+                </div>
+                 <div class="input-group">
+                    <label for="lote">Lote</label>
+                    <input type="text" id="lote" name="lote" class="form-input" placeholder="Ej: 29072025.0">
+                </div>
+                
+                <div class="input-group full-width">
+                    <label for="observacion">Observación</label>
+                    <textarea id="observacion" name="observacion" class="form-input" rows="2"></textarea>
+                </div>
+
+                <div class="input-group full-width">
+                    <label>Telas Utilizadas (Stock)</label>
+                    <div id="fabrics-used-list" class="stock-inputs fabrics-used-list">
+                        <!-- Fabric inputs generated here -->
+                    </div>
+                </div>
+                <div class="input-group full-width">
+                    <input type="checkbox" id="has_sample" name="has_sample" value="True">
+                    <label for="has_sample" style="display: inline;">Tiene Muestra (Has Sample)</label>
+                </div>
+                <div class="input-group">
+                    <label for="sample_code">Código Muestra</label>
+                    <input type="text" id="sample_code" name="sample_code" class="form-input" placeholder="Ej: M103">
+                </div>
+            </div>
+            <footer>
+                <button type="button" id="cancel-btn" class="btn btn-secondary">Cancelar</button>
+                <button type="submit" class="btn btn-success">Guardar</button>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- Modal de Contraseña para Eliminación -->
+<div id="delete-password-modal" class="modal">
+    <div class="modal-content">
+        <h2>Confirmar Eliminación</h2>
+        <p>Introduce la contraseña de administrador para confirmar la eliminación de los productos seleccionados.</p>
+        <input type="password" id="passwordInput" class="form-input" placeholder="Contraseña de administrador">
+        <footer>
+            <button type="button" id="deletePasswordCancelBtn" class="btn btn-secondary">Cancelar</button>
+            <button type="button" id="deletePasswordSubmitBtn" class="btn btn-danger">Confirmar</button>
+        </footer>
+    </div>
+</div>
+
+<!-- Modal de Contraseña para Edición (PUT) -->
+<div id="edit-password-modal" class="modal">
+    <div class="modal-content">
+        <h2>Confirmar Edición</h2>
+        <p>Introduce la contraseña de administrador para confirmar la edición del producto.</p>
+        <input type="password" id="editPasswordInput" class="form-input" placeholder="Contraseña de administrador">
+        <footer>
+            <button type="button" id="editPasswordCancelBtn" class="btn btn-secondary">Cancelar</button>
+            <button type="button" id="editPasswordSubmitBtn" class="btn btn-success">Guardar Cambios</button>
+        </footer>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const API_URL = 'https://damar-app.onrender.com';
-    
-    let materials_master = [], fabrics_master = [], products_master = [], references_master = [];
-    let materialDeductionValues = new Map(), fabricDeductionValues = new Map();
-    let selectedProductId = null, idsPendingDeletion = [];
+// --- Global State ---
+let allProducts = [];
+let allFabrics = [];
+let allReferences = [];
+let isEditMode = false;
+let selectedProductId = null;
 
-    const dom = {
-        fecha: document.getElementById('fechaInput'), referencia: document.getElementById('referenciaInput'),
-        barras: document.getElementById('barrasInput'), trazo: document.getElementById('trazoInput'),
-        trazos: document.getElementById('trazosInput'), cantidad: document.getElementById('cantidadInput'),
-        tipoTela: document.getElementById('tipoTelaInput'), serial: document.getElementById('serialInput'),
-        observacion: document.getElementById('observacionInput'), addBtn: document.getElementById('addBtn'),
-        editBtn: document.getElementById('editBtn'), clearBtn: document.getElementById('clearBtn'),
-        materialSearch: document.getElementById('materialSearch'), fabricSearch: document.getElementById('fabricSearch'),
-        materialBody: document.getElementById('materialDeductionBody'), fabricBody: document.getElementById('fabricDeductionBody'),
-        productSearch: document.getElementById('productSearch'), productsTableBody: document.getElementById('productsTableBody'),
-        selectAllCheckbox: document.getElementById('selectAllCheckbox'), deleteBtn: document.getElementById('deleteBtn'),
-        referencesDatalist: document.getElementById('references-datalist'), deletePasswordModal: document.getElementById('deletePasswordModal'),
-        passwordInput: document.getElementById('passwordInput'), passwordSubmitBtn: document.getElementById('passwordSubmitBtn'),
-        passwordCancelBtn: document.getElementById('passwordCancelBtn'),
-        editPasswordModal: document.getElementById('editPasswordModal'),
-        editPasswordInput: document.getElementById('editPasswordInput'),
-        editPasswordSubmitBtn: document.getElementById('editPasswordSubmitBtn'),
-        editPasswordCancelBtn: document.getElementById('editPasswordCancelBtn'),
-        uploadExcelBtn: document.getElementById('uploadExcelBtn'),
-        excelUploadInput: document.getElementById('excelUploadInput'),
+// --- DOM elements mapping for convenience ---
+const dom = {
+    // Buttons
+    showAddModalBtn: document.getElementById('show-add-modal-btn'),
+    deleteSelectedBtn: document.getElementById('delete-selected-btn'),
+    cancelBtn: document.getElementById('cancel-btn'),
+    uploadExcelBtn: document.getElementById('upload-excel-btn'),
+    excelUploadInput: document.getElementById('excel-upload-input'),
+
+    // Forms/Inputs
+    addEditModal: document.getElementById('add-edit-modal'),
+    modalTitle: document.getElementById('modal-title'),
+    productForm: document.getElementById('product-form'),
+    productId: document.getElementById('product-id'),
+    
+    // Form fields
+    fecha: document.getElementById('fecha'),
+    referencia: document.getElementById('referencia'),
+    serial: document.getElementById('serial'),
+    codigo_barras: document.getElementById('codigo_barras'),
+    medida_trazo: document.getElementById('medida_trazo'),
+    trazos: document.getElementById('trazos'),
+    cantidad: document.getElementById('cantidad'),
+    tipo_tela: document.getElementById('tipo_tela'),
+    satellite: document.getElementById('satellite'),
+    lote: document.getElementById('lote'),
+    observacion: document.getElementById('observacion'),
+    fabricsUsedList: document.getElementById('fabrics-used-list'),
+    hasSample: document.getElementById('has_sample'),
+    sampleCode: document.getElementById('sample_code'),
+
+    // Table
+    productsTableBody: document.getElementById('products-table-body'),
+    productSearch: document.getElementById('product-search'),
+    selectAllCheckbox: document.getElementById('select-all-checkbox'),
+    
+    // Deletion Modal
+    deletePasswordModal: document.getElementById('delete-password-modal'),
+    passwordInput: document.getElementById('passwordInput'),
+    deletePasswordSubmitBtn: document.getElementById('deletePasswordSubmitBtn'),
+    deletePasswordCancelBtn: document.getElementById('deletePasswordCancelBtn'),
+    
+    // Edit Password Modal
+    editPasswordModal: document.getElementById('edit-password-modal'),
+    editPasswordInput: document.getElementById('editPasswordInput'),
+    editPasswordSubmitBtn: document.getElementById('editPasswordSubmitBtn'),
+    editPasswordCancelBtn: document.getElementById('editPasswordCancelBtn'),
+
+    // Loader
+    loadingIndicator: document.getElementById('loading-indicator')
+};
+
+// --- API Helpers ---
+
+const showLoader = () => { dom.loadingIndicator.style.display = 'flex'; };
+const hideLoader = () => { dom.loadingIndicator.style.display = 'none'; };
+
+async function apiRequest(url, method = 'GET', data = null) {
+    const options = {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
     };
-
-    const showToast = (message, type = 'success') => {
-        const container = document.getElementById('toastContainer');
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'times-circle'}"></i> ${message}`;
-        
-        if(type === 'error') {
-            toast.style.backgroundColor = 'var(--danger)';
-        } else if(type === 'success') {
-            toast.style.backgroundColor = 'var(--success)';
-        }
-        
-        container.appendChild(toast);
-        setTimeout(() => toast.remove(), 4000);
-    };
-
-    async function apiRequest(endpoint, method = 'GET', data = null) {
-        [dom.addBtn, dom.editBtn, dom.deleteBtn].forEach(b => b.disabled = true);
-        try {
-            const options = { method, headers: { 'Content-Type': 'application/json' }, mode: 'cors' };
-            if (data) options.body = JSON.stringify(data);
-            const response = await fetch(`${API_URL}${endpoint}`, options);
-            if (!response.ok) { 
-                const err = await response.json().catch(() => ({ message: `Error del servidor: ${response.status}` })); 
-                throw new Error(err.message); 
-            }
-            if (response.status === 204) return null;
-            return response.json();
-        } catch (error) {
-            showToast(error.message, 'error');
-            throw error;
-        } finally {
-            [dom.addBtn, dom.editBtn, dom.deleteBtn].forEach(b => b.disabled = false);
-        }
-    }
-
-    function generateAutoDate() {
-        const today = new Date();
-        return `${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}${today.getFullYear()}`;
-    }
-
-    async function getNextSerial() {
-        try {
-            const lastProduct = await apiRequest('/products/last');
-            const lastSerial = lastProduct ? parseInt(lastProduct.serial) : 7300;
-            return isNaN(lastSerial) ? 7301 : lastSerial + 1;
-        } catch {
-            const serials = products_master.map(p => parseInt(p.serial)).filter(s => !isNaN(s));
-            return serials.length > 0 ? Math.max(...serials) + 1 : 7301;
-        }
-    }
-
-    function calculateQuantity() {
-        const trazos = parseFloat(dom.trazos.value) || 0;
-        let totalFactor = 0;
-        fabricDeductionValues.forEach(obj => totalFactor += (parseFloat(obj.factor) || 0));
-        dom.cantidad.value = (totalFactor * trazos).toFixed(0);
-    }
-
-    function renderDeductionTables(materialFilter = '', fabricFilter = '') {
-        dom.materialBody.innerHTML = materials_master
-            .filter(item => (item.material_name || '').toLowerCase().includes(materialFilter.toLowerCase()))
-            .map(item => `<tr data-id="${item.id}"><td>${item.material_name}</td><td>${(parseFloat(item.quantity_value) || 0).toFixed(2)} ${item.quantity_type || ''}</td><td><input type="number" class="form-input deduction-input" value="${materialDeductionValues.get(String(item.id)) || ''}" placeholder="0" min="0" step="0.01"></td></tr>`).join('');
-
-        dom.fabricBody.innerHTML = fabrics_master
-            .filter(item => (item.serial_rollo || '').toLowerCase().includes(fabricFilter.toLowerCase()))
-            .map(item => {
-                const itemId = String(item.id);
-                const val = fabricDeductionValues.get(itemId) || {};
-                const isTerminado = item.is_terminado === 'true' || val.terminado || false;
-                const restantesValue = item.restantes || val.restantes || '';
-                
-                return `<tr data-id="${itemId}"><td>${item.serial_rollo}</td><td>${(parseFloat(item.cantidad_value) || 0).toFixed(2)} m</td>
-                    <td><input type="number" class="form-input deduction-input fabric-factor-input" data-field="factor" value="${val.factor || ''}" placeholder="0" min="0" step="0.01"></td>
-                    <td><input type="checkbox" class="deduction-input fabric-terminado-check" data-field="terminado" style="cursor:pointer;transform:scale(1.2);" ${isTerminado ? 'checked' : ''}></td>
-                    <td><input type="text" class="form-input deduction-input fabric-restantes-input" data-field="restantes" value="${restantesValue}" style="display:${isTerminado ? 'inline-block':'none'};"></td></tr>`;
-            }).join('');
-    }
-
-    function renderProductsTable() {
-        const filter = dom.productSearch.value.toLowerCase();
-        dom.productsTableBody.innerHTML = products_master
-            .filter(p => [p.fecha, p.lote, p.referencia, p.serial].some(f => (String(f) || '').toLowerCase().includes(filter)))
-            .map(prod => `<tr data-id="${prod.id}" class="${String(prod.id)===String(selectedProductId)?'selected':''}"><td><input type="checkbox" onclick="event.stopPropagation();" data-id="${prod.id}"></td><td>${prod.fecha||prod.lote||''}</td><td>${prod.referencia}</td><td>${prod.serial||''}</td><td>${prod.cantidad||0}</td><td>${prod.trazos||0}</td><td>${(parseFloat(prod.medida_trazo||0)).toFixed(2)}</td><td title="${prod.observacion||''}">${(prod.observacion||'').substring(0,30)}</td></tr>`).join('');
-        dom.productsTableBody.querySelectorAll('tr').forEach(tr => tr.addEventListener('click', () => selectProduct(tr.dataset.id)));
-    }
-
-    function selectProduct(id) {
-        selectedProductId = id;
-        const product = products_master.find(p => String(p.id) === String(id));
-        if (!product) return;
-
-        dom.fecha.value = product.fecha || product.lote || '';
-        dom.referencia.value = product.referencia || '';
-        dom.barras.value = product.codigo_barras || '';
-        dom.trazo.value = product.medida_trazo || '';
-        dom.trazos.value = product.trazos || '';
-        dom.cantidad.value = product.cantidad || '';
-        dom.tipoTela.value = product.tipo_tela || '';
-        dom.serial.value = product.serial || '';
-        dom.observacion.value = product.observacion || '';
-
-        fabricDeductionValues.clear();
-        materialDeductionValues.clear();
-
-        try {
-            const fabricsUsed = Array.isArray(product.fabrics_used) ? product.fabrics_used : JSON.parse(String(product.fabrics_used || '[]'));
-            fabricsUsed.forEach(u => fabricDeductionValues.set(String(u.id), { factor: u.valor_descontar || 0 }));
-
-            const materialsUsed = Array.isArray(product.materials_used) ? product.materials_used : JSON.parse(String(product.materials_used || '[]'));
-            materialsUsed.forEach(u => materialDeductionValues.set(String(u.id), u.quantity_used || 0));
-
-        } catch(e) { 
-            console.error("Error al procesar datos del producto:", e);
-        }
-        renderDeductionTables();
-        renderProductsTable();
+    if (data) {
+        options.body = JSON.stringify(data);
     }
     
-    async function clearMainForm() {
-        [dom.referencia, dom.barras, dom.trazo, dom.trazos, dom.tipoTela, dom.observacion].forEach(el => el.value = '');
-        dom.fecha.value = generateAutoDate();
-        dom.serial.value = await getNextSerial();
-        dom.cantidad.value = '';
-        selectedProductId = null;
-        renderProductsTable();
+    // No mostramos el loader aquí, ya que el proceso de subida del Excel
+    // lo maneja de forma granular. Solo lo usamos para DELETE/PUT general.
+    // if (method !== 'GET') showLoader();
+    
+    const response = await fetch(url, options);
+    
+    if (response.status === 204) { // No Content
+        // if (method !== 'GET') hideLoader();
+        return {};
     }
 
-    async function clearAll() {
-        await clearMainForm();
-        materialDeductionValues.clear();
-        fabricDeductionValues.clear();
-        renderDeductionTables();
+    const responseData = await response.json();
+
+    // if (method !== 'GET') hideLoader();
+
+    if (!response.ok) {
+        throw new Error(responseData.message || `Error en la solicitud a ${url}.`);
+    }
+
+    return responseData;
+}
+
+// --- UI Helpers ---
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    dom.toastContainer = document.getElementById('toast-container');
+    if (dom.toastContainer) {
+        dom.toastContainer.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            toast.addEventListener('transitionend', () => toast.remove());
+        }, 5000);
+    }
+}
+
+function formatDate(dateString) {
+    if (!dateString) return '';
+    try {
+        const date = new Date(dateString);
+        // Formato AAAA-MM-DD
+        return date.toISOString().split('T')[0];
+    } catch {
+        return dateString; // Return original if formatting fails
+    }
+}
+
+function parseDateFromInput(dateString) {
+    if (!dateString) return null;
+    // Asegura que el formato es YYYY-MM-DD
+    const parts = dateString.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (parts) {
+        // Retorna el formato AAAA-MM-DD
+        return `${parts[1]}-${parts[2]}-${parts[3]}`;
+    }
+    return dateString; // Retorna original si no coincide
+}
+
+// --- Data Loading and Rendering ---
+
+async function loadData() {
+    showLoader();
+    try {
+        const [productsData, fabricsData, referencesData] = await Promise.all([
+            apiRequest('/products'),
+            apiRequest('/inventory/fabrics'),
+            apiRequest('/dynamic-codes/all-references')
+        ]);
+        
+        allProducts = productsData;
+        allFabrics = fabricsData;
+        allReferences = referencesData;
+
+        renderFabricsCheckboxes();
+        renderReferencesDropdown();
+        renderProductsTable();
+        
+    } catch (error) {
+        showToast('Error al cargar los datos iniciales: ' + error.message, 'error');
+    } finally {
+        hideLoader();
+    }
+}
+
+function renderProductsTable() {
+    const searchTerm = dom.productSearch.value.toLowerCase();
+    dom.productsTableBody.innerHTML = '';
+    
+    const filteredProducts = allProducts.filter(p => 
+        p.referencia?.toLowerCase().includes(searchTerm) ||
+        p.serial?.toLowerCase().includes(searchTerm) ||
+        p.id?.toString().includes(searchTerm)
+    );
+
+    if (filteredProducts.length === 0) {
+        dom.productsTableBody.innerHTML = `<tr><td colspan="10" style="text-align: center;">No se encontraron productos.</td></tr>`;
+        return;
+    }
+
+    filteredProducts.forEach(p => {
+        const row = dom.productsTableBody.insertRow();
+        
+        const deleteCheckbox = document.createElement('input');
+        deleteCheckbox.type = 'checkbox';
+        deleteCheckbox.setAttribute('data-id', p.id);
+
+        row.insertCell().appendChild(deleteCheckbox);
+        row.insertCell().textContent = p.id || 'N/A';
+        row.insertCell().textContent = p.serial || 'N/A';
+        row.insertCell().textContent = p.referencia || 'N/A';
+        row.insertCell().textContent = formatDate(p.fecha);
+        row.insertCell().textContent = p.cantidad || 0;
+        row.insertCell().textContent = p.trazos || 0;
+        row.insertCell().textContent = p.tipo_tela || 'N/A';
+        row.insertCell().textContent = p.satellite || 'N/A';
+
+        const actionsCell = row.insertCell();
+        const editBtn = document.createElement('button');
+        editBtn.innerHTML = '<i class="fas fa-edit"></i>';
+        editBtn.title = 'Editar';
+        editBtn.addEventListener('click', () => openEditModal(p));
+        actionsCell.appendChild(editBtn);
+    });
+}
+
+function renderReferencesDropdown() {
+    dom.referencia.innerHTML = '<option value="">Seleccione Referencia</option>';
+    const uniqueReferences = [...new Set(allReferences.map(r => r.code))].sort();
+    
+    uniqueReferences.forEach(ref => {
+        const option = document.createElement('option');
+        option.value = ref;
+        option.textContent = ref;
+        dom.referencia.appendChild(option);
+    });
+}
+
+function renderFabricsCheckboxes(selectedFabrics = []) {
+    dom.fabricsUsedList.innerHTML = '';
+    
+    if (allFabrics.length === 0) {
+        dom.fabricsUsedList.innerHTML = '<p>No hay telas disponibles en inventario.</p>';
+        return;
+    }
+
+    const currentUsedMap = new Map();
+    selectedFabrics.forEach(f => {
+        currentUsedMap.set(f.id, { quantity_used: f.quantity_used, valor_descontar: f.valor_descontar || '' });
+    });
+
+    allFabrics.forEach(f => {
+        const div = document.createElement('div');
+        div.className = 'stock-item';
+        div.innerHTML = `
+            <label>
+                <input type="checkbox" data-id="${f.id}" data-name="${f.nombre}" class="fabric-checkbox" ${currentUsedMap.has(f.id) ? 'checked' : ''}>
+                ${f.nombre} (ID: ${f.id})
+            </label>
+            <input type="number" step="0.01" class="form-input quantity-used" placeholder="Cantidad (m)" data-id="${f.id}" value="${currentUsedMap.get(f.id)?.quantity_used || ''}" ${!currentUsedMap.has(f.id) ? 'disabled' : ''}>
+        `;
+        dom.fabricsUsedList.appendChild(div);
+    });
+
+    // Add event listeners for dynamic enabling/disabling and change tracking
+    dom.fabricsUsedList.querySelectorAll('.fabric-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+            const quantityInput = dom.fabricsUsedList.querySelector(`.quantity-used[data-id="${e.target.dataset.id}"]`);
+            quantityInput.disabled = !e.target.checked;
+            if (!e.target.checked) {
+                quantityInput.value = '';
+            } else {
+                 calculateQuantity(); 
+            }
+        });
+    });
+    
+    dom.fabricsUsedList.querySelectorAll('.quantity-used').forEach(input => {
+        input.addEventListener('input', calculateQuantity);
+    });
+}
+
+// --- Logic Handlers ---
+
+function calculateQuantity() {
+    const medidaTrazo = parseFloat(dom.medida_trazo.value) || 0;
+    const trazos = parseInt(dom.trazos.value) || 0;
+
+    // Calculate total quantity of items (unidades)
+    let totalItems = 0;
+    if (medidaTrazo > 0 && trazos > 0) {
+        // Assuming 'cantidad' represents the number of finished units derived from the cut.
+        // The relationship is not clear from the fields, but often calculated this way:
+        // We'll leave it to a simple calculation based on current form structure.
+        
+        // This calculation is purely speculative as Excel upload only provides 'cantidad'.
+        // For manual entry, we will assume 'cantidad' (units) is manually entered, 
+        // or derived from some known ratio (which we don't have).
+        // Since we need to calculate fabric usage, let's derive that first.
+        
+        // For now, let's assume 'cantidad' is meant to be entered directly in the final form, 
+        // but for bulk upload, it comes pre-calculated.
+        
+        // For the sake of simplicity in the form: let's calculate total fabric needed:
+        // const totalFabricNeeded = medidaTrazo * trazos; 
+        
+        // As the 'cantidad' field is required in the backend, let's fill it with a placeholder based on trazos.
+        // If we use the Excel data structure (one row per product type/serial):
+        // Total Pieces = Total Trazos * (Pieces per Trazo) -> Pieces per Trazo is missing
+        // Since the bulk upload uses "cantidad" directly, let's keep it editable/manually entered for the form,
+        // unless the formula is provided.
+        // For now, we will leave 'cantidad' for manual entry, but ensure the fabrics used fields work.
     }
     
-    function collectFormData() {
-        const data = {
-            id: selectedProductId, 
-            lote: dom.fecha.value.trim(),
-            fecha: new Date().toISOString().split('T')[0],
-            referencia: dom.referencia.value.trim(),
-            codigo_barras: dom.barras.value.trim(),
-            medida_trazo: parseFloat(dom.trazo.value) || 0,
-            trazos: parseInt(dom.trazos.value) || 0,
-            cantidad: parseInt(dom.cantidad.value) || 0,
-            tipo_tela: dom.tipoTela.value.trim(),
-            satellite: null,
-            serial: dom.serial.value.trim(),
-            observacion: dom.observacion.value.trim(),
-            valor_confeccion: 0, ganancia_percent: 0, valor_total: 0, valor_venta: 0,
-            has_sample: false, sample_code: '',
-            materials_used: [], fabrics_used: []
-        };
-
-        if (!data.lote || !data.referencia || !data.medida_trazo || !data.trazos) {
-            showToast("Complete los campos principales (Fecha/Lote, Referencia, Medida Trazo, Trazos).", 'error'); return null;
+    // Logic for fabrics used quantity calculation (if needed)
+    dom.fabricsUsedList.querySelectorAll('.quantity-used').forEach(input => {
+        const checkbox = dom.fabricsUsedList.querySelector(`.fabric-checkbox[data-id="${input.dataset.id}"]`);
+        if (checkbox.checked) {
+            // Recalculate quantity used based on trazos and medida_trazo for the sake of the form, 
+            // though actual logic might be more complex.
+            // Since the user is entering quantity_used manually in the input now, we rely on that.
+            // If the goal is to automatically calculate the quantity_used based on the product being registered:
+            // quantity_used = medidaTrazo * trazos / (fabrics needed per piece ratio) 
+            // Since we lack the ratio, we rely on manual input in the form.
         }
+    });
+}
 
-        materialDeductionValues.forEach((qty, id) => { 
-            if (parseFloat(qty) > 0) data.materials_used.push({id, quantity_used: qty}); 
-        });
+
+function extractFormData() {
+    const formData = new FormData(dom.productForm);
+    const data = {};
+    
+    // Standard fields
+    formData.forEach((value, key) => {
+        if (value !== '') {
+             data[key] = value;
+        }
+    });
+
+    // Special fields handling
+    data.has_sample = dom.hasSample.checked;
+    
+    // Materials & Fabrics Used
+    const fabricsUsed = [];
+    dom.fabricsUsedList.querySelectorAll('.fabric-checkbox:checked').forEach(checkbox => {
+        const id = checkbox.dataset.id;
+        const quantityInput = dom.fabricsUsedList.querySelector(`.quantity-used[data-id="${id}"]`);
         
-        fabricDeductionValues.forEach((val, id) => {
-            if ((parseFloat(val.factor) || 0) > 0) {
-                data.fabrics_used.push({
-                    id: id, valor_descontar: val.factor || 0,
-                    quantity_used: (parseFloat(val.factor) || 0) * (data.medida_trazo || 0)
-                });
-            }
-        });
+        const quantityUsed = parseFloat(quantityInput.value);
+        if (quantityUsed > 0) {
+            // Note: valor_descontar and medida_trazo are calculated/provided by the Excel/business logic,
+            // not the manual input form unless explicitly added. We'll set placeholders.
+            fabricsUsed.push({
+                id: id,
+                quantity_used: quantityUsed,
+                valor_descontar: 0, 
+                medida_trazo: parseFloat(dom.medida_trazo.value) || 0
+            });
+        }
+    });
+    data.fabrics_used = fabricsUsed;
+    data.materials_used = []; // Not implemented in UI yet, so default to empty array
+    
+    // Ensure numeric fields are correctly typed (API needs floats/ints, not strings)
+    for (const key of ['medida_trazo', 'trazos', 'cantidad']) {
+        if (data[key] !== undefined) {
+             data[key] = parseFloat(data[key]);
+        }
+    }
+    
+    return data;
+}
 
-        return data;
+// --- Submission Handlers ---
+
+async function submitData(url, method) {
+    const data = extractFormData();
+    
+    if (data.trazos === 0 || data.medida_trazo === 0) {
+        showToast('Trazos y Medida Trazo deben ser mayores que cero.', 'error');
+        return;
     }
 
-    async function submitData(endpoint, method) {
-        const data = collectFormData();
-        if (!data) return;
+    try {
+        await apiRequest(url, method, data);
+        showToast(`Producto ${isEditMode ? 'actualizado' : 'registrado'} con éxito.`, 'success');
+        dom.addEditModal.classList.remove('active');
+        await loadData();
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+}
+
+function handleFormSubmit(e) {
+    e.preventDefault();
+    if (isEditMode) {
+        // En modo edición, la lógica pasa por la modal de contraseña
+        dom.editPasswordModal.classList.add('active');
+    } else {
+        submitData('/products', 'POST');
+    }
+}
+
+// --- Modal Handlers ---
+
+function openAddModal() {
+    isEditMode = false;
+    selectedProductId = null;
+    dom.modalTitle.textContent = 'Registrar Nuevo Producto';
+    dom.productForm.reset();
+    dom.productId.value = '';
+    dom.cantidad.value = ''; // Reset quantity
+    
+    // Reset fabrics checkboxes and quantities
+    renderFabricsCheckboxes();
+
+    // Set default date to today
+    dom.fecha.value = new Date().toISOString().split('T')[0];
+    
+    dom.addEditModal.classList.add('active');
+}
+
+function openEditModal(product) {
+    isEditMode = true;
+    selectedProductId = product.id;
+    dom.modalTitle.textContent = 'Editar Producto ID: ' + product.id;
+    dom.productForm.reset();
+    
+    // Populate form fields
+    dom.productId.value = product.id;
+    dom.fecha.value = formatDate(product.fecha);
+    dom.referencia.value = product.referencia || '';
+    dom.serial.value = product.serial || '';
+    dom.codigo_barras.value = product.codigo_barras || '';
+    dom.medida_trazo.value = product.medida_trazo || '';
+    dom.trazos.value = product.trazos || '';
+    dom.cantidad.value = product.cantidad || '';
+    dom.tipo_tela.value = product.tipo_tela || '';
+    dom.satellite.value = product.satellite || '';
+    dom.lote.value = product.lote || '';
+    dom.observacion.value = product.observacion || '';
+    dom.hasSample.checked = product.has_sample || false;
+    dom.sampleCode.value = product.sample_code || '';
+
+    // Populate fabrics
+    const fabricsUsed = JSON.parse(product.fabrics_used || '[]');
+    renderFabricsCheckboxes(fabricsUsed);
+
+    dom.addEditModal.classList.add('active');
+}
+
+// --- Bulk Upload Logic ---
+
+async function handleExcelUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    showLoader();
+    dom.uploadExcelBtn.disabled = true;
+    
+    const reader = new FileReader();
+    reader.onload = async (event) => {
         try {
-            const result = await apiRequest(endpoint, method, data);
-            showToast(result.message, 'success');
-            await loadData();
-            await (method === 'POST' ? clearMainForm() : clearAll());
-        } catch (error) {}
-    }
+            const data = new Uint8Array(event.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            
+            // Get all data, including empty cells, as objects
+            const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: null });
 
-    async function deleteProducts() {
-        idsPendingDeletion = Array.from(dom.productsTableBody.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.dataset.id);
-        if (idsPendingDeletion.length === 0) { showToast("Seleccione productos para eliminar.", 'error'); return; }
-        dom.deletePasswordModal.classList.add('active');
-    }
-
-    function parseExcelDate(dateInput) {
-        if (!dateInput) return new Date();
-
-        // Handle JS dates from xlsx library with cellDates:true
-        if (dateInput instanceof Date) {
-            if (!isNaN(dateInput.getTime())) {
-                return dateInput;
+            if (jsonRows.length === 0) {
+                 throw new Error("El archivo está vacío.");
             }
-        }
-        
-        let dateStr = String(dateInput);
-
-        // Handle DDMMYYYY or DDMMYYYY.0 format
-        dateStr = dateStr.split('.')[0];
-        if (dateStr.length === 8) {
-            const day = dateStr.substring(0, 2);
-            const month = dateStr.substring(2, 4);
-            const year = dateStr.substring(4, 8);
-            const parsedDate = new Date(`${year}-${month}-${day}T12:00:00Z`); // Use UTC to avoid timezone shifts
-            if (!isNaN(parsedDate.getTime())) return parsedDate;
-        }
-        
-        // Fallback for other formats
-        const parsedDate = new Date(dateInput);
-        if (!isNaN(parsedDate.getTime())) return parsedDate;
-
-        return new Date(); // Final fallback
-    }
-
-    const handleExcelUpload = (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false });
-
-                if (jsonData.length === 0) return showToast('El archivo Excel está vacío.', 'error');
-                
-                showToast(`Iniciando subida de ${jsonData.length} productos...`, 'info');
-                let successCount = 0, errorCount = 0;
-
-                for (const row of jsonData) {
-                    try {
-                        let fabricsUsed, materialsUsed;
-                        try { fabricsUsed = JSON.parse(row.fabrics_used || '[]'); } catch { fabricsUsed = []; }
-                        try { materialsUsed = JSON.parse(row.materials_used || '[]'); } catch { materialsUsed = []; }
-
-                        const payload = {
-                            lote: row.lote,
-                            fecha: parseExcelDate(row.fecha).toISOString().split('T')[0],
-                            referencia: row.referencia,
-                            codigo_barras: row.codigo_barras,
-                            medida_trazo: parseFloat(row.medida_trazo) || 0,
-                            trazos: parseInt(row.trazos) || 0,
-                            cantidad: parseInt(row.cantidad) || 0,
-                            tipo_tela: row.tipo_tela,
-                            satellite: row.satellite,
-                            serial: row.serial,
-                            observacion: row.observacion,
-                            valor_confeccion: parseFloat(row.valor_confeccion) || 0,
-                            ganancia_percent: parseFloat(row.ganancia_percent) || 0,
-                            valor_total: parseFloat(row.valor_total) || 0,
-                            valor_venta: parseFloat(row.valor_venta) || 0,
-                            materials_used: materialsUsed,
-                            fabrics_used: fabricsUsed,
-                            has_sample: String(row.has_sample).toLowerCase() === 'true',
-                            sample_code: row.sample_code,
-                        };
+            
+            const header = jsonRows[0];
+            const dataRows = jsonRows.slice(1);
+            
+            let successCount = 0;
+            let errorCount = 0;
+            const totalRows = dataRows.length;
+            
+            // --- CRITICAL CORRECTION: Sequential Processing ---
+            
+            for (const row of dataRows) {
+                const rowData = {};
+                header.forEach((key, index) => {
+                    // Normalize keys (lowercase, replace spaces, remove problematic chars like /)
+                    let cleanKey = key?.toString().toLowerCase().trim().replace(/[\s\/]/g, '_').replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i').replace(/ó/g, 'o').replace(/ú/g, 'u');
+                    
+                    // Specific mapping logic needed due to CSV header issues:
+                    if (cleanKey === 'medida_trazo') cleanKey = 'medida_trazo';
+                    if (cleanKey === 'trazos') cleanKey = 'trazos';
+                    
+                    if (cleanKey && row[index] !== null) {
+                        let value = row[index];
                         
-                        await apiRequest('/products', 'POST', payload);
-                        successCount++;
-                    } catch (error) {
-                        errorCount++;
-                        console.error(`Error subiendo la fila: ${JSON.stringify(row)}`, error);
+                        // Clean quotes around JSON strings if they exist (common CSV/Excel issue)
+                        if (typeof value === 'string' && (value.startsWith('"') && value.endsWith('"'))) {
+                            value = value.substring(1, value.length - 1);
+                        }
+                         
+                        // Special handling for boolean/JSON fields
+                        if (cleanKey === 'has_sample') {
+                            rowData[cleanKey] = value?.toString().toLowerCase() === 'true';
+                        } else if (cleanKey === 'materials_used' || cleanKey === 'fabrics_used') {
+                            try {
+                                // Double unescape process needed if coming from Python output as string
+                                rowData[cleanKey] = JSON.parse(value.replace(/\\"/g, '"'));
+                            } catch {
+                                // If parsing fails, store as is (or empty array if expected JSON)
+                                rowData[cleanKey] = []; 
+                            }
+                        } else if (cleanKey === 'fecha') {
+                             // Format DDMMYYYY to YYYY-MM-DD expected by Flask
+                            let dateStr = value?.toString();
+                            if (dateStr && dateStr.length === 8 && dateStr.match(/^\d+$/)) {
+                                rowData[cleanKey] = `${dateStr.substring(4, 8)}-${dateStr.substring(2, 4)}-${dateStr.substring(0, 2)}`;
+                            } else {
+                                rowData[cleanKey] = value;
+                            }
+                        }
+                        else {
+                            rowData[cleanKey] = value;
+                        }
                     }
-                }
+                });
 
-                let finalMessage = `${successCount} de ${jsonData.length} productos registrados.`;
-                if (errorCount > 0) finalMessage += ` ${errorCount} fallaron.`;
-                showToast(finalMessage, errorCount > 0 ? 'error' : 'success');
+                // Post-processing for final payload structure and API compatibility
+                // Remove unwanted fields and map 'estado_corte' to API field if needed
+                delete rowData.telas_terminadas;
+                delete rowData.telas_restantes;
+                delete rowData.estado_corte; 
                 
-                await loadData();
-            } catch (error) {
-                showToast('Error crítico al procesar el archivo Excel.', 'error');
-            } finally {
-                dom.excelUploadInput.value = '';
+                // --- API Call (Sequential) ---
+                try {
+                    await apiRequest('/products', 'POST', rowData);
+                    successCount++;
+                } catch (error) {
+                    errorCount++;
+                    console.error(`Error subiendo la fila: ${JSON.stringify(rowData)} Error: ${error.message}`);
+                    // Optionally break the loop on error if data integrity is critical
+                    // break; 
+                }
             }
-        };
-        reader.readAsArrayBuffer(file);
+
+            // --- Final Reporting ---
+            if (successCount > 0) {
+                showToast(`Subida completada. ${successCount} fila(s) insertada(s).`, 'success');
+            }
+            if (errorCount > 0) {
+                 showToast(`ADVERTENCIA: ${errorCount} fila(s) fallaron al insertar. Revise la consola para detalles.`, 'error');
+            }
+            
+        } catch (error) {
+            showToast('Error al procesar el archivo Excel: ' + error.message, 'error');
+        } finally {
+            dom.excelUploadInput.value = ''; // Reset input field
+            dom.uploadExcelBtn.disabled = false;
+            hideLoader();
+            await loadData();
+        }
     };
+    reader.readAsArrayBuffer(file);
+}
 
-    async function loadData() {
+
+// --- Initialization ---
+
+function init() {
+    dom.showAddModalBtn.addEventListener('click', openAddModal);
+    dom.cancelBtn.addEventListener('click', () => dom.addEditModal.classList.remove('active'));
+    dom.productForm.addEventListener('submit', handleFormSubmit);
+
+    // Deletion Modal Listeners
+    let idsPendingDeletion = [];
+    dom.deleteSelectedBtn.addEventListener('click', () => {
+        idsPendingDeletion = Array.from(dom.productsTableBody.querySelectorAll('input[type="checkbox"]:checked:not(#select-all-checkbox)'))
+            .map(checkbox => parseInt(checkbox.dataset.id));
+
+        if (idsPendingDeletion.length === 0) {
+            showToast('Selecciona al menos un producto para eliminar.', 'warning');
+            return;
+        }
+        dom.deletePasswordModal.classList.add('active');
+    });
+
+    dom.deletePasswordSubmitBtn.addEventListener('click', async () => {
+        if (dom.passwordInput.value !== '3012') { 
+            showToast('Contraseña incorrecta.', 'error'); 
+            return; 
+        }
+        dom.deletePasswordModal.classList.remove('active');
+        dom.passwordInput.value = '';
         try {
-            [materials_master, fabrics_master, products_master, references_master] = await Promise.all([
-                apiRequest('/materials'), 
-                apiRequest('/inventory/fabrics'), 
-                apiRequest('/products'),
-                apiRequest('/dynamic-codes/all-references')
-            ]);
-            dom.referencesDatalist.innerHTML = references_master.map(ref => `<option value="${ref.code}"></option>`).join('');
-            setupReferenceAutocomplete();
-            await clearAll();
-        } catch (error) { showToast("Fallo la carga inicial de datos.", 'error'); }
-    }
+            await apiRequest('/products/bulk', 'DELETE', { ids: idsPendingDeletion });
+            showToast('Productos eliminados.', 'success');
+            await loadData();
+        } catch (error) {
+             showToast('Error al eliminar productos: ' + error.message, 'error');
+        }
+    });
     
-    function setupReferenceAutocomplete() {
-        dom.referencia.addEventListener('input', () => {
-            const refValue = dom.referencia.value.trim();
-            const foundRef = references_master.find(r => r.code === refValue && r.description);
-            if(foundRef) {
-                dom.barras.value = foundRef.description;
-            }
-        });
-    }
+    dom.deletePasswordCancelBtn.addEventListener('click', () => {
+        dom.deletePasswordModal.classList.remove('active');
+        dom.passwordInput.value = '';
+    });
 
-    function init() {
-        ['input', 'change'].forEach(evt => {
-            dom.fabricBody.addEventListener(evt, (e) => {
-                const target = e.target;
-                if (!target.classList.contains('deduction-input')) return;
-                const tr = target.closest('tr');
-                if (!tr) return;
-                const id = tr.dataset.id;
-                const field = target.dataset.field;
-                const value = target.type === 'checkbox' ? target.checked : target.value;
-                const valObj = fabricDeductionValues.get(id) || {};
-                valObj[field] = value;
-                fabricDeductionValues.set(id, valObj);
-                
-                if (target.matches('.fabric-terminado-check')) {
-                    tr.querySelector('.fabric-restantes-input').style.display = target.checked ? 'inline-block' : 'none';
-                }
-            });
-            dom.materialBody.addEventListener(evt, (e) => {
-                 if (e.target.classList.contains('deduction-input')) {
-                    const id = e.target.closest('tr').dataset.id;
-                    if (e.target.value) materialDeductionValues.set(id, e.target.value);
-                    else materialDeductionValues.delete(id);
-                }
-            });
-        });
+    // Edit Password Modal Listeners
+    dom.editPasswordCancelBtn.addEventListener('click', () => {
+        dom.editPasswordModal.classList.remove('active');
+        dom.editPasswordInput.value = '';
+    });
 
-        dom.materialSearch.addEventListener('input', () => renderDeductionTables(dom.materialSearch.value, dom.fabricSearch.value));
-        dom.fabricSearch.addEventListener('input', () => renderDeductionTables(dom.materialSearch.value, dom.fabricSearch.value));
-
-        dom.addBtn.addEventListener('click', () => submitData('/products', 'POST'));
-        dom.editBtn.addEventListener('click', () => {
-            if (!selectedProductId) { 
-                showToast("Seleccione un producto para editar.", 'error'); 
-                return; 
-            }
-            dom.editPasswordModal.classList.add('active');
-        });
-        dom.clearBtn.addEventListener('click', clearAll);
-        dom.deleteBtn.addEventListener('click', deleteProducts);
-        dom.passwordCancelBtn.addEventListener('click', () => {
-            dom.deletePasswordModal.classList.remove('active');
-            dom.passwordInput.value = '';
-        });
-        dom.passwordSubmitBtn.addEventListener('click', async () => {
-            if (dom.passwordInput.value !== '3012') { showToast('Contraseña incorrecta.', 'error'); return; }
-            dom.deletePasswordModal.classList.remove('active');
-            dom.passwordInput.value = '';
-            try {
-                await apiRequest('/products/bulk', 'DELETE', { ids: idsPendingDeletion });
-                showToast('Productos eliminados.', 'success');
-                await loadData();
-            } catch (error) {}
-        });
-        
-        dom.editPasswordCancelBtn.addEventListener('click', () => {
-            dom.editPasswordModal.classList.remove('active');
-            dom.editPasswordInput.value = '';
-        });
-
-        dom.editPasswordSubmitBtn.addEventListener('click', async () => {
-            if (dom.editPasswordInput.value !== '3012') { 
-                showToast('Contraseña incorrecta.', 'error'); 
-                return; 
-            }
-            dom.editPasswordModal.classList.remove('active');
-            dom.editPasswordInput.value = '';
-            submitData(`/products/${selectedProductId}`, 'PUT');
-        });
-        
-        dom.trazos.addEventListener('input', calculateQuantity);
-        dom.productSearch.addEventListener('input', renderProductsTable);
-        dom.selectAllCheckbox.addEventListener('change', e => dom.productsTableBody.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = e.target.checked));
-        
-        dom.uploadExcelBtn.addEventListener('click', () => dom.excelUploadInput.click());
-        dom.excelUploadInput.addEventListener('change', handleExcelUpload);
-
-        loadData();
-    }
+    dom.editPasswordSubmitBtn.addEventListener('click', async () => {
+        if (dom.editPasswordInput.value !== '3012') { 
+            showToast('Contraseña incorrecta.', 'error'); 
+            return; 
+        }
+        dom.editPasswordModal.classList.remove('active');
+        dom.editPasswordInput.value = '';
+        submitData(`/products/${selectedProductId}`, 'PUT');
+    });
     
-    init();
-});
+    dom.trazos.addEventListener('input', calculateQuantity);
+    dom.medida_trazo.addEventListener('input', calculateQuantity); 
+    dom.productSearch.addEventListener('input', renderProductsTable);
+    dom.selectAllCheckbox.addEventListener('change', e => dom.productsTableBody.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = e.target.checked));
+    
+    dom.uploadExcelBtn.addEventListener('click', () => dom.excelUploadInput.click());
+    dom.excelUploadInput.addEventListener('change', handleExcelUpload);
+
+    loadData();
+}
+
+init();
 </script>
 
 </body>
 </html>
-
