@@ -11,37 +11,24 @@ from sqlalchemy import func
 
 # --- 1. Configuración Básica de la Aplicación ---
 app = Flask(__name__, static_folder='.', static_url_path='')
-
-# Configura CORS para permitir peticiones desde tu frontend.
-# Para producción, es mejor restringir los orígenes.
 CORS(app, resources={r"/*": {"origins": "*"}})
-
-# Configura un sistema de logging para ver información y errores.
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --- 2. Configuración de la Base de Datos (PostgreSQL) ---
-# La URL de conexión se tomará de una variable de entorno,
-# lo cual es una práctica estándar para la seguridad en producción.
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if not DATABASE_URL:
-    # Si la variable no está, lanza un error para evitar arrancar sin BD.
     raise RuntimeError("Error: La variable de entorno DATABASE_URL no está configurada.")
 
-# SQLAlchemy espera 'postgresql://' en lugar de 'postgres://' que algunas plataformas usan.
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {"pool_pre_ping": True}
-
-# Inicializa la extensión SQLAlchemy
 db = SQLAlchemy(app)
 
 # --- 3. Definición de los Modelos de Datos (Tablas) ---
-# Cada clase representa una tabla en tu base de datos PostgreSQL.
-# Esto reemplaza las hojas de tu archivo Excel.
 
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
@@ -173,7 +160,7 @@ class HistorialTela(db.Model):
 
 class ProductoTerminado(db.Model):
     __tablename__ = 'productos_terminados'
-    id = db.Column(db.String(36), primary_key=True) # Para UUID
+    id = db.Column(db.String(36), primary_key=True)
     lote = db.Column(db.String(50))
     fecha = db.Column(db.Date)
     referencia = db.Column(db.String(150))
@@ -256,12 +243,11 @@ class Venta(db.Model):
     banco_consignacion = db.Column(db.String(100))
     total_sale = db.Column(db.Float)
 
-# Modelos para Referencias y Códigos de Barras (genéricos)
 class DynamicCode(db.Model):
     __tablename__ = 'dynamic_codes'
     id = db.Column(db.Integer, primary_key=True)
-    type = db.Column(db.String(50), nullable=False) # 'reference' o 'barcode'
-    category = db.Column(db.String(50), nullable=False) # 'productos', 'telas', 'materiales'
+    type = db.Column(db.String(50), nullable=False)
+    category = db.Column(db.String(50), nullable=False)
     code = db.Column(db.String(150), nullable=False)
     description = db.Column(db.Text)
     costo_venta = db.Column(db.Float)
@@ -269,9 +255,7 @@ class DynamicCode(db.Model):
     __table_args__ = (db.UniqueConstraint('type', 'category', 'code', name='uq_dynamic_code'),)
 
 # --- 4. Rutas de la API (Endpoints) ---
-# Se reescriben las rutas para usar SQLAlchemy en lugar de Pandas.
 
-# Helper para convertir un objeto SQLAlchemy a un diccionario
 def model_to_dict(model_instance):
     if model_instance is None:
         return None
@@ -289,7 +273,6 @@ def serve_static(filename):
 def health_check():
     return jsonify({'status': 'ok'}), 200
 
-# --- Login ---
 @app.route('/login', methods=['POST'])
 def handle_login():
     username = request.form.get('username', '').strip()
@@ -310,27 +293,27 @@ def handle_login():
     else:
         return jsonify({'success': False, 'message': 'Usuario o contraseña incorrectos.'}), 401
 
-# --- CRUD Genérico ---
+# --- ** INICIO DE LA CORRECCIÓN ** ---
+# Se añade el parámetro 'endpoint' en cada @app.route para darles un nombre único.
 def create_crud_routes(model, model_name):
-    @app.route(f'/{model_name}', methods=['GET'])
+    @app.route(f'/{model_name}', methods=['GET'], endpoint=f'get_all_{model_name}')
     def get_all():
         items = model.query.all()
         return jsonify([model_to_dict(item) for item in items])
 
-    @app.route(f'/{model_name}/<int:item_id>', methods=['GET'])
+    @app.route(f'/{model_name}/<int:item_id>', methods=['GET'], endpoint=f'get_one_{model_name}')
     def get_one(item_id):
         item = db.session.get(model, item_id)
         if not item:
             return jsonify({'success': False, 'message': 'Registro no encontrado.'}), 404
         return jsonify(model_to_dict(item))
     
-    @app.route(f'/{model_name}', methods=['POST'])
+    @app.route(f'/{model_name}', methods=['POST'], endpoint=f'create_{model_name}')
     def create():
         data = request.get_json()
         if not data:
             return jsonify({'success': False, 'message': 'No se recibieron datos.'}), 400
         
-        # Elimina 'id' si viene en el payload para evitar conflictos
         data.pop('id', None)
 
         try:
@@ -341,13 +324,12 @@ def create_crud_routes(model, model_name):
         except (IntegrityError, SQLAlchemyError) as e:
             db.session.rollback()
             logger.error(f"Error al crear en {model_name}: {e}")
-            # Extraer un mensaje de error más amigable si es posible
             error_info = str(e.orig) if hasattr(e, 'orig') else str(e)
             if 'unique constraint' in error_info.lower():
                  return jsonify({'success': False, 'message': 'Error: El valor ya existe y debe ser único.'}), 409
             return jsonify({'success': False, 'message': 'Error en la base de datos al crear.'}), 500
 
-    @app.route(f'/{model_name}/<int:item_id>', methods=['PUT'])
+    @app.route(f'/{model_name}/<int:item_id>', methods=['PUT'], endpoint=f'update_{model_name}')
     def update(item_id):
         item = db.session.get(model, item_id)
         if not item:
@@ -368,7 +350,7 @@ def create_crud_routes(model, model_name):
             logger.error(f"Error al actualizar en {model_name}: {e}")
             return jsonify({'success': False, 'message': 'Error en la base de datos al actualizar.'}), 500
             
-    @app.route(f'/{model_name}', methods=['DELETE'])
+    @app.route(f'/{model_name}', methods=['DELETE'], endpoint=f'delete_many_{model_name}')
     def delete_many():
         data = request.get_json()
         ids_to_delete = data.get('ids', [])
@@ -386,24 +368,21 @@ def create_crud_routes(model, model_name):
             db.session.rollback()
             logger.error(f"Error al eliminar en {model_name}: {e}")
             return jsonify({'success': False, 'message': 'Error en la base de datos al eliminar.'}), 500
+# --- ** FIN DE LA CORRECCIÓN ** ---
 
-# --- Crear las rutas CRUD para cada modelo ---
-# La ruta será el nombre de la tabla (ej. /usuarios, /empleados)
+
 create_crud_routes(Usuario, Usuario.__tablename__)
 create_crud_routes(Empleado, Empleado.__tablename__)
 create_crud_routes(Cliente, Cliente.__tablename__)
 create_crud_routes(Proveedor, Proveedor.__tablename__)
 create_crud_routes(Banco, Banco.__tablename__)
-create_crud_routes(LlegadaMaterial, 'materials') # Ruta personalizada
-create_crud_routes(LlegadaTela, 'fabrics') # Ruta personalizada
-create_crud_routes(ProgramacionCorte, 'cuts') # Ruta personalizada
-create_crud_routes(AsignacionSatelite, 'assignments') # Ruta personalizada
-create_crud_routes(EntregaSatelite, 'deliveries') # Ruta personalizada
-create_crud_routes(PagoSatelite, 'payments') # Ruta personalizada
-create_crud_routes(Venta, 'sales') # Ruta personalizada
-# Nota: Productos y otros con lógica más compleja tendrán rutas personalizadas.
-
-# --- Rutas con lógica específica ---
+create_crud_routes(LlegadaMaterial, 'materials')
+create_crud_routes(LlegadaTela, 'fabrics')
+create_crud_routes(ProgramacionCorte, 'cuts')
+create_crud_routes(AsignacionSatelite, 'assignments')
+create_crud_routes(EntregaSatelite, 'deliveries')
+create_crud_routes(PagoSatelite, 'payments')
+create_crud_routes(Venta, 'sales')
 
 @app.route('/dynamic-codes/<type>/<category>', methods=['GET', 'POST'])
 def handle_dynamic_data(type, category):
@@ -426,13 +405,10 @@ def handle_dynamic_data(type, category):
         db.session.commit()
         return jsonify({'success': True, 'message': 'Registro agregado.'}), 201
 
-# --- KPIs y Gráficos ---
-
 @app.route('/api/kpis', methods=['GET'])
 def get_kpis():
     try:
         kpis = {}
-        # Usamos `func.coalesce` para manejar valores nulos y evitar errores.
         kpis['deuda_clientes'] = db.session.query(func.sum(func.coalesce(Cliente.valor, 0) - func.coalesce(Cliente.abono, 0))).scalar() or 0.0
         kpis['deuda_proveedores'] = db.session.query(func.sum(func.coalesce(Proveedor.valor, 0) - func.coalesce(Proveedor.abono, 0))).scalar() or 0.0
         kpis['total_ventas'] = db.session.query(func.sum(Venta.total_sale)).scalar() or 0.0
@@ -453,7 +429,6 @@ def get_kpis():
 @app.route('/api/charts/sales-trend', methods=['GET'])
 def get_chart_sales_trend():
     try:
-        # Agrupar ventas por mes
         sales_by_month = db.session.query(
             func.to_char(Venta.sale_date, 'YYYY-MM').label('month'),
             func.sum(Venta.total_sale).label('total')
@@ -469,16 +444,12 @@ def get_chart_sales_trend():
         
 # --- 5. Punto de Entrada de la Aplicación ---
 if __name__ == '__main__':
-    # El comando `db.create_all()` crea las tablas en la base de datos
-    # basándose en los modelos que definiste.
-    # Es seguro ejecutarlo múltiples veces; no recreará tablas que ya existen.
     with app.app_context():
         logger.info("Verificando y creando tablas de la base de datos si es necesario...")
         db.create_all()
         logger.info("Tablas listas.")
 
-    # Inicia el servidor Flask.
-    # En producción (como en OnRender), un servidor WSGI como Gunicorn
-    # se encargará de esto. `app.run` es para desarrollo local.
     port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    # 'debug=False' es importante para producción
+    app.run(host='0.0.0.0', port=port, debug=False)
+
