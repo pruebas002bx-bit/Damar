@@ -437,7 +437,7 @@ def handle_products():
                 material.quantity_value -= float(item_mat['quantity_used'])
             
             for item_fab in fabrics_used:
-                tela = LlegadaTela.query.get(fab_item['id'])
+                tela = LlegadaTela.query.get(item_fab['id'])
                 if not tela or tela.cantidad_value < float(item_fab['quantity_used']):
                     return jsonify({'success': False, 'message': f"Stock insuficiente para tela ID {item_fab['id']}"}), 400
                 tela.cantidad_value -= float(item_fab['quantity_used'])
