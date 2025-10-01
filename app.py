@@ -412,7 +412,6 @@ def get_fabrics_history():
     return jsonify([model_to_dict(item) for item in items])
 
 
-
 @app.route('/products', methods=['GET', 'POST'])
 def handle_products():
     if request.method == 'GET':
@@ -421,12 +420,9 @@ def handle_products():
     if request.method == 'POST':
         data = request.get_json()
         try:
-            # --- INICIO DE LA CORRECCIÓN ---
-            # Eliminar el ID del diccionario si es que viene, 
-            # para que la base de datos lo genere automáticamente.
+            # CORRECCIÓN: Eliminar el ID para que la BD lo genere
             if 'id' in data:
                 del data['id']
-            # --- FIN DE LA CORRECCIÓN ---
 
             materials_used = data.get('materials_used', [])
             if isinstance(materials_used, str): materials_used = json.loads(materials_used)
@@ -441,7 +437,7 @@ def handle_products():
                 material.quantity_value -= float(item_mat['quantity_used'])
             
             for item_fab in fabrics_used:
-                tela = LlegadaTela.query.get(item_fab['id'])
+                tela = LlegadaTela.query.get(fab_item['id'])
                 if not tela or tela.cantidad_value < float(item_fab['quantity_used']):
                     return jsonify({'success': False, 'message': f"Stock insuficiente para tela ID {item_fab['id']}"}), 400
                 tela.cantidad_value -= float(item_fab['quantity_used'])
@@ -460,15 +456,19 @@ def handle_products():
             return jsonify({'success': False, 'message': 'Error interno al registrar producto.'}), 500
 
 
+
+
 @app.route('/products/last', methods=['GET'])
 def get_last_product():
     try:
         last_product = db.session.query(ProductoTerminado).order_by(desc(ProductoTerminado.id)).first()
-        return jsonify(model_to_dict(last_product) if last_product else {'serial': '7300'})
+        if last_product:
+            return jsonify(model_to_dict(last_product))
+        else:
+            return jsonify({'serial': '7300'})
     except Exception as e:
         logger.error(f"Error en /products/last: {e}")
         return jsonify({"message": "Error interno"}), 500
-
 
 @app.route('/products/bulk', methods=['DELETE'])
 def delete_products_bulk():
@@ -492,7 +492,7 @@ def delete_products_bulk():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': 'Error al eliminar productos.'}), 500
-
+        
 
 @app.route('/products/<string:product_id>', methods=['PUT', 'DELETE'])
 def handle_product(product_id):
