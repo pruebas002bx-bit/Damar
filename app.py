@@ -423,20 +423,20 @@ def handle_products():
         data = request.get_json()
         try:
             # --- SOLUCIÓN CRÍTICA DE CONCURRENCIA PARA UniqueViolation ---
-            # 1. Obtenemos el MAX ID en una sesión separada que no sea la de la inserción, 
-            # ya que la sesión principal de la inserción es la que podría estar bloqueando.
-            # Sin embargo, como estamos en Flask, la mejor práctica es buscar el ID justo 
-            # antes de usarlo e incrementar lo suficiente para evitar colisiones cortas.
-
-            # Buscamos el ID máximo dentro de la transacción actual
-            max_id = db.session.query(func.max(ProductoTerminado.id)).scalar()
+            # 1. Obtener el ID máximo actual.
+            # Usamos subquery y forzamos el bloqueo temporal (SELECT FOR UPDATE)
+            # para que las peticiones concurrentes esperen su turno para obtener
+            # el MAX(id) y minimizar las colisiones.
+            max_id_query = db.session.query(func.max(ProductoTerminado.id)).with_for_update()
+            max_id = max_id_query.scalar()
             
-            # Aseguramos que new_id sea un entero.
-            # Aumentaremos el ID en 100 para dar un salto temporal y reducir la concurrencia
-            # si se está subiendo un archivo Excel con muchas filas rápidamente.
-            new_id = int(max_id or 0) + 1
+            # 2. Asignar nuevo ID con un gran salto para mitigar el UniqueViolation en concurrencia.
+            # Usamos un salto de 100 para dar espacio a otras posibles peticiones concurrentes
+            # que hayan leído el MAX(id) un momento antes, asumiendo que no habrá 100 inserciones
+            # simultáneas leyendo el mismo MAX(id).
+            new_id = int(max_id or 0) + 100 
             
-            # 2. Forzar la asignación del nuevo ID.
+            # 3. Forzar la asignación del nuevo ID.
             data['id'] = new_id
 
             # Limpiamos 'lote' si viene nulo, ya que los logs indican que la base de datos lo espera.
@@ -493,7 +493,6 @@ def handle_products():
             return jsonify({'success': True, 'message': 'Producto registrado y stock actualizado.'}), 201
 
         except Exception as e:
-            # En PostgreSQL, UniqueViolation (23505) indica que el ID duplicado es la causa.
             db.session.rollback()
             # Mantenemos la captura de errores general para otros posibles fallos.
             logger.error(f"Error registrando producto: {e}")
