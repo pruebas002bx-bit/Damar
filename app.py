@@ -46,7 +46,7 @@ def model_to_dict(model_instance):
     for column in model_instance.__table__.columns:
         value = getattr(model_instance, column.name)
         # --- CORRECCIÓN ---
-        # Usar datetime.datetime y datetime.date en lugar del módulo datetime
+        # Usar datetime y date directamente, que ya fueron importadas.
         if isinstance(value, (datetime, date)):
             d[column.name] = value.isoformat()
         else:
@@ -74,6 +74,7 @@ def health_check():
 @app.route('/login', methods=['POST'])
 def handle_login():
     try:
+        # CORRECCIÓN: Usar request.form para datos de formulario, no request.get_json()
         username_form = request.form.get('username', '').strip()
         password_form = request.form.get('password', '').strip()
 
@@ -121,25 +122,20 @@ def handle_usuarios():
 @app.route('/usuarios/<string:username>', methods=['PUT', 'DELETE'])
 @app.route('/users/<string:username>', methods=['PUT', 'DELETE'])
 def handle_usuario(username):
+    user = Usuario.query.filter_by(usuario=username).first()
+    if not user:
+        return jsonify({'success': False, 'message': 'Usuario no encontrado.'}), 404
+
     if request.method == 'PUT':
         data = request.get_json()
-        user = Usuario.query.filter_by(usuario=username).first()
-        if not user:
-            return jsonify({'success': False, 'message': 'Usuario no encontrado.'}), 404
-        
         if 'contraseña' in data and data['contraseña']:
             user.contraseña = data['contraseña']
         if 'rol' in data and data['rol']:
             user.rol = data['rol']
-        
         db.session.commit()
         return jsonify({'success': True, 'message': 'Usuario actualizado.'})
 
     if request.method == 'DELETE':
-        user = Usuario.query.filter_by(usuario=username).first()
-        if not user:
-            return jsonify({'success': False, 'message': 'Usuario no encontrado.'}), 404
-        
         db.session.delete(user)
         db.session.commit()
         return jsonify({'success': True, 'message': 'Usuario eliminado.'})
@@ -160,10 +156,10 @@ def handle_empleados():
         if Empleado.query.filter_by(cedula=data['cedula']).first():
             return jsonify({'success': False, 'message': f'El empleado con cédula {data["cedula"]} ya existe.'}), 409
         
-        if 'codigo_empleado' in data and not data['codigo_empleado']:
-            del data['codigo_empleado']
-
-        new_item = Empleado(**data)
+        # Omitir claves vacías para que la DB use sus defaults si los tiene
+        data_to_save = {k: v for k, v in data.items() if v is not None and v != ''}
+        
+        new_item = Empleado(**data_to_save)
         db.session.add(new_item)
         db.session.commit()
         return jsonify({'success': True, 'message': 'Empleado agregado.'}), 201
@@ -211,18 +207,26 @@ def handle_clientes():
         db.session.commit()
         return jsonify({'success': True, 'message': 'Cliente agregado.'}), 201
 
-@app.route('/clientes/<int:cliente_id>', methods=['PUT'])
+@app.route('/clientes/<int:cliente_id>', methods=['PUT', 'DELETE'])
 def handle_cliente(cliente_id):
     item = Cliente.query.get(cliente_id)
     if not item: return jsonify({'success': False, 'message': 'Cliente no encontrado.'}), 404
-    data = request.get_json()
-    for key, value in data.items():
-        if hasattr(item, key) and key != 'id': setattr(item, key, value)
-    db.session.commit()
-    return jsonify({'success': True, 'message': 'Cliente actualizado.'})
+    
+    if request.method == 'PUT':
+        data = request.get_json()
+        for key, value in data.items():
+            if hasattr(item, key) and key != 'id': setattr(item, key, value)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Cliente actualizado.'})
+    
+    if request.method == 'DELETE':
+        db.session.delete(item)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Cliente eliminado.'})
 
-@app.route('/clientes', methods=['DELETE'])
-def delete_clientes():
+
+@app.route('/clientes/bulk', methods=['DELETE'])
+def delete_clientes_bulk():
     data = request.get_json()
     ids_to_delete = data.get('ids', [])
     if not ids_to_delete: return jsonify({'success': False, 'message': 'No se proporcionaron IDs.'}), 400
@@ -244,18 +248,26 @@ def handle_proveedores():
         db.session.commit()
         return jsonify({'success': True, 'message': 'Proveedor agregado.'}), 201
 
-@app.route('/proveedores/<int:proveedor_id>', methods=['PUT'])
+@app.route('/proveedores/<int:proveedor_id>', methods=['PUT', 'DELETE'])
 def handle_proveedor(proveedor_id):
     item = Proveedor.query.get(proveedor_id)
     if not item: return jsonify({'success': False, 'message': 'Proveedor no encontrado.'}), 404
-    data = request.get_json()
-    for key, value in data.items():
-        if hasattr(item, key) and key != 'id': setattr(item, key, value)
-    db.session.commit()
-    return jsonify({'success': True, 'message': 'Proveedor actualizado.'})
+    
+    if request.method == 'PUT':
+        data = request.get_json()
+        for key, value in data.items():
+            if hasattr(item, key) and key != 'id': setattr(item, key, value)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Proveedor actualizado.'})
+    
+    if request.method == 'DELETE':
+        db.session.delete(item)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Proveedor eliminado.'})
 
-@app.route('/proveedores', methods=['DELETE'])
-def delete_proveedores():
+
+@app.route('/proveedores/bulk', methods=['DELETE'])
+def delete_proveedores_bulk():
     data = request.get_json()
     ids_to_delete = data.get('ids', [])
     if not ids_to_delete: return jsonify({'success': False, 'message': 'No se proporcionaron IDs.'}), 400
@@ -291,18 +303,25 @@ def handle_bancos():
         db.session.commit()
         return jsonify({'success': True, 'message': 'Movimiento bancario agregado.'}), 201
 
-@app.route('/bancos/<int:banco_id>', methods=['PUT'])
+@app.route('/bancos/<int:banco_id>', methods=['PUT', 'DELETE'])
 def handle_banco(banco_id):
     item = Banco.query.get(banco_id)
     if not item: return jsonify({'success': False, 'message': 'Movimiento no encontrado.'}), 404
-    data = request.get_json()
-    for key, value in data.items():
-        if hasattr(item, key) and key != 'id': setattr(item, key, value)
-    db.session.commit()
-    return jsonify({'success': True, 'message': 'Movimiento actualizado.'})
+    
+    if request.method == 'PUT':
+        data = request.get_json()
+        for key, value in data.items():
+            if hasattr(item, key) and key != 'id': setattr(item, key, value)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Movimiento actualizado.'})
 
-@app.route('/bancos', methods=['DELETE'])
-def delete_bancos():
+    if request.method == 'DELETE':
+        db.session.delete(item)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Movimiento eliminado.'})
+
+@app.route('/bancos/bulk', methods=['DELETE'])
+def delete_bancos_bulk():
     data = request.get_json()
     ids_to_delete = data.get('ids', [])
     if not ids_to_delete: return jsonify({'success': False, 'message': 'No se proporcionaron IDs.'}), 400
@@ -324,18 +343,26 @@ def handle_materials():
         db.session.commit()
         return jsonify({'success': True, 'message': 'Material registrado.'}), 201
 
-@app.route('/materials/<int:material_id>', methods=['PUT'])
+@app.route('/materials/<int:material_id>', methods=['PUT', 'DELETE'])
 def handle_material(material_id):
     item = LlegadaMaterial.query.get(material_id)
     if not item: return jsonify({'success': False, 'message': 'Material no encontrado.'}), 404
-    data = request.get_json()
-    for key, value in data.items():
-        if hasattr(item, key) and key != 'id': setattr(item, key, value)
-    db.session.commit()
-    return jsonify({'success': True, 'message': 'Material actualizado.'})
+    
+    if request.method == 'PUT':
+        data = request.get_json()
+        for key, value in data.items():
+            if hasattr(item, key) and key != 'id': setattr(item, key, value)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Material actualizado.'})
 
-@app.route('/materials', methods=['DELETE'])
-def delete_materials():
+    if request.method == 'DELETE':
+        db.session.delete(item)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Material eliminado.'})
+
+
+@app.route('/materials/bulk', methods=['DELETE'])
+def delete_materials_bulk():
     data = request.get_json()
     ids_to_delete = data.get('ids', [])
     if not ids_to_delete: return jsonify({'success': False, 'message': 'No se proporcionaron IDs.'}), 400
@@ -356,18 +383,26 @@ def handle_fabrics():
         db.session.commit()
         return jsonify({'success': True, 'message': 'Tela registrada.'}), 201
 
-@app.route('/fabrics/<int:fabric_id>', methods=['PUT'])
+@app.route('/fabrics/<int:fabric_id>', methods=['PUT', 'DELETE'])
 def handle_fabric(fabric_id):
     item = LlegadaTela.query.get(fabric_id)
     if not item: return jsonify({'success': False, 'message': 'Tela no encontrada.'}), 404
-    data = request.get_json()
-    for key, value in data.items():
-        if hasattr(item, key) and key != 'id': setattr(item, key, value)
-    db.session.commit()
-    return jsonify({'success': True, 'message': 'Tela actualizada.'})
+    
+    if request.method == 'PUT':
+        data = request.get_json()
+        for key, value in data.items():
+            if hasattr(item, key) and key != 'id': setattr(item, key, value)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Tela actualizada.'})
 
-@app.route('/fabrics', methods=['DELETE'])
-def delete_fabrics():
+    if request.method == 'DELETE':
+        db.session.delete(item)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Tela eliminada.'})
+
+
+@app.route('/fabrics/bulk', methods=['DELETE'])
+def delete_fabrics_bulk():
     data = request.get_json()
     ids_to_delete = data.get('ids', [])
     if not ids_to_delete: return jsonify({'success': False, 'message': 'No se proporcionaron IDs.'}), 400
@@ -398,15 +433,19 @@ def handle_products():
 
             for item_mat in materials_used:
                 material = LlegadaMaterial.query.get(item_mat['id'])
-                if material.quantity_value < float(item_mat['quantity_used']):
+                if not material or material.quantity_value < float(item_mat['quantity_used']):
                     return jsonify({'success': False, 'message': f"Stock insuficiente para material ID {item_mat['id']}"}), 400
                 material.quantity_value -= float(item_mat['quantity_used'])
             
             for item_fab in fabrics_used:
                 tela = LlegadaTela.query.get(item_fab['id'])
-                if tela.cantidad_value < float(item_fab['quantity_used']):
+                if not tela or tela.cantidad_value < float(item_fab['quantity_used']):
                     return jsonify({'success': False, 'message': f"Stock insuficiente para tela ID {item_fab['id']}"}), 400
                 tela.cantidad_value -= float(item_fab['quantity_used'])
+            
+            # Convertir listas a JSON strings para guardar en la DB
+            data['materials_used'] = json.dumps(materials_used)
+            data['fabrics_used'] = json.dumps(fabrics_used)
 
             new_item = ProductoTerminado(**data)
             db.session.add(new_item)
@@ -432,11 +471,8 @@ def handle_product(product_id):
 
     if request.method == 'DELETE':
         try:
-            materials_to_return = item.materials_used or []
-            if isinstance(materials_to_return, str): materials_to_return = json.loads(materials_to_return)
-            
-            fabrics_to_return = item.fabrics_used or []
-            if isinstance(fabrics_to_return, str): fabrics_to_return = json.loads(fabrics_to_return)
+            materials_to_return = json.loads(item.materials_used) if isinstance(item.materials_used, str) else item.materials_used or []
+            fabrics_to_return = json.loads(item.fabrics_used) if isinstance(item.fabrics_used, str) else item.fabrics_used or []
 
             for mat_item in materials_to_return:
                 material = LlegadaMaterial.query.get(mat_item['id'])
@@ -485,6 +521,7 @@ def handle_sales():
                     return jsonify({'success': False, 'message': f"Stock insuficiente para producto ID {p_sold['id']}"}), 400
                 producto.cantidad -= float(p_sold['quantity'])
             
+            data['products_sold'] = json.dumps(products_sold)
             new_item = Venta(**data)
             db.session.add(new_item)
             db.session.commit()
@@ -553,15 +590,24 @@ def get_inventory_summary():
 @app.route('/inventory/history', methods=['GET'])
 def get_inventory_history():
     # Esta ruta puede ser más compleja, por ahora devuelve todos los ingresos
-    items = LlegadaMaterial.query.with_entities(
+    subquery = db.session.query(
         LlegadaMaterial.entry_date.label('date'),
         LlegadaMaterial.material_name,
         LlegadaMaterial.quantity_value,
         LlegadaMaterial.quantity_type,
         LlegadaMaterial.supplier
-    ).all()
-    results = [dict(row) for row in items]
-    for r in results: r['type'] = 'Ingreso'
+    ).subquery()
+
+    items = db.session.query(subquery).all()
+    
+    # Convertir _Row a diccionarios
+    results = [dict(row._mapping) for row in items]
+    
+    for r in results:
+        r['type'] = 'Ingreso'
+        if isinstance(r['date'], (datetime, date)):
+            r['date'] = r['date'].isoformat()
+            
     return jsonify(results)
 
 @app.route('/inventory/fabrics', methods=['GET'])
