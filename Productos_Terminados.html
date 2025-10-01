@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Productos Terminados - DAMAR</title>
     
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)">
+    <link rel="preconnect" href="[https://fonts.gstatic.com](https://fonts.gstatic.com)" crossorigin>
+    <link href="[https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap](https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap)" rel="stylesheet">
+    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css)">
+    <script src="[https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js](https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js)"></script>
     
     <style>
         :root {
@@ -42,6 +43,7 @@
         .btn-primary { background: var(--gradient-primary); color: white; }
         .btn-danger { background-color: var(--danger); color: white; }
         .btn-secondary { background-color: var(--secondary-light); color: var(--text-dark); border: 1px solid var(--border-color); }
+        .btn-info { background-color: var(--accent); color: white; }
         .table-container { overflow-x: auto; }
         .data-table { width: 100%; border-collapse: collapse; text-align: left; }
         .data-table th, .data-table td { padding: 12px 10px; border-bottom: 1px solid var(--border-color); white-space: nowrap; vertical-align: middle; }
@@ -76,6 +78,7 @@
         .toast { display: flex; align-items: center; padding: 15px 20px; border-radius: var(--border-radius-md); color: white; font-weight: 500; margin-bottom: 10px; box-shadow: var(--shadow); transform: translateX(120%); animation: slideIn 0.5s forwards; }
         @keyframes slideIn { to { transform: translateX(0); } }
         .form-input.observacion-input { min-height: 60px; resize: vertical; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
@@ -138,7 +141,7 @@
                         <h3>Telas a Deducir</h3>
                         <input type="text" id="fabricSearch" class="form-input" placeholder="Buscar tela..." style="margin-bottom: 0.5rem;">
                         <div class="deduction-table-wrapper"><div class="deduction-table"><table class="data-table">
-                            <thead><tr><th>Serial</th><th>Rollos</th><th>Disponible</th><th>Factor Desc.</th><th>Terminado</th><th>Restantes</th></tr></thead>
+                            <thead><tr><th>Serial</th><th>Disponible</th><th>Factor Desc.</th><th>Terminado</th><th>Restantes</th></tr></thead>
                             <tbody id="fabricDeductionBody"></tbody>
                         </table></div></div>
                     </div>
@@ -157,6 +160,8 @@
                 <tbody id="productsTableBody"></tbody>
              </table></div>
              <div class="buttons-container" style="border:none; padding-top:1rem; justify-content: flex-start;">
+                <input type="file" id="excelUploadInput" class="hidden" accept=".xlsx, .xls">
+                <button id="uploadExcelBtn" class="btn btn-info"><i class="fa-solid fa-file-arrow-up"></i> Cargar Excel</button>
                 <button id="deleteBtn" class="btn btn-danger"><i class="fa-solid fa-trash"></i> Eliminar Seleccionados</button>
             </div>
         </section>
@@ -165,9 +170,9 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const API_URL = 'https://damar-app.onrender.com';
+    const API_URL = '[https://damar-app.onrender.com](https://damar-app.onrender.com)';
     
-    let materials_master = [], fabrics_master = [], products_master = [], references_master = [], barcodes_master = [];
+    let materials_master = [], fabrics_master = [], products_master = [], references_master = [];
     let materialDeductionValues = new Map(), fabricDeductionValues = new Map();
     let selectedProductId = null, idsPendingDeletion = [];
 
@@ -189,6 +194,8 @@ document.addEventListener('DOMContentLoaded', () => {
         editPasswordInput: document.getElementById('editPasswordInput'),
         editPasswordSubmitBtn: document.getElementById('editPasswordSubmitBtn'),
         editPasswordCancelBtn: document.getElementById('editPasswordCancelBtn'),
+        uploadExcelBtn: document.getElementById('uploadExcelBtn'),
+        excelUploadInput: document.getElementById('excelUploadInput'),
     };
 
     const showToast = (message, type = 'success') => {
@@ -210,31 +217,20 @@ document.addEventListener('DOMContentLoaded', () => {
     async function apiRequest(endpoint, method = 'GET', data = null) {
         [dom.addBtn, dom.editBtn, dom.deleteBtn].forEach(b => b.disabled = true);
         try {
-            const options = { method, headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, mode: 'cors' };
+            const options = { method, headers: { 'Content-Type': 'application/json' }, mode: 'cors' };
             if (data) options.body = JSON.stringify(data);
             const response = await fetch(`${API_URL}${endpoint}`, options);
             if (!response.ok) { 
-                const err = await response.json(); 
-                throw new Error(err.message || `Error: ${response.status}`); 
+                const err = await response.json().catch(() => ({ message: `Error del servidor: ${response.status}` })); 
+                throw new Error(err.message); 
             }
+            if (response.status === 204) return null;
             return response.json();
         } catch (error) {
             showToast(error.message, 'error');
             throw error;
         } finally {
             [dom.addBtn, dom.editBtn, dom.deleteBtn].forEach(b => b.disabled = false);
-        }
-    }
-
-    async function updateFabricStatus(fabricId, isTerminado, restantes) {
-        try {
-            await apiRequest('/fabrics/update-status', 'POST', {
-                id: fabricId,
-                is_terminado: isTerminado,
-                restantes: restantes
-            });
-        } catch (error) {
-            console.error('Error actualizando estado de tela:', error);
         }
     }
 
@@ -255,27 +251,6 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.cantidad.value = (totalFactor * trazos).toFixed(0);
     }
 
-    function updateCalculations() {
-        const medidaTrazo = parseFloat(dom.trazo.value) || 0;
-        dom.fabricBody.querySelectorAll('tr').forEach(tr => {
-            const factorInput = tr.querySelector('.fabric-factor-input');
-            const factor = parseFloat(factorInput.value) || 0;
-            let display = tr.querySelector('.calculation-display');
-            if (factor > 0 && medidaTrazo > 0) {
-                if (!display) {
-                    display = document.createElement('span');
-                    display.className = 'calculation-display';
-                    display.style.cssText = 'margin-left:5px; font-size:0.8rem; color:#666;';
-                    factorInput.parentNode.appendChild(display);
-                }
-                display.textContent = `= ${(medidaTrazo * factor).toFixed(2)}m`;
-            } else if (display) {
-                display.remove();
-            }
-        });
-        calculateQuantity();
-    }
-
     function renderDeductionTables(materialFilter = '', fabricFilter = '') {
         dom.materialBody.innerHTML = materials_master
             .filter(item => (item.material_name || '').toLowerCase().includes(materialFilter.toLowerCase()))
@@ -289,18 +264,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isTerminado = item.is_terminado === 'true' || val.terminado || false;
                 const restantesValue = item.restantes || val.restantes || '';
                 
-                return `<tr data-id="${itemId}"><td>${item.serial_rollo}</td><td>${(parseFloat(item.size_value) || 0).toFixed(2)} rollos</td><td>${(parseFloat(item.cantidad_value) || 0).toFixed(2)} m</td>
+                return `<tr data-id="${itemId}"><td>${item.serial_rollo}</td><td>${(parseFloat(item.cantidad_value) || 0).toFixed(2)} m</td>
                     <td><input type="number" class="form-input deduction-input fabric-factor-input" data-field="factor" value="${val.factor || ''}" placeholder="0" min="0" step="0.01"></td>
                     <td><input type="checkbox" class="deduction-input fabric-terminado-check" data-field="terminado" style="cursor:pointer;transform:scale(1.2);" ${isTerminado ? 'checked' : ''}></td>
                     <td><input type="text" class="form-input deduction-input fabric-restantes-input" data-field="restantes" value="${restantesValue}" style="display:${isTerminado ? 'inline-block':'none'};"></td></tr>`;
             }).join('');
-        updateCalculations();
     }
 
     function renderProductsTable() {
         const filter = dom.productSearch.value.toLowerCase();
         dom.productsTableBody.innerHTML = products_master
-            .filter(p => [p.fecha, p.lote, p.referencia, p.serial].some(f => (f || '').toLowerCase().includes(filter)))
+            .filter(p => [p.fecha, p.lote, p.referencia, p.serial].some(f => (String(f) || '').toLowerCase().includes(filter)))
             .map(prod => `<tr data-id="${prod.id}" class="${String(prod.id)===String(selectedProductId)?'selected':''}"><td><input type="checkbox" onclick="event.stopPropagation();" data-id="${prod.id}"></td><td>${prod.fecha||prod.lote||''}</td><td>${prod.referencia}</td><td>${prod.serial||''}</td><td>${prod.cantidad||0}</td><td>${prod.trazos||0}</td><td>${(parseFloat(prod.medida_trazo||0)).toFixed(2)}</td><td title="${prod.observacion||''}">${(prod.observacion||'').substring(0,30)}</td></tr>`).join('');
         dom.productsTableBody.querySelectorAll('tr').forEach(tr => tr.addEventListener('click', () => selectProduct(tr.dataset.id)));
     }
@@ -324,43 +298,14 @@ document.addEventListener('DOMContentLoaded', () => {
         materialDeductionValues.clear();
 
         try {
-            const fabricsUsed = JSON.parse(String(product.fabrics_used || '[]'));
-            fabricsUsed.forEach(u => {
-                const existingVal = fabricDeductionValues.get(String(u.id)) || {};
-                existingVal.factor = u.valor_descontar || 0;
-                fabricDeductionValues.set(String(u.id), existingVal);
-            });
+            const fabricsUsed = Array.isArray(product.fabrics_used) ? product.fabrics_used : JSON.parse(String(product.fabrics_used || '[]'));
+            fabricsUsed.forEach(u => fabricDeductionValues.set(String(u.id), { factor: u.valor_descontar || 0 }));
 
-            const materialsUsed = JSON.parse(String(product.materials_used || '[]'));
-            materialsUsed.forEach(u => {
-                materialDeductionValues.set(String(u.id), u.quantity_used || 0);
-            });
+            const materialsUsed = Array.isArray(product.materials_used) ? product.materials_used : JSON.parse(String(product.materials_used || '[]'));
+            materialsUsed.forEach(u => materialDeductionValues.set(String(u.id), u.quantity_used || 0));
 
-            const terminadas_ids = (product.telas_terminadas || '').split(',').filter(i => i);
-            let restantes_map = {};
-            try {
-                restantes_map = typeof product.telas_restantes === 'string' 
-                    ? JSON.parse(product.telas_restantes || '{}') 
-                    : (product.telas_restantes || {});
-            } catch(e) {
-                restantes_map = {};
-            }
-
-            terminadas_ids.forEach(tela_id => {
-                const existingVal = fabricDeductionValues.get(String(tela_id)) || {};
-                existingVal.terminado = true;
-                fabricDeductionValues.set(String(tela_id), existingVal);
-            });
-
-            for (const tela_id in restantes_map) {
-                const existingVal = fabricDeductionValues.get(String(tela_id)) || {};
-                existingVal.restantes = restantes_map[tela_id];
-                fabricDeductionValues.set(String(tela_id), existingVal);
-            }
-            
         } catch(e) { 
             console.error("Error al procesar datos del producto:", e);
-            showToast("Error al cargar detalles del producto.", "error");
         }
         renderDeductionTables();
         renderProductsTable();
@@ -384,17 +329,25 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function collectFormData() {
         const data = {
-            fecha: dom.fecha.value.trim(), referencia: dom.referencia.value.trim(),
-            codigo_barras: dom.barras.value.trim(), tipo_tela: dom.tipoTela.value.trim(),
-            serial: dom.serial.value.trim(), observacion: dom.observacion.value.trim(),
-            medida_trazo: dom.trazo.value.trim(), trazos: parseInt(dom.trazos.value) || 0,
-            cantidad: parseInt(dom.cantidad.value) || 0, 
-            materials_used: [], fabrics_used: [],
-            telas_terminadas: [], telas_restantes: {}
+            id: selectedProductId, // Incluir ID para la edición
+            lote: dom.fecha.value.trim(),
+            fecha: new Date().toISOString().split('T')[0],
+            referencia: dom.referencia.value.trim(),
+            codigo_barras: dom.barras.value.trim(),
+            medida_trazo: parseFloat(dom.trazo.value) || 0,
+            trazos: parseInt(dom.trazos.value) || 0,
+            cantidad: parseInt(dom.cantidad.value) || 0,
+            tipo_tela: dom.tipoTela.value.trim(),
+            satellite: dom.satellite?.value.trim(),
+            serial: dom.serial.value.trim(),
+            observacion: dom.observacion.value.trim(),
+            valor_confeccion: 0, ganancia_percent: 0, valor_total: 0, valor_venta: 0,
+            has_sample: false, sample_code: '',
+            materials_used: [], fabrics_used: []
         };
 
-        if (!data.fecha || !data.referencia || !data.medida_trazo || !data.trazos) {
-            showToast("Complete los campos principales.", 'error'); return null;
+        if (!data.lote || !data.referencia || !data.medida_trazo || !data.trazos) {
+            showToast("Complete los campos principales (Fecha/Lote, Referencia, Medida Trazo, Trazos).", 'error'); return null;
         }
 
         materialDeductionValues.forEach((qty, id) => { 
@@ -405,11 +358,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if ((parseFloat(val.factor) || 0) > 0) {
                 data.fabrics_used.push({
                     id: id, valor_descontar: val.factor || 0,
-                    quantity_used: (parseFloat(val.factor) || 0) * (parseFloat(data.medida_trazo) || 0)
+                    quantity_used: (parseFloat(val.factor) || 0) * (data.medida_trazo || 0)
                 });
             }
-            if (val.terminado) data.telas_terminadas.push(id);
-            if (val.restantes) data.telas_restantes[id] = val.restantes;
         });
 
         return data;
@@ -421,7 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const result = await apiRequest(endpoint, method, data);
             showToast(result.message, 'success');
-            products_master = await apiRequest('/products');
+            await loadData();
             await (method === 'POST' ? clearMainForm() : clearAll());
         } catch (error) {}
     }
@@ -432,11 +383,88 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.deletePasswordModal.classList.add('active');
     }
 
+    const handleExcelUpload = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array', cellDates: true, dateNF:'dd/mm/yyyy' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false });
+
+                if (jsonData.length === 0) return showToast('El archivo Excel está vacío.', 'error');
+                
+                showToast(`Iniciando subida de ${jsonData.length} productos...`, 'info');
+                let successCount = 0, errorCount = 0;
+
+                for (const row of jsonData) {
+                    try {
+                        let fabricsUsed, materialsUsed;
+                        try {
+                            fabricsUsed = JSON.parse(row.fabrics_used || '[]');
+                        } catch { fabricsUsed = []; }
+                        try {
+                            materialsUsed = JSON.parse(row.materials_used || '[]');
+                        } catch { materialsUsed = []; }
+
+                        const payload = {
+                            lote: row.lote,
+                            fecha: row.fecha ? new Date(row.fecha).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                            referencia: row.referencia,
+                            codigo_barras: row.codigo_barras,
+                            medida_trazo: parseFloat(row.medida_trazo) || 0,
+                            trazos: parseInt(row.trazos) || 0,
+                            cantidad: parseInt(row.cantidad) || 0,
+                            tipo_tela: row.tipo_tela,
+                            satellite: row.satellite,
+                            serial: row.serial,
+                            observacion: row.observacion,
+                            valor_confeccion: parseFloat(row.valor_confeccion) || 0,
+                            ganancia_percent: parseFloat(row.ganancia_percent) || 0,
+                            valor_total: parseFloat(row.valor_total) || 0,
+                            valor_venta: parseFloat(row.valor_venta) || 0,
+                            materials_used: materialsUsed,
+                            fabrics_used: fabricsUsed,
+                            has_sample: String(row.has_sample).toLowerCase() === 'true',
+                            sample_code: row.sample_code,
+                        };
+                        
+                        // El ID debe ser único y generado por la base de datos, así que no lo enviamos.
+                        
+                        await apiRequest('/products', 'POST', payload);
+                        successCount++;
+                    } catch (error) {
+                        errorCount++;
+                        console.error(`Error subiendo la fila: ${JSON.stringify(row)}`, error);
+                    }
+                }
+
+                let finalMessage = `${successCount} de ${jsonData.length} productos registrados.`;
+                if (errorCount > 0) finalMessage += ` ${errorCount} fallaron.`;
+                showToast(finalMessage, errorCount > 0 ? 'error' : 'success');
+                
+                await loadData();
+            } catch (error) {
+                showToast('Error crítico al procesar el archivo Excel.', 'error');
+            } finally {
+                dom.excelUploadInput.value = '';
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    };
+
+
     async function loadData() {
         try {
-            [materials_master, fabrics_master, products_master, references_master, barcodes_master] = await Promise.all([
-                apiRequest('/materials'), apiRequest('/fabrics'), apiRequest('/products'),
-                apiRequest('/dynamic-codes/all-references'), apiRequest('/dynamic-codes/all-barcodes')
+            [materials_master, fabrics_master, products_master, references_master] = await Promise.all([
+                apiRequest('/materials'), 
+                apiRequest('/inventory/fabrics'), // Usamos la nueva ruta de inventario
+                apiRequest('/products'),
+                apiRequest('/dynamic-codes/all-references')
             ]);
             dom.referencesDatalist.innerHTML = references_master.map(ref => `<option value="${ref.code}"></option>`).join('');
             setupReferenceAutocomplete();
@@ -468,16 +496,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 valObj[field] = value;
                 fabricDeductionValues.set(id, valObj);
                 
-                if (field === 'terminado' || field === 'restantes') {
-                    const isTerminado = field === 'terminado' ? value : valObj.terminado || false;
-                    const restantes = field === 'restantes' ? value : valObj.restantes || '';
-                    updateFabricStatus(id, isTerminado, restantes);
-                }
-                
                 if (target.matches('.fabric-terminado-check')) {
                     tr.querySelector('.fabric-restantes-input').style.display = target.checked ? 'inline-block' : 'none';
                 }
-                if (target.matches('.fabric-factor-input')) updateCalculations();
             });
             dom.materialBody.addEventListener(evt, (e) => {
                  if (e.target.classList.contains('deduction-input')) {
@@ -510,7 +531,8 @@ document.addEventListener('DOMContentLoaded', () => {
             dom.deletePasswordModal.classList.remove('active');
             dom.passwordInput.value = '';
             try {
-                await apiRequest('/products', 'DELETE', { ids: idsPendingDeletion });
+                // La ruta correcta para borrado en masa es /products/bulk
+                await apiRequest('/products/bulk', 'DELETE', { ids: idsPendingDeletion });
                 showToast('Productos eliminados.', 'success');
                 await loadData();
             } catch (error) {}
@@ -531,11 +553,13 @@ document.addEventListener('DOMContentLoaded', () => {
             submitData(`/products/${selectedProductId}`, 'PUT');
         });
         
-        dom.trazo.addEventListener('input', updateCalculations);
         dom.trazos.addEventListener('input', calculateQuantity);
         dom.productSearch.addEventListener('input', renderProductsTable);
         dom.selectAllCheckbox.addEventListener('change', e => dom.productsTableBody.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = e.target.checked));
         
+        dom.uploadExcelBtn.addEventListener('click', () => dom.excelUploadInput.click());
+        dom.excelUploadInput.addEventListener('change', handleExcelUpload);
+
         loadData();
     }
     
@@ -545,3 +569,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
+}
