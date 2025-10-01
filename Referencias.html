@@ -243,8 +243,17 @@
                 
                 if (response.status === 204) return null;
                 
-                const responseData = await response.json();
-                if (!response.ok) throw new Error(responseData.message || `Error ${response.status}`);
+                const textResponse = await response.text();
+                let responseData;
+                try {
+                    responseData = JSON.parse(textResponse);
+                } catch (e) {
+                    throw new Error(`Respuesta inválida del servidor. Status: ${response.status}`);
+                }
+
+                if (!response.ok) {
+                    throw new Error(responseData.message || `Error del servidor: ${response.status}`);
+                }
                 return responseData;
             } catch (error) {
                 console.error("API Request Error:", error);
@@ -491,42 +500,52 @@
                     const sheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[sheetName];
                     
-                    // Convertir a JSON, asumiendo el orden de columnas y saltando la primera fila
                     const jsonData = XLSX.utils.sheet_to_json(worksheet, {
                         header: ["code", "description", "costo_venta", "costo_confeccion"],
-                        range: 1 // Omitir la primera fila (índice 0)
+                        range: 1
                     });
                     
-                    const validData = jsonData.filter(row => row.code); // Solo procesar filas con una referencia
+                    const validData = jsonData.filter(row => row.code && String(row.code).trim() !== '');
                     if (validData.length === 0) {
-                        return showToast('No se encontraron datos válidos para subir en el archivo.', 'error');
+                        return showToast('No se encontraron datos válidos (con referencia) para subir.', 'error');
                     }
 
-                    showToast(`Subiendo ${validData.length} registros...`, 'success');
+                    showToast(`Iniciando subida de ${validData.length} registros...`, 'success');
                     
                     const category = dom.categorySelect.value;
                     const endpoint = `/dynamic-codes/references/${category}`;
                     
-                    const uploadPromises = validData.map(row => apiRequest(endpoint, 'POST', row).catch(err => ({ error: err, row })));
+                    let successCount = 0;
+                    let errorCount = 0;
+
+                    for (const row of validData) {
+                        try {
+                            const payload = {
+                                code: row.code,
+                                description: row.description || null,
+                                costo_venta: row.costo_venta || null,
+                                costo_confeccion: row.costo_confeccion || null,
+                            };
+                            await apiRequest(endpoint, 'POST', payload);
+                            successCount++;
+                        } catch (error) {
+                            errorCount++;
+                            console.error(`Error subiendo la fila: ${JSON.stringify(row)}`, error);
+                        }
+                    }
                     
-                    const results = await Promise.allSettled(uploadPromises);
-                    
-                    const successCount = results.filter(r => r.status === 'fulfilled').length;
-                    const errorCount = results.length - successCount;
-                    
-                    let finalMessage = `${successCount} de ${results.length} registros subidos correctamente.`;
+                    let finalMessage = `${successCount} de ${validData.length} registros subidos correctamente.`;
                     if (errorCount > 0) {
-                        finalMessage += ` ${errorCount} registros fallaron.`;
+                        finalMessage += ` ${errorCount} registros fallaron. Revise la consola para más detalles.`;
                     }
                     showToast(finalMessage, errorCount > 0 ? 'error' : 'success');
                     
                     await loadInitialData();
 
                 } catch (error) {
-                    showToast('Error al procesar el archivo Excel.', 'error');
+                    showToast('Error crítico al procesar el archivo Excel.', 'error');
                     console.error("Error processing Excel file:", error);
                 } finally {
-                    // Limpiar el input para poder subir el mismo archivo de nuevo
                     dom.excelFileInput.value = '';
                 }
             };
