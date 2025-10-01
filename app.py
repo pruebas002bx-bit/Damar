@@ -3,7 +3,7 @@ import logging
 import json
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from sqlalchemy import func
+from sqlalchemy import func, desc
 import datetime
 
 # --- Importaciones desde models.py ---
