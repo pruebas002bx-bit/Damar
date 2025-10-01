@@ -16,207 +16,506 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: var(--font-family); background-color: var(--secondary-light); color: var(--text-dark); }
-        .container { max-width: 1400px; margin: 2rem auto; padding: 0 1.5rem; }
-        .card { background: white; border-radius: var(--border-radius-lg); padding: 2rem; box-shadow: var(--shadow); margin-bottom: 2rem; }
-        .header { text-align: center; margin-bottom: 2.5rem; }
-        .title { font-size: 2.5rem; font-weight: 700; color: var(--primary-dark); }
-        .subtitle { font-size: 1.1rem; color: var(--text-dark); max-width: 600px; margin: 0.5rem auto 0; }
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; }
+        .container { max-width: 1300px; margin: 2rem auto; padding: 0 1.5rem; }
+        .card { background-color: white; border-radius: var(--border-radius-lg); padding: 2.5rem; margin-bottom: 2rem; box-shadow: var(--shadow); }
+        .content-header { text-align: center; margin-bottom: 2.5rem; }
+        .content-title { font-size: 2.5rem; font-weight: 700; color: var(--primary-dark); }
+        .form-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; align-items: end; }
         .form-group { display: flex; flex-direction: column; }
-        .form-label { font-weight: 600; margin-bottom: 0.6rem; color: var(--primary-dark); font-size: 0.9rem; }
-        .form-input { width: 100%; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: var(--border-radius-md); font-size: 1rem; transition: all 0.3s ease; }
-        .form-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15); }
+        .form-label { font-weight: 600; margin-bottom: 0.6rem; }
+        .form-input, .form-select { width: 100%; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: var(--border-radius-md); font-size: 1rem; }
         .buttons-container { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 2rem; }
         .btn { border: none; border-radius: var(--border-radius-md); padding: 12px 24px; font-size: 0.95rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.75rem; transition: all 0.3s ease; text-transform: uppercase; }
-        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 15px 35px rgba(44, 62, 80, 0.15); }
-        .btn:disabled { background-color: #bdc3c7; cursor: not-allowed; opacity: 0.6; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-primary { background: var(--gradient-primary); color: white; }
         .btn-danger { background-color: var(--danger); color: white; }
-        .btn-secondary { background-color: var(--secondary-light); color: var(--text-dark); border: 1px solid var(--border-color); }
+        .btn-secondary { background-color: #6c757d; color: white; }
+        .btn-warning { background-color: #f39c12; color: white; }
         .table-container { overflow-x: auto; }
         .data-table { width: 100%; border-collapse: collapse; text-align: left; }
-        .data-table th, .data-table td { padding: 14px 18px; vertical-align: middle; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
-        .data-table thead th { background-color: #f8f9fa; color: var(--primary-dark); font-size: 13px; font-weight: 600; text-transform: uppercase; }
-        .data-table tbody tr:hover { background-color: #f5f5f5; cursor: pointer; }
-        .data-table tr.selected { background-color: rgba(52, 152, 219, 0.1) !important; box-shadow: inset 4px 0 0 0 var(--accent); }
-        .feedback-state { text-align: center; padding: 4rem 1rem; font-size: 1.1rem; color: #6c757d; }
-        .feedback-state i { font-size: 2.5rem; display: block; margin-bottom: 1rem; color: var(--accent); }
-        .loading-spinner { width: 50px; height: 50px; border: 4px solid var(--border-color); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .data-table th, .data-table td { padding: 16px 20px; vertical-align: middle; border-bottom: 1px solid var(--border-color); }
+        .data-table thead th { background-color: #f8f9fa; text-transform: uppercase; font-size: 13px; }
+        .hidden { display: none; }
         .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1050; }
         .toast { display: flex; align-items: center; padding: 15px 20px; border-radius: var(--border-radius-md); color: white; font-weight: 500; margin-bottom: 10px; box-shadow: var(--shadow); transform: translateX(120%); animation: slideIn 0.5s forwards; }
         .toast.success { background-color: var(--success); }
         .toast.error { background-color: var(--danger); }
         @keyframes slideIn { to { transform: translateX(0); } }
+        .info-panel {
+            max-width: 900px; margin: 1.5rem auto 0 auto; padding: 1.5rem; background-color: #eaf5fc;
+            border-radius: var(--border-radius-md); border-left: 5px solid var(--accent); text-align: left;
+        }
+        .info-panel p { margin-bottom: 0; line-height: 1.6; font-size: 1rem; color: var(--text-dark); }
+        .tab-nav { display: flex; border-bottom: 2px solid var(--border-color); margin-bottom: 2rem; }
+        .tab-btn { padding: 12px 20px; font-size: 1rem; font-weight: 600; cursor: pointer; border: none; background-color: transparent; color: var(--text-dark); border-bottom: 3px solid transparent; transition: all 0.3s ease; }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; animation: fadeIn 0.4s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5);
+            display: none; z-index: 1000; justify-content: center; align-items: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: white; border-radius: var(--border-radius-lg); padding: 2rem; max-width: 500px;
+            width: 90%; max-height: 90vh; overflow-y: auto;
+        }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);
+        }
+        .modal-title { font-size: 1.5rem; font-weight: 600; color: var(--primary-dark); }
+        .close-btn {
+            background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-dark);
+            padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+        }
+        .modal-body { margin-bottom: 2rem; }
+        .modal-footer { display: flex; gap: 1rem; justify-content: flex-end; }
+        .missing-value {
+            color: var(--danger);
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
     <div id="toastContainer" class="toast-container"></div>
+    
+    <div id="editModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Editar Material</h3>
+                <button class="close-btn" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="editCode">Material</label>
+                    <input type="text" id="editCode" class="form-input" required>
+                </div>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label class="form-label" for="editDescription">Código de Barras</label>
+                    <input type="text" id="editDescription" class="form-input">
+                </div>
+                <div id="productCostsFields">
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label class="form-label" for="editCostoVenta">Costo de Venta</label>
+                        <input type="number" id="editCostoVenta" class="form-input" placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label class="form-label" for="editCostoConfeccion">Costo de Confección</label>
+                        <input type="number" id="editCostoConfeccion" class="form-input" placeholder="0.00" step="0.01">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelEdit">Cancelar</button>
+                <button class="btn btn-primary" id="saveEdit"><i class="fa-solid fa-save"></i> Guardar</button>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
-        <header class="header">
-            <h1 class="title">Gestión de Materiales</h1>
-            <p class="subtitle">Añada, edite o elimine los materiales utilizados en la producción.</p>
+        <header class="content-header">
+            <h1 class="content-title">Gestión de Materiales</h1>
+            <div class="info-panel">
+                <p>
+                    Desde aquí puedes agregar, editar y eliminar todos los <strong>Materiales Base</strong>. Los valores que agregues aquí se usarán como sugerencias en <strong>Llegada de Material</strong>.
+                </p>
+            </div>
         </header>
         <main>
-            <section class="card">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="nameInput" class="form-label">Nombre del Material</label>
-                        <input type="text" id="nameInput" class="form-input" placeholder="Ej: Hilo Calibre 75">
+            <nav class="tab-nav">
+                <button class="tab-btn active" data-tab="agregar-panel">Gestionar Materiales</button>
+                <button class="tab-btn" data-tab="ver-todas-panel">Ver Historial Completo</button>
+            </nav>
+
+            <div id="agregar-panel" class="tab-panel active">
+                <section class="card">
+                    <div id="mainForm">
+                        <div class="form-section">
+                            <div class="form-group">
+                                <label class="form-label" for="mainInput">Nuevo Material</label>
+                                <input type="text" id="mainInput" class="form-input" placeholder="EJ: HILO CALIBRE 120" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="barcodeInput">Código de Barras (Opcional)</label>
+                                <input type="text" id="barcodeInput" class="form-input" placeholder="EJ: 770987654321">
+                            </div>
+                        </div>
+                        <div id="addCostsContainer">
+                            <div class="form-section" style="margin-top: 1.5rem;">
+                                <div class="form-group">
+                                    <label class="form-label" for="costoVentaInput">Costo Venta (Opcional)</label>
+                                    <input type="number" id="costoVentaInput" class="form-input" placeholder="0.00" step="0.01">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="costoConfeccionInput">Costo Confección (Opcional)</label>
+                                    <input type="number" id="costoConfeccionInput" class="form-input" placeholder="0.00" step="0.01">
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="priceInput" class="form-label">Precio (COP)</label>
-                        <input type="text" id="priceInput" class="form-input" placeholder="Ej: 15000">
+                     <div class="buttons-container">
+                        <button id="addBtn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Agregar</button>
+                        <button id="editBtn" class="btn btn-warning" disabled><i class="fa-solid fa-edit"></i> Editar Seleccionado</button>
+                        <button id="deleteBtn" class="btn btn-danger" disabled><i class="fa-solid fa-trash"></i> Eliminar Seleccionados</button>
                     </div>
-                </div>
-                <div class="buttons-container">
-                    <button id="addBtn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Agregar</button>
-                    <button id="updateBtn" class="btn btn-primary" style="display: none;"><i class="fa-solid fa-save"></i> Guardar Cambios</button>
-                    <button id="deleteBtn" class="btn btn-danger"><i class="fa-solid fa-trash"></i> Eliminar</button>
-                    <button id="clearBtn" class="btn btn-secondary"><i class="fa-solid fa-eraser"></i> Limpiar</button>
-                </div>
-            </section>
-            <section class="card">
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Nombre del Material</th>
-                                <th>Precio</th>
-                            </tr>
-                        </thead>
-                        <tbody id="materialsTableBody"></tbody>
-                    </table>
-                </div>
-            </section>
+                </section>
+                
+                <section class="card" id="tableSection">
+                    <h3 id="tableTitle" style="margin-bottom: 1.5rem;">Listado de Materiales</h3>
+                    <input type="text" id="searchInput" class="form-input" placeholder="Buscar en la tabla..." style="margin-bottom: 1.5rem; max-width: 400px;">
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead id="dataTableHeader"></thead>
+                            <tbody id="dataTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <div id="ver-todas-panel" class="tab-panel">
+                <section class="card">
+                    <h3 style="margin-bottom: 1.5rem;">Historial de Todos los Códigos</h3>
+                    <div class="view-all-section">
+                        <div class="form-section" style="margin-bottom: 1.5rem;">
+                            <input type="text" id="allReferencesSearch" class="form-input" placeholder="Buscar por material, código de barras...">
+                        </div>
+                        <div class="buttons-container" style="border: none; padding: 0; margin: 1rem 0;">
+                            <button id="refreshAllBtn" class="btn btn-secondary"><i class="fa-solid fa-refresh"></i> Actualizar</button>
+                            <button id="editSelectedBtn" class="btn btn-warning" disabled><i class="fa-solid fa-edit"></i> Editar Seleccionado</button>
+                            <button id="deleteSelectedBtn" class="btn btn-danger" disabled><i class="fa-solid fa-trash"></i> Eliminar Seleccionados</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="selectAllAllReferences"></th>
+                                    <th>Material</th>
+                                    <th>Código de Barras</th>
+                                    <th>Costo Venta</th>
+                                    <th>Costo Confección</th>
+                                </tr>
+                            </thead>
+                            <tbody id="allReferencesTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
         </main>
     </div>
+
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const API_URL = 'https://damar-app.onrender.com/materials';
-        let selectedMaterialId = null;
+        document.addEventListener('DOMContentLoaded', () => {
+        const API_URL = 'https://harvey-unspoilt-judie.ngrok-free.dev';
+        let masterData = [];
+        let allReferencesData = [];
+        const currentType = 'references';
+        const currentCategory = 'materiales';
+        let editingItem = null;
 
-        const nameInput = document.getElementById('nameInput');
-        const priceInput = document.getElementById('priceInput');
-        const addBtn = document.getElementById('addBtn');
-        const updateBtn = document.getElementById('updateBtn');
-        const deleteBtn = document.getElementById('deleteBtn');
-        const clearBtn = document.getElementById('clearBtn');
-        const tableBody = document.getElementById('materialsTableBody');
-        const allButtons = [addBtn, updateBtn, deleteBtn, clearBtn];
-
-        const formatCurrency = (value) => (parseFloat(value) || 0).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
-        const parseCurrency = (value) => String(value).replace(/[^0-9,]/g, '').replace(',', '.');
+        const dom = {
+            tabs: document.querySelectorAll('.tab-btn'),
+            mainInput: document.getElementById('mainInput'),
+            barcodeInput: document.getElementById('barcodeInput'),
+            costoVentaInput: document.getElementById('costoVentaInput'),
+            costoConfeccionInput: document.getElementById('costoConfeccionInput'),
+            dataTableHeader: document.getElementById('dataTableHeader'),
+            dataTableBody: document.getElementById('dataTableBody'),
+            searchInput: document.getElementById('searchInput'),
+            addBtn: document.getElementById('addBtn'),
+            editBtn: document.getElementById('editBtn'),
+            deleteBtn: document.getElementById('deleteBtn'),
+            allReferencesTableBody: document.getElementById('allReferencesTableBody'),
+            allReferencesSearch: document.getElementById('allReferencesSearch'),
+            refreshAllBtn: document.getElementById('refreshAllBtn'),
+            editSelectedBtn: document.getElementById('editSelectedBtn'),
+            deleteSelectedBtn: document.getElementById('deleteSelectedBtn'),
+            selectAllAllReferences: document.getElementById('selectAllAllReferences'),
+            editModal: document.getElementById('editModal'),
+            closeModal: document.getElementById('closeModal'),
+            editCode: document.getElementById('editCode'),
+            editDescription: document.getElementById('editDescription'),
+            editCostoVenta: document.getElementById('editCostoVenta'),
+            editCostoConfeccion: document.getElementById('editCostoConfeccion'),
+            cancelEdit: document.getElementById('cancelEdit'),
+            saveEdit: document.getElementById('saveEdit'),
+        };
 
         const showToast = (message, type = 'success') => {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
-            toast.innerHTML = `<i class="fa-solid fa-check-circle" style="margin-right: 10px;"></i> ${message}`;
+            toast.innerHTML = `<i class="fa ${type === 'success' ? 'fa-check-circle' : 'fa-times-circle'}"></i> ${message}`;
             container.appendChild(toast);
             setTimeout(() => toast.remove(), 4000);
         };
-
-        const setLoading = (isLoading) => allButtons.forEach(btn => btn.disabled = isLoading);
-
-        async function apiRequest(endpoint = '', method = 'GET', data = null) {
-            setLoading(true);
+        
+        async function apiRequest(endpoint, method = 'GET', data = null) {
             try {
-                const options = {
-                    method,
-                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
-                    mode: 'cors'
-                };
+                const options = { method, headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }, mode: 'cors' };
                 if (data) options.body = JSON.stringify(data);
                 const response = await fetch(`${API_URL}${endpoint}`, options);
-                if (response.status === 204) return null; // No content on delete
                 const responseData = await response.json();
-                if (!response.ok) throw new Error(responseData.message || 'Error en la operación');
+                if (!response.ok) throw new Error(responseData.message || `Error ${response.status}`);
                 return responseData;
             } catch (error) {
                 showToast(error.message, 'error');
+                console.error("API Request Error:", error);
                 throw error;
-            } finally {
-                setLoading(false);
+            }
+        }
+        
+        function formatCostCell(value) {
+            const numValue = parseFloat(value);
+            if (isNaN(numValue) || numValue === 0) {
+                return `<span class="missing-value"><i class="fa-solid fa-triangle-exclamation"></i> Sin Asignar</span>`;
+            }
+            return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(numValue);
+        }
+
+        dom.tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const target = tab.dataset.tab;
+                dom.tabs.forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(target).classList.add('active');
+                if (target === 'ver-todas-panel') loadAllData();
+            });
+        });
+
+        function updateSimpleTableButtons() {
+            const checkedBoxes = dom.dataTableBody.querySelectorAll('input[type="checkbox"]:checked');
+            dom.editBtn.disabled = checkedBoxes.length !== 1;
+            dom.deleteBtn.disabled = checkedBoxes.length === 0;
+        }
+
+        function renderTable() {
+            const filter = dom.searchInput.value.toLowerCase();
+            
+            dom.dataTableHeader.innerHTML = `
+                <tr>
+                    <th><input type="checkbox" id="selectAllCheckbox"></th>
+                    <th>Material</th>
+                    <th>Código de Barras</th>
+                    <th>Costo Venta</th>
+                    <th>Costo Confección</th>
+                </tr>
+            `;
+            document.getElementById('selectAllCheckbox').addEventListener('change', e => {
+                 dom.dataTableBody.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = e.target.checked);
+                 updateSimpleTableButtons();
+            });
+
+            const filteredData = masterData.filter(item => 
+                (item.code || '').toLowerCase().includes(filter) || 
+                (item.description || '').toLowerCase().includes(filter)
+            );
+
+            dom.dataTableBody.innerHTML = '';
+            filteredData.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <input type="checkbox" 
+                               data-id="${item.id}" 
+                               data-code="${item.code || ''}" 
+                               data-description="${item.description || ''}"
+                               data-costo-venta="${item.costo_venta || ''}"
+                               data-costo-confeccion="${item.costo_confeccion || ''}">
+                    </td>
+                    <td>${item.code || ''}</td>
+                    <td>${item.description || ''}</td>
+                    <td>${formatCostCell(item.costo_venta)}</td>
+                    <td>${formatCostCell(item.costo_confeccion)}</td>
+                `;
+                dom.dataTableBody.appendChild(tr);
+            });
+            updateSimpleTableButtons();
+        }
+
+        async function loadData() {
+            const endpoint = `/dynamic-codes/${currentType}/${currentCategory}`;
+            try {
+                masterData = await apiRequest(endpoint);
+                renderTable();
+            } catch (error) {
+                dom.dataTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Error al cargar datos.</td></tr>`;
             }
         }
 
-        const renderTable = (materials = []) => {
-            tableBody.innerHTML = '';
-            if (materials.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="2" class="feedback-state"><i class="fa-solid fa-box-open"></i> No hay materiales.</td></tr>`;
-                return;
-            }
-            materials.forEach(material => {
-                const tr = document.createElement('tr');
-                tr.dataset.id = material.id;
-                tr.innerHTML = `<td>${material.nombre}</td><td>${formatCurrency(material.precio)}</td>`;
-                tr.addEventListener('click', () => selectMaterial(material, tr));
-                tableBody.appendChild(tr);
-            });
-        };
-
-        const loadMaterials = async () => {
-            tableBody.innerHTML = `<tr><td colspan="2" class="feedback-state"><div class="loading-spinner"></div></td></tr>`;
+        async function loadAllData() {
             try {
-                const response = await apiRequest();
-                renderTable(response.materials); // Access the list inside the 'materials' key
+                const [references, barcodes] = await Promise.all([
+                    apiRequest('/dynamic-codes/references/materiales'),
+                    apiRequest('/dynamic-codes/barcodes/materiales')
+                ]);
+                allReferencesData = [
+                    ...references.map(item => ({...item, type: 'Material'})),
+                    ...barcodes.map(item => ({...item, type: 'Código de Barras'}))
+                ];
+                renderAllReferencesTable();
             } catch (error) {
-                 tableBody.innerHTML = `<tr><td colspan="2" class="feedback-state"><i class="fa-solid fa-circle-exclamation"></i> Error al cargar.</td></tr>`;
+                dom.allReferencesTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Error al cargar datos.</td></tr>`;
             }
-        };
+        }
 
-        const clearForm = () => {
-            selectedMaterialId = null;
-            nameInput.value = '';
-            priceInput.value = '';
-            addBtn.style.display = 'inline-flex';
-            updateBtn.style.display = 'none';
-            document.querySelectorAll('.data-table tr.selected').forEach(r => r.classList.remove('selected'));
-        };
+        function renderAllReferencesTable() {
+            const searchFilter = dom.allReferencesSearch.value.toLowerCase();
+            
+            const filteredData = allReferencesData.filter(item => {
+                return !searchFilter || 
+                       (item.code || '').toLowerCase().includes(searchFilter) || 
+                       (item.description || '').toLowerCase().includes(searchFilter);
+            });
+            
+            dom.allReferencesTableBody.innerHTML = '';
+            filteredData.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="checkbox" data-id="${item.id}" data-type="${item.type}" data-category="${item.category}" data-code="${item.code}" data-description="${item.description || ''}" data-costo-venta="${item.costo_venta || ''}" data-costo-confeccion="${item.costo_confeccion || ''}"></td>
+                    <td>${item.code || ''}</td>
+                    <td>${item.description || ''}</td>
+                    <td>${formatCostCell(item.costo_venta)}</td>
+                    <td>${formatCostCell(item.costo_confeccion)}</td>
+                `;
+                dom.allReferencesTableBody.appendChild(tr);
+            });
+            updateAllReferencesButtons();
+        }
 
-        const selectMaterial = (material, row) => {
-            selectedMaterialId = material.id;
-            nameInput.value = material.nombre;
-            priceInput.value = parseFloat(material.precio) || 0;
-            addBtn.style.display = 'none';
-            updateBtn.style.display = 'inline-flex';
-            document.querySelectorAll('.data-table tr.selected').forEach(r => r.classList.remove('selected'));
-            row.classList.add('selected');
-        };
+        function updateAllReferencesButtons() {
+            const checkedBoxes = dom.allReferencesTableBody.querySelectorAll('input[type="checkbox"]:checked');
+            dom.editSelectedBtn.disabled = checkedBoxes.length !== 1;
+            dom.deleteSelectedBtn.disabled = checkedBoxes.length === 0;
+        }
 
-        addBtn.addEventListener('click', async () => {
-            const nombre = nameInput.value.trim();
-            const precio = parseFloat(priceInput.value) || 0;
-            if (!nombre) return showToast('El nombre es obligatorio.', 'error');
-            await apiRequest('', 'POST', { nombre, precio });
-            showToast('Material agregado.');
-            clearForm();
-            loadMaterials();
+        function openEditModal(item) {
+            editingItem = item;
+            dom.editCode.value = item.code;
+            dom.editDescription.value = item.description || '';
+            dom.editCostoVenta.value = item.costo_venta || '';
+            dom.editCostoConfeccion.value = item.costo_confeccion || '';
+            dom.editModal.classList.add('show');
+        }
+
+        function closeEditModal() {
+            editingItem = null;
+            dom.editModal.classList.remove('show');
+        }
+
+        async function saveEditedItem() {
+            if (!editingItem) return;
+            
+            const newCode = dom.editCode.value.trim();
+            if (!newCode) return showToast('El nombre del Material es obligatorio.', 'error');
+            
+            const payload = {
+                code: newCode,
+                description: dom.editDescription.value.trim(),
+                costo_venta: dom.editCostoVenta.value || '0',
+                costo_confeccion: dom.editCostoConfeccion.value || '0'
+            };
+
+            try {
+                const endpoint = `/dynamic-codes/references/${currentCategory}/${editingItem.id}`;
+                await apiRequest(endpoint, 'PUT', payload);
+                
+                showToast('Registro actualizado.', 'success');
+                closeEditModal();
+                loadAllData();
+                loadData();
+            } catch (error) {}
+        }
+
+        async function deleteSelectedItems(isFromAllView) {
+            const container = isFromAllView ? dom.allReferencesTableBody : dom.dataTableBody;
+            const checkedBoxes = container.querySelectorAll('input[type="checkbox"]:checked');
+            
+            if (checkedBoxes.length === 0) return showToast('Seleccione registros para eliminar.', 'error');
+            if (!confirm(`¿Seguro que desea eliminar ${checkedBoxes.length} registro(s)?`)) return;
+
+            try {
+                const idsToDelete = Array.from(checkedBoxes).map(cb => cb.dataset.id);
+                const endpoint = `/dynamic-codes/references/${currentCategory}`;
+                await apiRequest(endpoint, 'DELETE', { ids: idsToDelete });
+                
+                showToast('Registros eliminados.', 'success');
+                loadAllData();
+                loadData();
+            } catch (error) {}
+        }
+        
+        dom.addBtn.addEventListener('click', async () => {
+            const code = dom.mainInput.value.trim();
+            if (!code) return showToast('El campo Nuevo Material es obligatorio.', 'error');
+            
+            const endpoint = `/dynamic-codes/${currentType}/${currentCategory}`;
+            
+            const payload = {
+                code: code,
+                description: dom.barcodeInput.value.trim(),
+                costo_venta: dom.costoVentaInput.value || '0',
+                costo_confeccion: dom.costoConfeccionInput.value || '0'
+            };
+
+            try {
+                await apiRequest(endpoint, 'POST', payload);
+                showToast('Registro agregado.', 'success');
+                dom.mainInput.value = '';
+                dom.barcodeInput.value = '';
+                dom.costoVentaInput.value = '';
+                dom.costoConfeccionInput.value = '';
+                loadData();
+                loadAllData();
+            } catch (error) {}
         });
 
-        updateBtn.addEventListener('click', async () => {
-            const nombre = nameInput.value.trim();
-            const precio = parseFloat(priceInput.value) || 0;
-            if (!selectedMaterialId || !nombre) return showToast('Seleccione un material y complete el nombre.', 'error');
-            await apiRequest(`/${selectedMaterialId}`, 'PUT', { nombre, precio });
-            showToast('Material actualizado.');
-            clearForm();
-            loadMaterials();
+        dom.editBtn.addEventListener('click', () => {
+            const checkedBox = dom.dataTableBody.querySelector('input[type="checkbox"]:checked');
+            if (checkedBox) openEditModal({ ...checkedBox.dataset });
         });
 
-        deleteBtn.addEventListener('click', async () => {
-            if (!selectedMaterialId) return showToast('Seleccione un material.', 'error');
-            if (confirm(`¿Eliminar "${nameInput.value}"?`)) {
-                await apiRequest(`/${selectedMaterialId}`, 'DELETE');
-                showToast('Material eliminado.');
-                clearForm();
-                loadMaterials();
+        dom.deleteBtn.addEventListener('click', () => deleteSelectedItems(false));
+        dom.searchInput.addEventListener('input', renderTable);
+        dom.dataTableBody.addEventListener('change', (e) => { if(e.target.type === 'checkbox') updateSimpleTableButtons(); });
+        
+        dom.allReferencesSearch.addEventListener('input', renderAllReferencesTable);
+        dom.refreshAllBtn.addEventListener('click', loadAllData);
+        
+        dom.selectAllAllReferences.addEventListener('change', e => {
+            dom.allReferencesTableBody.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = e.target.checked);
+            updateAllReferencesButtons();
+        });
+        dom.allReferencesTableBody.addEventListener('change', e => { if (e.target.type === 'checkbox') updateAllReferencesButtons(); });
+
+        dom.editSelectedBtn.addEventListener('click', () => {
+            const checkedBox = dom.allReferencesTableBody.querySelector('input[type="checkbox"]:checked');
+            if (checkedBox) openEditModal({ ...checkedBox.dataset });
+        });
+
+        dom.deleteSelectedBtn.addEventListener('click', () => deleteSelectedItems(true));
+
+        dom.closeModal.addEventListener('click', closeEditModal);
+        dom.cancelEdit.addEventListener('click', closeEditModal);
+        dom.saveEdit.addEventListener('click', saveEditedItem);
+        dom.editModal.addEventListener('click', (e) => { if (e.target === dom.editModal) closeEditModal(); });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && dom.editModal.classList.contains('show')) closeEditModal();
+            if (e.key === 'Enter' && dom.editModal.classList.contains('show') && document.activeElement.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                saveEditedItem();
             }
         });
-
-        clearBtn.addEventListener('click', clearForm);
-        loadMaterials();
+        
+        loadData();
+        loadAllData();
     });
     </script>
 </body>

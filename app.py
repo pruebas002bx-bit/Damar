@@ -1,12 +1,14 @@
+# app.py CORREGIDO
+
 import os
 import logging
 import json
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from sqlalchemy import func
-import datetime # <-- MODIFICACIÓN: Cambiado el import
+import datetime
 
-# --- 1. Importaciones desde models.py ---
+# --- Importaciones desde models.py ---
 from models import (
     db, Usuario, Empleado, Cliente, Proveedor, Banco, LlegadaMaterial, 
     LlegadaTela, HistorialTela, ProductoTerminado, ProgramacionCorte, 
@@ -33,7 +35,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = False
 
-# --- 2. Vincula la base de datos con la aplicación ---
+# --- Vincula la base de datos con la aplicación ---
 db.init_app(app)
 
 # --- Función Auxiliar para convertir modelos a diccionarios ---
@@ -44,8 +46,6 @@ def model_to_dict(model_instance):
     d = {}
     for column in model_instance.__table__.columns:
         value = getattr(model_instance, column.name)
-        # --- CORRECCIÓN ---
-        # Se usa datetime.datetime y datetime.date para ser explícitos
         if isinstance(value, (datetime.datetime, datetime.date)):
             d[column.name] = value.isoformat()
         elif isinstance(value, str) and (value.startswith('[') or value.startswith('{')):
@@ -281,7 +281,7 @@ def handle_providers_history():
         return jsonify([model_to_dict(item) for item in items])
     if request.method == 'POST':
         data = request.get_json()
-        data['timestamp'] = datetime.utcnow()
+        data['timestamp'] = datetime.datetime.utcnow()
         new_item = ProveedorHistorial(**data)
         db.session.add(new_item)
         db.session.commit()
@@ -295,7 +295,7 @@ def handle_bancos():
         return jsonify([model_to_dict(item) for item in items])
     if request.method == 'POST':
         data = request.get_json()
-        data['fecha_registro'] = datetime.utcnow()
+        data['fecha_registro'] = datetime.datetime.utcnow()
         new_item = Banco(**data)
         db.session.add(new_item)
         db.session.commit()
@@ -327,195 +327,6 @@ def delete_bancos_bulk():
     db.session.commit()
     if num_deleted > 0: return jsonify({'success': True, 'message': f'{num_deleted} movimiento(s) eliminado(s).'})
     return jsonify({'success': False, 'message': 'No se encontraron movimientos.'}), 404
-
-
-# --- Rutas para Usuarios ---
-@app.route('/users', methods=['POST'])
-def add_user():
-    data = request.get_json()
-    # Corrige los nombres de las claves para que coincidan con el frontend
-    hashed_password = generate_password_hash(data['contraseña'], method='pbkdf2:sha256')
-    new_user = User(usuario=data['usuario'], contraseña=hashed_password, rol=data['rol'])
-    db.session.add(new_user)
-    db.session.commit()
-    return jsonify({'message': 'Usuario creado exitosamente'}), 201
-
-# --- Rutas para Cortes ---
-@app.route('/cuts', methods=['POST'])
-def add_cut():
-    data = request.get_json()
-    new_cut = Corte(
-        date=data['date'],
-        reference=data['reference'],
-        quantity=data.get('quantity'),
-        colors=data.get('colors'),
-        size=data.get('size'),
-        distribute_to=data.get('distribute_to'),
-        status='Programado'
-    )
-    db.session.add(new_cut)
-    db.session.commit()
-    return jsonify({'message': 'Corte agregado', 'new_cut': new_cut.to_dict()}), 201
-
-@app.route('/cuts', methods=['GET'])
-def get_cuts():
-    cuts = Corte.query.all()
-    return jsonify([cut.to_dict() for cut in cuts])
-
-# --- Rutas para Materiales ---
-@app.route('/materials', methods=['POST'])
-def add_material():
-    data = request.get_json()
-    new_material = Material(nombre=data['nombre'], precio=data['precio'])
-    db.session.add(new_material)
-    db.session.commit()
-    return jsonify({'message': 'Material agregado', 'material': {'id': new_material.id, 'nombre': new_material.nombre, 'precio': new_material.precio}}), 201
-
-# --- Rutas para Referencias ---
-@app.route('/references', methods=['POST'])
-def add_reference():
-    data = request.get_json()
-    new_ref = Reference(
-        nombre=data['nombre'],
-        categoria=data['categoria'],
-        descripcion=data.get('descripcion'),
-        costo_total=data.get('costo_total', 0)
-    )
-    if 'material_ids' in data:
-        materials = Material.query.filter(Material.id.in_(data['material_ids'])).all()
-        new_ref.materials.extend(materials)
-    db.session.add(new_ref)
-    db.session.commit()
-    return jsonify({'message': 'Referencia creada'}), 201
-
-@app.route('/references', methods=['GET'])
-def get_references():
-    references = Reference.query.all()
-    # Envuelve la lista en un objeto JSON con la clave 'references'
-    return jsonify({'references': [{
-        'id': r.id, 'nombre': r.nombre, 'categoria': r.categoria, 'costo_total': r.costo_total
-    } for r in references]})
-
-@app.route('/references/<int:reference_id>', methods=['GET'])
-def get_reference_detail(reference_id):
-    reference = Reference.query.get_or_404(reference_id)
-    return jsonify({
-        'id': reference.id,
-        'nombre': reference.nombre,
-        'categoria': reference.categoria,
-        'descripcion': reference.descripcion,
-        'costo_total': reference.costo_total,
-        'materials': [{'id': m.id, 'nombre': m.nombre, 'precio': m.precio} for m in reference.materials]
-    })
-
-@app.route('/references/<int:reference_id>', methods=['PUT'])
-def update_reference(reference_id):
-    reference = Reference.query.get_or_404(reference_id)
-    data = request.get_json()
-    reference.nombre = data['nombre']
-    reference.categoria = data['categoria']
-    reference.descripcion = data.get('descripcion')
-    reference.costo_total = data.get('costo_total', 0)
-    if 'material_ids' in data:
-        reference.materials.clear()
-        materials = Material.query.filter(Material.id.in_(data['material_ids'])).all()
-        reference.materials.extend(materials)
-    db.session.commit()
-    return jsonify({'message': 'Referencia actualizada'})
-
-@app.route('/references/<int:reference_id>', methods=['DELETE'])
-def delete_reference(reference_id):
-    reference = Reference.query.get_or_404(reference_id)
-    db.session.delete(reference)
-    db.session.commit()
-    return jsonify({'message': 'Referencia eliminada'})
-
-
-@app.route('/materials', methods=['GET'])
-def get_materials():
-    materials = Material.query.all()
-    # Envuelve la lista en un objeto JSON con la clave 'materials'
-    return jsonify({'materials': [{'id': m.id, 'nombre': m.nombre, 'precio': m.precio} for m in materials]})
-
-@app.route('/materials/<int:material_id>', methods=['PUT'])
-def update_material(material_id):
-    material = Material.query.get_or_404(material_id)
-    data = request.get_json()
-    material.nombre = data['nombre']
-    material.precio = data['precio']
-    db.session.commit()
-    return jsonify({'message': 'Material actualizado'})
-
-@app.route('/materials/<int:material_id>', methods=['DELETE'])
-def delete_material(material_id):
-    material = Material.query.get_or_404(material_id)
-    db.session.delete(material)
-    db.session.commit()
-    return jsonify({'message': 'Material eliminado'}), 204 # Usa 204 para indicar éxito sin contenido
-
-
-@app.route('/cuts/<int:cut_id>', methods=['PUT'])
-def update_cut(cut_id):
-    cut = Corte.query.get_or_404(cut_id)
-    data = request.get_json()
-    cut.reference = data['reference']
-    cut.quantity = data.get('quantity')
-    cut.colors = data.get('colors')
-    cut.size = data.get('size')
-    cut.distribute_to = data.get('distribute_to')
-    db.session.commit()
-    return jsonify({'message': 'Corte actualizado', 'updated_cut': cut.to_dict()})
-
-@app.route('/cuts/<int:cut_id>', methods=['DELETE'])
-def delete_cut(cut_id):
-    cut = Corte.query.get_or_404(cut_id)
-    db.session.delete(cut)
-    db.session.commit()
-    return jsonify({'message': 'Corte eliminado'})
-
-@app.route('/cuts/status', methods=['PUT'])
-def update_cut_status():
-    data = request.get_json()
-    updates = data.get('updates', [])
-    for update in updates:
-        cut = Corte.query.get(update['id'])
-        if cut:
-            cut.status = update['status']
-    db.session.commit()
-    return jsonify({'message': 'Estados actualizados'})
-
-@app.route('/users', methods=['GET'])
-def get_users():
-    users = User.query.all()
-    # Se asegura de que la respuesta sea un objeto con la clave "users"
-    return jsonify({'users': [{'usuario': u.usuario, 'contraseña': u.contraseña_visible, 'rol': u.rol} for u in users]})
-
-# --- Rutas para Telas ---
-@app.route('/fabrics', methods=['GET'])
-def get_fabrics():
-    fabrics = LlegadaDeTelas.query.all()
-    # Envuelve la lista de telas en un objeto JSON con la clave 'fabrics'
-    return jsonify({'fabrics': [fabric.to_dict() for fabric in fabrics]})
-
-@app.route('/users/<string:usuario>', methods=['PUT'])
-def update_user(usuario):
-    user = User.query.filter_by(usuario=usuario).first_or_404()
-    data = request.get_json()
-    if 'contraseña' in data and data['contraseña']:
-        user.contraseña = generate_password_hash(data['contraseña'], method='pbkdf2:sha256')
-        user.contraseña_visible = data['contraseña']
-    if 'rol' in data:
-        user.rol = data['rol']
-    db.session.commit()
-    return jsonify({'message': 'Usuario actualizado exitosamente'})
-
-@app.route('/users/<string:usuario>', methods=['DELETE'])
-def delete_user(usuario):
-    user = User.query.filter_by(usuario=usuario).first_or_404()
-    db.session.delete(user)
-    db.session.commit()
-    return jsonify({'message': 'Usuario eliminado exitosamente'})
-
 
 # --- LlegadaMaterial ---
 @app.route('/materials', methods=['GET', 'POST'])
@@ -587,7 +398,6 @@ def handle_fabric(fabric_id):
         db.session.commit()
         return jsonify({'success': True, 'message': 'Tela eliminada.'})
 
-
 @app.route('/fabrics/bulk', methods=['DELETE'])
 def delete_fabrics_bulk():
     data = request.get_json()
@@ -650,7 +460,6 @@ def handle_product(product_id):
 
     if request.method == 'PUT':
         data = request.get_json()
-        # Convertir listas a JSON si es necesario
         if 'materials_used' in data and isinstance(data['materials_used'], list):
             data['materials_used'] = json.dumps(data['materials_used'])
         if 'fabrics_used' in data and isinstance(data['fabrics_used'], list):
@@ -694,7 +503,7 @@ def handle_payments():
         db.session.add(new_item)
         db.session.commit()
         return jsonify({'success': True, 'message': 'Pago registrado.'}), 201
-# ... (Sin cambios hasta el final de la sección de Ventas) ...
+
 # --- Ventas ---
 @app.route('/sales', methods=['GET', 'POST'])
 def handle_sales():
@@ -723,7 +532,7 @@ def handle_sales():
             logger.error(f"Error en venta: {e}")
             return jsonify({'success': False, 'message': 'Error al registrar venta.'}), 500
 
-# --- Rutas que Faltaban ---
+# --- Cortes ---
 @app.route('/cuts', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def handle_cuts():
     if request.method == 'GET':
@@ -757,7 +566,7 @@ def handle_cuts():
         db.session.commit()
         return jsonify({'success': True, 'message': 'Corte(s) eliminado(s).'})
 
-
+# --- Asignaciones Satelite ---
 @app.route('/assignments', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def handle_assignments():
     if request.method == 'GET':
@@ -765,7 +574,6 @@ def handle_assignments():
         return jsonify([model_to_dict(item) for item in items])
     if request.method == 'POST':
         data = request.get_json()
-        # Calcular precio total si no viene
         if not data.get('total_price'):
             quantity = float(data.get('assigned_quantity', 0))
             price = float(data.get('unit_price', 0))
@@ -793,7 +601,7 @@ def handle_assignments():
         db.session.commit()
         return jsonify({'success': True, 'message': 'Asignación(es) eliminada(s).'})
 
-
+# --- Entregas Satelite ---
 @app.route('/deliveries', methods=['GET', 'POST'])
 def handle_deliveries():
     if request.method == 'GET':
@@ -806,6 +614,7 @@ def handle_deliveries():
         db.session.commit()
         return jsonify(model_to_dict(new_item)), 201
         
+# --- Rutas de Inventario ---
 @app.route('/inventory/summary', methods=['GET'])
 def get_inventory_summary():
     summary = db.session.query(
@@ -846,13 +655,13 @@ def get_inventory_fabrics():
     items = LlegadaTela.query.all()
     return jsonify([model_to_dict(item) for item in items])
 
-
 # --- Dynamic Codes (Referencias y Códigos de Barras) ---
-@app.route('/dynamic-codes/<string:type>/<string:category>', methods=['GET', 'POST'])
+@app.route('/dynamic-codes/<string:type>/<string:category>', methods=['GET', 'POST', 'DELETE'])
 def handle_dynamic_codes(type, category):
     if request.method == 'GET':
         items = DynamicCode.query.filter_by(type=type, category=category).all()
         return jsonify([model_to_dict(item) for item in items])
+        
     if request.method == 'POST':
         data = request.get_json()
         code_data = {
@@ -865,16 +674,48 @@ def handle_dynamic_codes(type, category):
         db.session.commit()
         return jsonify({'success': True, 'message': 'Código agregado.'}), 201
 
+    if request.method == 'DELETE':
+        data = request.get_json()
+        ids_to_delete = data.get('ids', [])
+        if not ids_to_delete:
+            return jsonify({'success': False, 'message': 'No se proporcionaron IDs para eliminar.'}), 400
+        
+        num_deleted = DynamicCode.query.filter(
+            DynamicCode.type == type,
+            DynamicCode.category == category,
+            DynamicCode.id.in_(ids_to_delete)
+        ).delete(synchronize_session=False)
+        
+        db.session.commit()
+        
+        if num_deleted > 0:
+            return jsonify({'success': True, 'message': f'{num_deleted} registro(s) eliminado(s).'})
+        return jsonify({'success': False, 'message': 'No se encontraron registros para eliminar.'}), 404
+
+@app.route('/dynamic-codes/<string:type>/<string:category>/<int:item_id>', methods=['PUT'])
+def handle_dynamic_code_item(type, category, item_id):
+    item = DynamicCode.query.get(item_id)
+    if not item:
+        return jsonify({'success': False, 'message': 'Registro no encontrado.'}), 404
+    
+    data = request.get_json()
+    item.code = data.get('code', item.code)
+    item.description = data.get('description', item.description)
+    item.costo_venta = data.get('costo_venta', item.costo_venta)
+    item.costo_confeccion = data.get('costo_confeccion', item.costo_confeccion)
+    
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Registro actualizado.'})
+
 @app.route('/dynamic-codes/all-references', methods=['GET'])
 def get_all_references():
-    items = DynamicCode.query.filter_by(type='reference').all()
+    items = DynamicCode.query.filter(DynamicCode.category.in_(['ref_products', 'productos'])).all()
     return jsonify([model_to_dict(item) for item in items])
 
 @app.route('/dynamic-codes/all-barcodes', methods=['GET'])
 def get_all_barcodes():
     items = DynamicCode.query.filter_by(type='barcode').all()
     return jsonify([model_to_dict(item) for item in items])
-
 
 # --- RUTAS DE LÓGICA DE NEGOCIO Y DASHBOARD ---
 
@@ -1002,8 +843,6 @@ def get_chart_inventory_by_supplier():
         return jsonify({"error": "Error al procesar inventario por proveedor"}), 500
 
 # --- Creación de las tablas ---
-# Este bloque se asegura de que las tablas existan en la base de datos
-# antes de que la aplicación empiece a aceptar peticiones.
 with app.app_context():
     logger.info("Verificando y creando tablas de la base de datos si es necesario...")
     db.create_all()
@@ -1011,8 +850,4 @@ with app.app_context():
 
 # --- Ejecución Principal ---
 if __name__ == '__main__':
-    # Esta parte solo se ejecuta si corres el script directamente (ej. `python app.py`)
-    # En OnRender, gunicorn es el que inicia la aplicación.
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
-
-
