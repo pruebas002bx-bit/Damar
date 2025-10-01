@@ -27,7 +27,7 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL no está configurada.")
 if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    DATABASE_URL = DATABASE.replace("postgres://", "postgresql://", 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -445,10 +445,10 @@ def handle_products():
                 quantity_used = float(item_mat['quantity_used']) if item_mat.get('quantity_used') else 0
                 
                 if not material or material.quantity_value < quantity_used:
-                    # Si falla, hacemos rollback de la sesión ANTES de retornar el error,
-                    # para que el id generado no quede en la transacción.
+                    # Si falla, hacemos rollback de la sesión ANTES de retornar el error.
+                    # CORRECCIÓN APLICADA AQUÍ: Convertir item_mat['id'] a str
                     db.session.rollback()
-                    return jsonify({'success': False, 'message': f"Stock insuficiente para material ID {item_mat['id']}"}), 400
+                    return jsonify({'success': False, 'message': f"Stock insuficiente para material ID {str(item_mat['id'])}"}), 400
                 material.quantity_value -= quantity_used
             
             # CORRECCIÓN 2: Se usa la variable de iteración correcta 'item_fab' en lugar de 'fab_item'.
@@ -459,8 +459,9 @@ def handle_products():
 
                 if not tela or tela.cantidad_value < quantity_used_fab:
                     # Si falla, hacemos rollback de la sesión ANTES de retornar el error.
+                    # CORRECCIÓN APLICADA AQUÍ: Convertir item_fab['id'] a str
                     db.session.rollback()
-                    return jsonify({'success': False, 'message': f"Stock insuficiente para tela ID {item_fab['id']}"}), 400
+                    return jsonify({'success': False, 'message': f"Stock insuficiente para tela ID {str(item_fab['id'])}"}), 400
                 tela.cantidad_value -= quantity_used_fab
             
             # Serializar listas de uso a JSON string antes de guardar
@@ -476,7 +477,7 @@ def handle_products():
         except Exception as e:
             # Rollback en caso de cualquier otro error crítico (ej. error de conexión o tipo de dato)
             db.session.rollback()
-            # Esto captura y registra el error de la BD, como el NotNullViolation (que esperamos que se evite ahora)
+            # Esto captura y registra el error de la BD. Convertimos la excepción a str para el logger.
             logger.error(f"Error registrando producto: {e}")
             return jsonify({'success': False, 'message': 'Error interno al registrar producto.'}), 500
 
