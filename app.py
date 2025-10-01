@@ -3,11 +3,10 @@ import logging
 import json
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from sqlalchemy import func, case
+from sqlalchemy import func
 from datetime import datetime, date
 
 # --- 1. Importaciones desde models.py ---
-# Se importan todos los "planos" de nuestras tablas.
 from models import (
     db, Usuario, Empleado, Cliente, Proveedor, Banco, LlegadaMaterial, 
     LlegadaTela, HistorialTela, ProductoTerminado, ProgramacionCorte, 
@@ -32,7 +31,7 @@ if DATABASE_URL.startswith("postgres://"):
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ECHO'] = False # Poner en True para ver las consultas SQL en la consola
+app.config['SQLALCHEMY_ECHO'] = False
 
 # --- 2. Vincula la base de datos con la aplicación ---
 db.init_app(app)
@@ -45,33 +44,29 @@ def model_to_dict(model_instance):
     d = {}
     for column in model_instance.__table__.columns:
         value = getattr(model_instance, column.name)
-        # --- CORRECCIÓN ---
-        # Usar datetime y date directamente, que ya fueron importadas.
         if isinstance(value, (datetime, date)):
             d[column.name] = value.isoformat()
-        # Convertir JSON a lista/dict si es necesario
         elif isinstance(value, str) and (value.startswith('[') or value.startswith('{')):
             try:
                 d[column.name] = json.loads(value)
             except json.JSONDecodeError:
-                d[column.name] = value # Dejar como texto si no es un JSON válido
+                d[column.name] = value
         else:
             d[column.name] = value
     return d
 
 # --- RUTAS DE LA APLICACIÓN ---
 
-# Sirve el index.html
+# Sirve el index.html y otros archivos estáticos
 @app.route('/')
 def index():
     return send_from_directory('.', 'index.html')
 
-# Sirve todos los demás archivos estáticos (otros .html, css, js)
 @app.route('/<path:filename>')
 def serve_static(filename):
     return send_from_directory('.', filename)
     
-# --- RUTA DE HEALTH CHECK (para index.html) ---
+# --- RUTA DE HEALTH CHECK ---
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({'status': 'ok'}), 200
@@ -80,7 +75,6 @@ def health_check():
 @app.route('/login', methods=['POST'])
 def handle_login():
     try:
-        # CORRECCIÓN: Usar request.form para datos de formulario, no request.get_json()
         username_form = request.form.get('username', '').strip()
         password_form = request.form.get('password', '').strip()
 
@@ -148,7 +142,7 @@ def handle_usuario(username):
 
 # --- Empleados ---
 @app.route('/empleados', methods=['GET', 'POST'])
-@app.route('/employees', methods=['GET', 'POST']) # Alias para compatibilidad
+@app.route('/employees', methods=['GET', 'POST']) 
 def handle_empleados():
     if request.method == 'GET':
         items = Empleado.query.all()
@@ -162,9 +156,7 @@ def handle_empleados():
         if Empleado.query.filter_by(cedula=data['cedula']).first():
             return jsonify({'success': False, 'message': f'El empleado con cédula {data["cedula"]} ya existe.'}), 409
         
-        # Omitir claves vacías para que la DB use sus defaults si los tiene
         data_to_save = {k: v for k, v in data.items() if v is not None and v != ''}
-        
         new_item = Empleado(**data_to_save)
         db.session.add(new_item)
         db.session.commit()
@@ -230,7 +222,6 @@ def handle_cliente(cliente_id):
         db.session.commit()
         return jsonify({'success': True, 'message': 'Cliente eliminado.'})
 
-
 @app.route('/clientes/bulk', methods=['DELETE'])
 def delete_clientes_bulk():
     data = request.get_json()
@@ -270,7 +261,6 @@ def handle_proveedor(proveedor_id):
         db.session.delete(item)
         db.session.commit()
         return jsonify({'success': True, 'message': 'Proveedor eliminado.'})
-
 
 @app.route('/proveedores/bulk', methods=['DELETE'])
 def delete_proveedores_bulk():
@@ -419,7 +409,7 @@ def delete_fabrics_bulk():
 # --- Historial Tela ---
 @app.route('/inventory/fabrics-history', methods=['GET'])
 def get_fabrics_history():
-    items = HistorialTela.query.all()
+    items = HistorialTela.query.order_by(HistorialTela.timestamp.desc()).all()
     return jsonify([model_to_dict(item) for item in items])
 
 # --- ProductosTerminados ---
@@ -449,7 +439,6 @@ def handle_products():
                     return jsonify({'success': False, 'message': f"Stock insuficiente para tela ID {item_fab['id']}"}), 400
                 tela.cantidad_value -= float(item_fab['quantity_used'])
             
-            # Convertir listas a JSON strings para guardar en la DB
             data['materials_used'] = json.dumps(materials_used)
             data['fabrics_used'] = json.dumps(fabrics_used)
 
@@ -470,6 +459,12 @@ def handle_product(product_id):
 
     if request.method == 'PUT':
         data = request.get_json()
+        # Convertir listas a JSON si es necesario
+        if 'materials_used' in data and isinstance(data['materials_used'], list):
+            data['materials_used'] = json.dumps(data['materials_used'])
+        if 'fabrics_used' in data and isinstance(data['fabrics_used'], list):
+            data['fabrics_used'] = json.dumps(data['fabrics_used'])
+            
         for key, value in data.items():
             if hasattr(item, key) and key != 'id': setattr(item, key, value)
         db.session.commit()
@@ -595,30 +590,22 @@ def get_inventory_summary():
 
 @app.route('/inventory/history', methods=['GET'])
 def get_inventory_history():
-    # Esta ruta puede ser más compleja, por ahora devuelve todos los ingresos
-    subquery = db.session.query(
+    items = LlegadaMaterial.query.with_entities(
         LlegadaMaterial.entry_date.label('date'),
         LlegadaMaterial.material_name,
         LlegadaMaterial.quantity_value,
         LlegadaMaterial.quantity_type,
         LlegadaMaterial.supplier
-    ).subquery()
-
-    items = db.session.query(subquery).all()
-    
-    # Convertir _Row a diccionarios
+    ).all()
     results = [dict(row._mapping) for row in items]
-    
     for r in results:
         r['type'] = 'Ingreso'
         if isinstance(r['date'], (datetime, date)):
             r['date'] = r['date'].isoformat()
-            
     return jsonify(results)
 
 @app.route('/inventory/fabrics', methods=['GET'])
 def get_inventory_fabrics():
-    # Esta ruta puede ser compleja, por ahora devuelve el inventario actual de telas
     items = LlegadaTela.query.all()
     return jsonify([model_to_dict(item) for item in items])
 
@@ -631,14 +618,10 @@ def handle_dynamic_codes(type, category):
         return jsonify([model_to_dict(item) for item in items])
     if request.method == 'POST':
         data = request.get_json()
-        # Asegurarse de que no falten campos requeridos
         code_data = {
-            'type': type,
-            'category': category,
-            'code': data.get('code'),
-            'description': data.get('description'),
-            'costo_venta': data.get('costo_venta'),
-            'costo_confeccion': data.get('costo_confeccion')
+            'type': type, 'category': category,
+            'code': data.get('code'), 'description': data.get('description'),
+            'costo_venta': data.get('costo_venta'), 'costo_confeccion': data.get('costo_confeccion')
         }
         new_item = DynamicCode(**code_data)
         db.session.add(new_item)
@@ -663,7 +646,6 @@ def get_all_barcodes():
 def get_kpis():
     try:
         kpis = {}
-        
         deuda_c = db.session.query(func.sum(Cliente.valor - Cliente.abono)).scalar()
         kpis['deuda_clientes'] = float(deuda_c or 0)
 
