@@ -603,14 +603,30 @@ async function handleExcelUpload(e) {
     reader.onload = async (event) => {
         try {
             const data = new Uint8Array(event.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
+            
+            // --- CRITICAL CORRECTION ---
+            // Leemos el archivo como un workbook. Si es CSV, XLSX intentará determinar el delimitador.
+            // Para asegurar el delimitador ';', usamos la opción 'FS' (Field Separator) en la conversión a CSV, 
+            // aunque primero necesitamos leerlo con la opción raw.
+            
+            let workbook;
+            
+            // Si el archivo es CSV, leemos como binario para que XLSX determine el formato
+            if (file.name.toLowerCase().endsWith('.csv')) {
+                workbook = XLSX.read(data, { type: 'array', raw: true });
+            } else {
+                workbook = XLSX.read(data, { type: 'array' });
+            }
+
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
             
-            // --- CRITICAL CSV READING CORRECTION: Use custom delimiter for CSV/TSV ---
-            // Assuming your file is a CSV or TSV, we'll read it as text and manually parse with ';'
+            // Convertir la hoja de cálculo a un formato CSV usando ';' como delimitador
             const csvText = XLSX.utils.sheet_to_csv(worksheet, { FS: ';' });
+            
+            // Convertir el CSV (ya con ;) a JSON usando el mismo delimitador
             const jsonRows = XLSX.utils.sheet_to_json(XLSX.utils.csv_to_sheet(csvText, { FS: ';' }), { header: 1, raw: false, defval: null });
+
 
             if (jsonRows.length <= 1) {
                  throw new Error("El archivo está vacío o solo contiene el encabezado.");
@@ -639,12 +655,12 @@ async function handleExcelUpload(e) {
                         else if (cleanKey === 'materials_used' || cleanKey === 'fabrics_used') {
                             try {
                                 // Try to handle double-escaped JSON string (common from Python dumps in CSV)
-                                // Example: "[{\"id\":...}]" -> remove outer quotes and handle inner escaping
+                                // We trust the backend's logic now after debugging
                                 let jsonString = value.toString().trim();
                                 if (jsonString.startsWith('"') && jsonString.endsWith('"')) {
                                     jsonString = jsonString.substring(1, jsonString.length - 1);
                                 }
-                                jsonString = jsonString.replace(/\\"/g, '"'); // Unescape inner quotes
+                                jsonString = jsonString.replace(/\\"/g, '"'); 
                                 
                                 rowData[cleanKey] = JSON.parse(jsonString);
                             } catch {
@@ -671,7 +687,7 @@ async function handleExcelUpload(e) {
                     successCount++;
                 } catch (error) {
                     errorCount++;
-                    console.error(`Error subiendo la fila: ${JSON.stringify(rowData)} Error: ${error.message}`);
+                    console.error(`Error subiendo la fila (Serial: ${rowData.serial}): ${error.message}`);
                 }
             }
 
