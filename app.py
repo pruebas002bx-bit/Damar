@@ -424,30 +424,34 @@ def handle_products():
     if request.method == 'POST':
         data = request.get_json()
         
-        # Si el ID ya viene en los datos (ej. PUT mal direccionado), lo ignoramos para la inserción.
-        if 'id' in data:
-            del data['id']
-            
+        # Guardamos el ID del CSV si viene, o None si no viene.
+        initial_id = data.get('id')
+        
         # Intentaremos la inserción con ID generado manualmente, con reintentos en caso de colisión
         MAX_RETRIES = 5
         for attempt in range(MAX_RETRIES):
             db.session.begin_nested() # Inicia sub-transacción para rollback en caso de colisión de ID
 
             try:
-                # 1. Obtener el ID máximo actual (sin bloqueo, ya que PostgreSQL lo rechaza)
-                max_id = db.session.query(func.max(ProductoTerminado.id)).scalar()
-                
-                # 2. Asignar nuevo ID con un gran salto (+100) para mitigar el UniqueViolation en concurrencia.
-                # Si es el primer intento, usamos +100. Si es un reintento, sumamos el intento para garantizar unicidad.
-                if attempt == 0:
-                    new_id = int(max_id or 0) + 100
-                else:
-                    new_id = int(max_id or 0) + 1 + attempt # Salto de +1 o más si hay muchos reintentos
+                temp_data = data.copy()
 
-                data['id'] = new_id
+                if initial_id:
+                    # Si el usuario proporcionó un ID, lo usamos en el primer intento.
+                    # En reintentos, generamos uno nuevo.
+                    if attempt == 0:
+                        temp_data['id'] = int(initial_id)
+                    else:
+                        # Si choca, consultamos el MAX actual y saltamos
+                        max_id = db.session.query(func.max(ProductoTerminado.id)).scalar()
+                        # Usamos un salto grande (+100) para minimizar las colisiones persistentes.
+                        temp_data['id'] = int(max_id or 0) + 100 
+                else:
+                    # Si no hay ID inicial (formulario o ID fue removido del payload), generamos uno nuevo
+                    max_id = db.session.query(func.max(ProductoTerminado.id)).scalar()
+                    temp_data['id'] = int(max_id or 0) + 100
+                    
 
                 # Limpiamos 'lote' y 'fecha' si vienen nulos
-                temp_data = data.copy()
                 if 'lote' in temp_data and temp_data['lote'] is None:
                     del temp_data['lote']
                 
@@ -458,8 +462,10 @@ def handle_products():
                 for key in ['medida_trazo', 'trazos', 'cantidad', 'valor_confeccion', 'ganancia_percent', 'valor_total', 'valor_venta']:
                     if key in temp_data and isinstance(temp_data[key], str):
                         try:
+                            # Intentamos convertir a float (para evitar errores de tipo en la BD)
                             temp_data[key] = float(temp_data[key])
                         except ValueError:
+                            # Si falla, puede ser un valor vacío, lo dejamos como string
                             pass
                 
                 materials_used = temp_data.get('materials_used', [])
@@ -473,6 +479,7 @@ def handle_products():
                 # Deducción de Materiales
                 for item_mat in materials_used:
                     material = LlegadaMaterial.query.get(item_mat['id'])
+                    # Usamos float() para asegurar la compatibilidad matemática
                     quantity_used = float(item_mat.get('quantity_used', 0))
                     
                     if not material or material.quantity_value < quantity_used:
@@ -483,6 +490,7 @@ def handle_products():
                 
                 # Deducción de Telas
                 for item_fab in fabrics_used:
+                    # CORRECCIÓN: Aseguramos el uso de la variable correcta item_fab
                     tela = LlegadaTela.query.get(item_fab['id'])
                     quantity_used_fab = float(item_fab.get('quantity_used', 0))
 
@@ -505,14 +513,23 @@ def handle_products():
 
             except IntegrityError as e:
                 db.session.rollback() # Rollback de la sub-transacción
-                # Si el error es una colisión de clave primaria (ID), reintenta.
+                
+                message = "Error de clave única. El registro ya existe. Revise su hoja de cálculo."
+                
+                # Si el error es una colisión de clave primaria (ID), reintenta si no es el último intento.
                 if "productos_terminados_pkey" in str(e):
-                    logger.warning(f"Colisión de ID ({data['id']}) en intento {attempt+1}/{MAX_RETRIES}. Reintentando con nuevo ID.")
-                    continue 
+                    if attempt < MAX_RETRIES - 1:
+                        logger.warning(f"Colisión de ID ({temp_data['id']}) en intento {attempt+1}/{MAX_RETRIES}. Reintentando con nuevo ID.")
+                        continue # Reintenta con nuevo ID
+                    else:
+                         message = f"Error de ID: El ID {temp_data.get('id', 'generado')} ya existe y no se pudo generar uno nuevo."
+                         logger.error("Máximo de reintentos alcanzado para colisión de ID.")
+                         db.session.commit()
+                         return jsonify({'success': False, 'message': message}), 409
                 
                 # Si el error es por UniqueViolation en el Serial, es un dato duplicado, no se reintenta.
                 elif "productos_terminados_serial_key" in str(e):
-                    message = f"Error de Serial: El número de serial {data.get('serial', 'desconocido')} ya existe. Fila duplicada en la hoja de cálculo."
+                    message = f"Error de Serial: El número de serial {temp_data.get('serial', 'desconocido')} ya existe. Fila duplicada en la hoja de cálculo."
                     logger.error(message)
                     db.session.commit()
                     return jsonify({'success': False, 'message': message}), 409
@@ -529,8 +546,7 @@ def handle_products():
                 db.session.commit()
                 return jsonify({'success': False, 'message': 'Error interno al registrar producto.'}), 500
 
-        # Si el bucle termina sin éxito
-        logger.error(f"Fallo al registrar producto después de {MAX_RETRIES} intentos debido a colisión de ID persistente.")
+        # Si el bucle termina sin éxito (esto solo ocurre si se rompe el continue en el último intento)
         return jsonify({'success': False, 'message': 'Fallo al generar un ID único después de varios intentos. Intente nuevamente.'}), 500
 
 

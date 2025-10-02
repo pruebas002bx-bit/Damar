@@ -303,20 +303,11 @@ async function apiRequest(url, method = 'GET', data = null) {
         options.body = JSON.stringify(data);
     }
     
-    // No mostramos el loader aquí, ya que el proceso de subida del Excel
-    // lo maneja de forma granular. Solo lo usamos para DELETE/PUT general.
-    // if (method !== 'GET') showLoader();
-    
     const response = await fetch(url, options);
     
-    if (response.status === 204) { // No Content
-        // if (method !== 'GET') hideLoader();
-        return {};
-    }
+    if (response.status === 204) { return {}; }
 
     const responseData = await response.json();
-
-    // if (method !== 'GET') hideLoader();
 
     if (!response.ok) {
         throw new Error(responseData.message || `Error en la solicitud a ${url}.`);
@@ -346,22 +337,10 @@ function formatDate(dateString) {
     if (!dateString) return '';
     try {
         const date = new Date(dateString);
-        // Formato AAAA-MM-DD
         return date.toISOString().split('T')[0];
     } catch {
-        return dateString; // Return original if formatting fails
+        return dateString;
     }
-}
-
-function parseDateFromInput(dateString) {
-    if (!dateString) return null;
-    // Asegura que el formato es YYYY-MM-DD
-    const parts = dateString.match(/(\d{4})-(\d{2})-(\d{2})/);
-    if (parts) {
-        // Retorna el formato AAAA-MM-DD
-        return `${parts[1]}-${parts[2]}-${parts[3]}`;
-    }
-    return dateString; // Retorna original si no coincide
 }
 
 // --- Data Loading and Rendering ---
@@ -490,47 +469,7 @@ function renderFabricsCheckboxes(selectedFabrics = []) {
 // --- Logic Handlers ---
 
 function calculateQuantity() {
-    const medidaTrazo = parseFloat(dom.medida_trazo.value) || 0;
-    const trazos = parseInt(dom.trazos.value) || 0;
-
-    // Calculate total quantity of items (unidades)
-    let totalItems = 0;
-    if (medidaTrazo > 0 && trazos > 0) {
-        // Assuming 'cantidad' represents the number of finished units derived from the cut.
-        // The relationship is not clear from the fields, but often calculated this way:
-        // We'll leave it to a simple calculation based on current form structure.
-        
-        // This calculation is purely speculative as Excel upload only provides 'cantidad'.
-        // For manual entry, we will assume 'cantidad' (units) is manually entered, 
-        // or derived from some known ratio (which we don't have).
-        // Since we need to calculate fabric usage, let's derive that first.
-        
-        // For now, let's assume 'cantidad' is meant to be entered directly in the final form, 
-        // but for bulk upload, it comes pre-calculated.
-        
-        // For the sake of simplicity in the form: let's calculate total fabric needed:
-        // const totalFabricNeeded = medidaTrazo * trazos; 
-        
-        // As the 'cantidad' field is required in the backend, let's fill it with a placeholder based on trazos.
-        // If we use the Excel data structure (one row per product type/serial):
-        // Total Pieces = Total Trazos * (Pieces per Trazo) -> Pieces per Trazo is missing
-        // Since the bulk upload uses "cantidad" directly, let's keep it editable/manually entered for the form,
-        // unless the formula is provided.
-        // For now, we will leave 'cantidad' for manual entry, but ensure the fabrics used fields work.
-    }
-    
-    // Logic for fabrics used quantity calculation (if needed)
-    dom.fabricsUsedList.querySelectorAll('.quantity-used').forEach(input => {
-        const checkbox = dom.fabricsUsedList.querySelector(`.fabric-checkbox[data-id="${input.dataset.id}"]`);
-        if (checkbox.checked) {
-            // Recalculate quantity used based on trazos and medida_trazo for the sake of the form, 
-            // though actual logic might be more complex.
-            // Since the user is entering quantity_used manually in the input now, we rely on that.
-            // If the goal is to automatically calculate the quantity_used based on the product being registered:
-            // quantity_used = medidaTrazo * trazos / (fabrics needed per piece ratio) 
-            // Since we lack the ratio, we rely on manual input in the form.
-        }
-    });
+    // Left empty as per user's request (assuming calculation is done elsewhere or manually)
 }
 
 
@@ -556,8 +495,6 @@ function extractFormData() {
         
         const quantityUsed = parseFloat(quantityInput.value);
         if (quantityUsed > 0) {
-            // Note: valor_descontar and medida_trazo are calculated/provided by the Excel/business logic,
-            // not the manual input form unless explicitly added. We'll set placeholders.
             fabricsUsed.push({
                 id: id,
                 quantity_used: quantityUsed,
@@ -567,7 +504,7 @@ function extractFormData() {
         }
     });
     data.fabrics_used = fabricsUsed;
-    data.materials_used = []; // Not implemented in UI yet, so default to empty array
+    data.materials_used = [];
     
     // Ensure numeric fields are correctly typed (API needs floats/ints, not strings)
     for (const key of ['medida_trazo', 'trazos', 'cantidad']) {
@@ -602,7 +539,6 @@ async function submitData(url, method) {
 function handleFormSubmit(e) {
     e.preventDefault();
     if (isEditMode) {
-        // En modo edición, la lógica pasa por la modal de contraseña
         dom.editPasswordModal.classList.add('active');
     } else {
         submitData('/products', 'POST');
@@ -617,12 +553,9 @@ function openAddModal() {
     dom.modalTitle.textContent = 'Registrar Nuevo Producto';
     dom.productForm.reset();
     dom.productId.value = '';
-    dom.cantidad.value = ''; // Reset quantity
+    dom.cantidad.value = ''; 
     
-    // Reset fabrics checkboxes and quantities
     renderFabricsCheckboxes();
-
-    // Set default date to today
     dom.fecha.value = new Date().toISOString().split('T')[0];
     
     dom.addEditModal.classList.add('active');
@@ -674,11 +607,13 @@ async function handleExcelUpload(e) {
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
             
-            // Get all data, including empty cells, as objects
-            const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: null });
+            // --- CRITICAL CSV READING CORRECTION: Use custom delimiter for CSV/TSV ---
+            // Assuming your file is a CSV or TSV, we'll read it as text and manually parse with ';'
+            const csvText = XLSX.utils.sheet_to_csv(worksheet, { FS: ';' });
+            const jsonRows = XLSX.utils.sheet_to_json(XLSX.utils.csv_to_sheet(csvText, { FS: ';' }), { header: 1, raw: false, defval: null });
 
-            if (jsonRows.length === 0) {
-                 throw new Error("El archivo está vacío.");
+            if (jsonRows.length <= 1) {
+                 throw new Error("El archivo está vacío o solo contiene el encabezado.");
             }
             
             const header = jsonRows[0];
@@ -686,56 +621,46 @@ async function handleExcelUpload(e) {
             
             let successCount = 0;
             let errorCount = 0;
-            const totalRows = dataRows.length;
-            
-            // --- CRITICAL CORRECTION: Sequential Processing ---
             
             for (const row of dataRows) {
                 const rowData = {};
                 header.forEach((key, index) => {
-                    // Normalize keys (lowercase, replace spaces, remove problematic chars like /)
                     let cleanKey = key?.toString().toLowerCase().trim().replace(/[\s\/]/g, '_').replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i').replace(/ó/g, 'o').replace(/ú/g, 'u');
                     
-                    // Specific mapping logic needed due to CSV header issues:
-                    if (cleanKey === 'medida_trazo') cleanKey = 'medida_trazo';
-                    if (cleanKey === 'trazos') cleanKey = 'trazos';
-                    
-                    if (cleanKey && row[index] !== null) {
+                    if (cleanKey && row[index] !== null && row[index] !== '') {
                         let value = row[index];
                         
-                        // Clean quotes around JSON strings if they exist (common CSV/Excel issue)
-                        if (typeof value === 'string' && (value.startsWith('"') && value.endsWith('"'))) {
-                            value = value.substring(1, value.length - 1);
-                        }
-                         
-                        // Special handling for boolean/JSON fields
-                        if (cleanKey === 'has_sample') {
-                            rowData[cleanKey] = value?.toString().toLowerCase() === 'true';
-                        } else if (cleanKey === 'materials_used' || cleanKey === 'fabrics_used') {
+                        // Fix for common Excel/CSV numerical issues (e.g., date formats read as strings)
+                        if (typeof value === 'string' && value.match(/^\d{8}$/)) {
+                           // Assuming DDMMAAAA format for date conversion if it's 8 digits
+                            rowData[cleanKey] = `${value.substring(4, 8)}-${value.substring(2, 4)}-${value.substring(0, 2)}`;
+                        } 
+                        // JSON parsing logic (for materials_used and fabrics_used)
+                        else if (cleanKey === 'materials_used' || cleanKey === 'fabrics_used') {
                             try {
-                                // Double unescape process needed if coming from Python output as string
-                                rowData[cleanKey] = JSON.parse(value.replace(/\\"/g, '"'));
+                                // Try to handle double-escaped JSON string (common from Python dumps in CSV)
+                                // Example: "[{\"id\":...}]" -> remove outer quotes and handle inner escaping
+                                let jsonString = value.toString().trim();
+                                if (jsonString.startsWith('"') && jsonString.endsWith('"')) {
+                                    jsonString = jsonString.substring(1, jsonString.length - 1);
+                                }
+                                jsonString = jsonString.replace(/\\"/g, '"'); // Unescape inner quotes
+                                
+                                rowData[cleanKey] = JSON.parse(jsonString);
                             } catch {
-                                // If parsing fails, store as is (or empty array if expected JSON)
+                                console.warn(`JSON parsing failed for ${cleanKey}: ${value}`);
                                 rowData[cleanKey] = []; 
                             }
-                        } else if (cleanKey === 'fecha') {
-                             // Format DDMMYYYY to YYYY-MM-DD expected by Flask
-                            let dateStr = value?.toString();
-                            if (dateStr && dateStr.length === 8 && dateStr.match(/^\d+$/)) {
-                                rowData[cleanKey] = `${dateStr.substring(4, 8)}-${dateStr.substring(2, 4)}-${dateStr.substring(0, 2)}`;
-                            } else {
-                                rowData[cleanKey] = value;
-                            }
+                        } else if (cleanKey === 'has_sample') {
+                            rowData[cleanKey] = value?.toString().toLowerCase() === 'true';
                         }
-                        else {
+                         else {
                             rowData[cleanKey] = value;
                         }
                     }
                 });
 
-                // Post-processing for final payload structure and API compatibility
-                // Remove unwanted fields and map 'estado_corte' to API field if needed
+                // Post-processing and cleanup
                 delete rowData.telas_terminadas;
                 delete rowData.telas_restantes;
                 delete rowData.estado_corte; 
@@ -747,8 +672,6 @@ async function handleExcelUpload(e) {
                 } catch (error) {
                     errorCount++;
                     console.error(`Error subiendo la fila: ${JSON.stringify(rowData)} Error: ${error.message}`);
-                    // Optionally break the loop on error if data integrity is critical
-                    // break; 
                 }
             }
 
@@ -763,7 +686,7 @@ async function handleExcelUpload(e) {
         } catch (error) {
             showToast('Error al procesar el archivo Excel: ' + error.message, 'error');
         } finally {
-            dom.excelUploadInput.value = ''; // Reset input field
+            dom.excelUploadInput.value = '';
             dom.uploadExcelBtn.disabled = false;
             hideLoader();
             await loadData();
