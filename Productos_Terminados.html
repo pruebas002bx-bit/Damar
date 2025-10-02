@@ -87,10 +87,9 @@
 <div class="container">
     <h1>Gestión de Productos Terminados</h1>
 
-    <!-- Controles y Formulario de Registro -->
     <div class="controls">
         <button id="show-add-modal-btn" class="btn btn-primary"><i class="fas fa-plus-circle"></i> Nuevo Producto</button>
-        <button id="upload-excel-btn" class="btn btn-success"><i class="fas fa-file-excel"></i> Subir Excel (Bulk)</button>
+        <button id="upload-excel-btn" class="btn btn-success"><i class="fas fa-file-excel"></i> Subir Excel / CSV (Bulk)</button>
         <input type="file" id="excel-upload-input" accept=".xlsx, .xls, .csv" style="display: none;">
         <button id="delete-selected-btn" class="btn btn-danger"><i class="fas fa-trash"></i> Eliminar Seleccionados</button>
         <div class="input-group" style="min-width: 300px;">
@@ -98,7 +97,6 @@
         </div>
     </div>
 
-    <!-- Tabla de Datos -->
     <div class="table-container">
         <table class="data-table">
             <thead>
@@ -116,13 +114,11 @@
                 </tr>
             </thead>
             <tbody id="products-table-body">
-                <!-- Data rows will be injected here -->
-            </tbody>
+                </tbody>
         </table>
     </div>
 </div>
 
-<!-- Modal de Añadir/Editar Producto -->
 <div id="add-edit-modal" class="modal">
     <div class="modal-content">
         <h2 id="modal-title">Registrar Nuevo Producto</h2>
@@ -179,8 +175,7 @@
                 <div class="input-group full-width">
                     <label>Telas Utilizadas (Stock)</label>
                     <div id="fabrics-used-list" class="stock-inputs fabrics-used-list">
-                        <!-- Fabric inputs generated here -->
-                    </div>
+                        </div>
                 </div>
                 <div class="input-group full-width">
                     <input type="checkbox" id="has_sample" name="has_sample" value="True">
@@ -199,7 +194,6 @@
     </div>
 </div>
 
-<!-- Modal de Contraseña para Eliminación -->
 <div id="delete-password-modal" class="modal">
     <div class="modal-content">
         <h2>Confirmar Eliminación</h2>
@@ -212,7 +206,6 @@
     </div>
 </div>
 
-<!-- Modal de Contraseña para Edición (PUT) -->
 <div id="edit-password-modal" class="modal">
     <div class="modal-content">
         <h2>Confirmar Edición</h2>
@@ -604,29 +597,19 @@ async function handleExcelUpload(e) {
         try {
             const data = new Uint8Array(event.target.result);
             
-            // --- CRITICAL CORRECTION ---
-            // Leemos el archivo como un workbook. Si es CSV, XLSX intentará determinar el delimitador.
-            // Para asegurar el delimitador ';', usamos la opción 'FS' (Field Separator) en la conversión a CSV, 
-            // aunque primero necesitamos leerlo con la opción raw.
-            
-            let workbook;
-            
-            // Si el archivo es CSV, leemos como binario para que XLSX determine el formato
-            if (file.name.toLowerCase().endsWith('.csv')) {
-                workbook = XLSX.read(data, { type: 'array', raw: true });
-            } else {
-                workbook = XLSX.read(data, { type: 'array' });
-            }
+            // Leer el archivo (XLSX o CSV) usando la biblioteca.
+            // La biblioteca es capaz de manejar ambos formatos y autodetectar delimitadores en CSV.
+            const workbook = XLSX.read(data, { type: 'array' });
 
+            // Obtener la primera hoja del archivo.
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
             
-            // Convertir la hoja de cálculo a un formato CSV usando ';' como delimitador
-            const csvText = XLSX.utils.sheet_to_csv(worksheet, { FS: ';' });
-            
-            // Convertir el CSV (ya con ;) a JSON usando el mismo delimitador
-            const jsonRows = XLSX.utils.sheet_to_json(XLSX.utils.csv_to_sheet(csvText, { FS: ';' }), { header: 1, raw: false, defval: null });
-
+            // Convertir la hoja directamente a un array de arrays (JSON).
+            // header: 1 asegura que la primera fila sea el encabezado.
+            // defval: null maneja celdas vacías de manera consistente.
+            // raw: false permite que la biblioteca intente interpretar fechas y números.
+            const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: null });
 
             if (jsonRows.length <= 1) {
                  throw new Error("El archivo está vacío o solo contiene el encabezado.");
@@ -641,21 +624,20 @@ async function handleExcelUpload(e) {
             for (const row of dataRows) {
                 const rowData = {};
                 header.forEach((key, index) => {
+                    // Limpia la llave del encabezado para que coincida con los nombres de campo esperados por la API
                     let cleanKey = key?.toString().toLowerCase().trim().replace(/[\s\/]/g, '_').replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i').replace(/ó/g, 'o').replace(/ú/g, 'u');
                     
                     if (cleanKey && row[index] !== null && row[index] !== '') {
                         let value = row[index];
                         
-                        // Fix for common Excel/CSV numerical issues (e.g., date formats read as strings)
+                        // Lógica de conversión de datos específicos
                         if (typeof value === 'string' && value.match(/^\d{8}$/)) {
-                           // Assuming DDMMAAAA format for date conversion if it's 8 digits
+                           // Asume formato DDMMAAAA para conversión de fecha si son 8 dígitos
                             rowData[cleanKey] = `${value.substring(4, 8)}-${value.substring(2, 4)}-${value.substring(0, 2)}`;
                         } 
-                        // JSON parsing logic (for materials_used and fabrics_used)
                         else if (cleanKey === 'materials_used' || cleanKey === 'fabrics_used') {
                             try {
-                                // Try to handle double-escaped JSON string (common from Python dumps in CSV)
-                                // We trust the backend's logic now after debugging
+                                // Intenta manejar JSON que podría estar como un string dentro del CSV/Excel
                                 let jsonString = value.toString().trim();
                                 if (jsonString.startsWith('"') && jsonString.endsWith('"')) {
                                     jsonString = jsonString.substring(1, jsonString.length - 1);
@@ -664,7 +646,7 @@ async function handleExcelUpload(e) {
                                 
                                 rowData[cleanKey] = JSON.parse(jsonString);
                             } catch {
-                                console.warn(`JSON parsing failed for ${cleanKey}: ${value}`);
+                                console.warn(`El parseo de JSON falló para ${cleanKey}: ${value}`);
                                 rowData[cleanKey] = []; 
                             }
                         } else if (cleanKey === 'has_sample') {
@@ -676,12 +658,12 @@ async function handleExcelUpload(e) {
                     }
                 });
 
-                // Post-processing and cleanup
+                // Post-procesamiento y limpieza de campos no necesarios
                 delete rowData.telas_terminadas;
                 delete rowData.telas_restantes;
                 delete rowData.estado_corte; 
                 
-                // --- API Call (Sequential) ---
+                // --- Llamada a la API (Secuencial por cada fila) ---
                 try {
                     await apiRequest('/products', 'POST', rowData);
                     successCount++;
@@ -691,7 +673,7 @@ async function handleExcelUpload(e) {
                 }
             }
 
-            // --- Final Reporting ---
+            // --- Reporte Final ---
             if (successCount > 0) {
                 showToast(`Subida completada. ${successCount} fila(s) insertada(s).`, 'success');
             }
@@ -700,7 +682,7 @@ async function handleExcelUpload(e) {
             }
             
         } catch (error) {
-            showToast('Error al procesar el archivo Excel: ' + error.message, 'error');
+            showToast('Error al procesar el archivo Excel/CSV: ' + error.message, 'error');
         } finally {
             dom.excelUploadInput.value = '';
             dom.uploadExcelBtn.disabled = false;
