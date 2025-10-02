@@ -234,7 +234,7 @@
                 
                 <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
                     <h4><i class="fa-solid fa-file-csv"></i> Cargar Entregas desde CSV</h4>
-                    <p style="font-size: 0.9rem; margin-bottom: 1rem;">Seleccione el archivo <code>Entrega_satelites.csv</code> para registrar múltiples entregas. El archivo debe contener las columnas: <strong>delivery_date; product_serial; delivered_quantity; satellite_name; observacion; product_lote</strong> (separadas por punto y coma).</p>
+                    <p style="font-size: 0.9rem; margin-bottom: 1rem;">Seleccione el archivo <code>Entrega_satelites.csv</code>. El archivo debe usar <strong>punto y coma (;)</strong> como separador y contener las columnas: <strong>delivery_date;product_serial;delivered_quantity;satellite_name;observacion;product_lote</strong>.</p>
                     <div class="form-group">
                         <input type="file" id="entregaCsvInput" class="form-input" accept=".csv">
                         <button id="uploadEntregaCsvBtn" class="btn btn-primary" style="margin-top: 1rem;"><i class="fa-solid fa-upload"></i> Cargar Archivo de Entregas</button>
@@ -305,7 +305,7 @@
                     
                     <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
                         <h4><i class="fa-solid fa-file-csv"></i> Cargar Pagos desde CSV</h4>
-                        <p style="font-size: 0.9rem; margin-bottom: 1rem;">Seleccione el archivo <code>Pagos_Satelites.csv</code> para registrar múltiples pagos. El archivo debe contener las columnas: <strong>payment_date; satellite_name; product_serial; payment_amount; payment_method; status; observation</strong> (separadas por punto y coma).</p>
+                        <p style="font-size: 0.9rem; margin-bottom: 1rem;">Seleccione el archivo <code>Pagos_Satelites.csv</code>. El archivo debe usar <strong>punto y coma (;)</strong> como separador y contener las columnas: <strong>payment_date;satellite_name;product_serial;payment_amount;payment_method;status;observation</strong>.</p>
                         <div class="form-group">
                             <input type="file" id="pagosCsvInput" class="form-input" accept=".csv">
                             <button id="uploadPagosCsvBtn" class="btn btn-primary" style="margin-top: 1rem;"><i class="fa-solid fa-upload"></i> Cargar Archivo de Pagos</button>
@@ -444,21 +444,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- INICIO FUNCIONES CSV ---
     function parseCSV(csvText) {
-        // Normaliza los saltos de línea y elimina espacios en blanco al inicio/final
         const normalizedText = csvText.replace(/\r\n/g, '\n').trim();
         const lines = normalizedText.split('\n');
         
         if (lines.length < 2) return [];
 
-        // **CORREGIDO:** Cambiado el separador de coma (,) a punto y coma (;)
+        // **CORREGIDO:** Se usa punto y coma (;) como separador.
         const headers = lines[0].split(';').map(h => h.trim());
         const rows = [];
         
         for (let i = 1; i < lines.length; i++) {
-            // Salta líneas vacías
             if (!lines[i].trim()) continue;
-
-            // **CORREGIDO:** Cambiado el separador de coma (,) a punto y coma (;)
+            // **CORREGIDO:** Se usa punto y coma (;) como separador.
             const values = lines[i].split(';').map(v => v.trim());
             
             if (values.length === headers.length) {
@@ -498,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const record of records) {
                 try {
                     const data = recordMapper(record);
-                    if (!data) { // Skip if mapper returns null/undefined
+                    if (!data) {
                         errorCount++;
                         console.error('Registro CSV inválido, omitido:', record);
                         continue;
@@ -533,7 +530,8 @@ document.addEventListener('DOMContentLoaded', () => {
             product_serial: record.product_serial,
             delivered_quantity: deliveredQuantity,
             satellite_name: record.satellite_name,
-            observacion: record.observacion || '',
+            // **CORREGIDO:** El backend espera 'observation' en lugar de 'observacion'
+            observation: record.observacion || '', 
             product_lote: record.product_lote || ''
         };
     }
@@ -749,7 +747,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const totalQuantity = parseFloat(product.cantidad) || 0;
             const deliveriesUpToThisOne = deliveries.filter(del => del.product_serial === d.product_serial && new Date(del.delivery_date) <= new Date(d.delivery_date)).reduce((sum, del) => sum + (parseFloat(del.delivered_quantity) || 0), 0);
             const stockRestante = totalQuantity - deliveriesUpToThisOne;
-            const observacion = d.observacion || '';
+            // **CORREGIDO:** Lee 'observation' del objeto de datos
+            const observacion = d.observation || ''; 
             const tr = document.createElement('tr');
             tr.innerHTML = `<td>${d.delivery_date}</td><td>${d.product_serial || 'N/A'}</td><td>${product.referencia || 'N/A'}</td><td>${d.satellite_name}</td><td>${totalQuantity}</td><td style="color: var(--accent); font-weight: 600;">${parseFloat(d.delivered_quantity) || 0}</td><td style="color: ${stockRestante >= 0 ? 'var(--success)' : 'var(--danger)'}; font-weight: 600;">${stockRestante}</td><td title="${observacion}">${observacion.length > 30 ? observacion.substring(0, 30) + '...' : observacion}</td>`;
             dom.deliveriesTableBody.appendChild(tr);
@@ -776,7 +775,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalDelivered = deliveriesForProduct.reduce((sum, d) => sum + (parseFloat(d.delivered_quantity) || 0), 0);
         const available = (parseFloat(product.cantidad) || 0) - totalDelivered;
         if (quantity > available) { showToast(`La cantidad excede el stock disponible (${available}).`, 'error'); return; }
-        const data = { delivery_date: deliveryDate, product_serial: selectedSerial, product_lote: product.lote || product.fecha, delivered_quantity: quantity, satellite_name: product.satellite || 'Sin asignar', observacion };
+        // **CORREGIDO:** El backend espera 'observation' en lugar de 'observacion'
+        const data = { delivery_date: deliveryDate, product_serial: selectedSerial, product_lote: product.lote || product.fecha, delivered_quantity: quantity, satellite_name: product.satellite || 'Sin asignar', observation: observacion };
         try { const result = await apiRequest('/deliveries', 'POST', data); showToast(result.message, 'success'); clearDeliveryForm(); await loadData(); } catch(error) {}
     }
 
@@ -924,7 +924,8 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.paymentsTableBody.parentElement.querySelector('thead tr').innerHTML = `<th>Fecha</th><th>Serial(es)</th><th>Satélite</th><th>Monto Pagado</th><th>Estado</th><th>Observación</th><th>Acciones</th>`;
         dom.paymentsTableBody.innerHTML = '';
         dataToRender.forEach(p => {
-            const serial = p.product_serial || 'N/A', observacion = p.observation || '';
+            const serial = p.product_serial || 'N/A';
+            const observacion = p.observation || '';
             const tr = document.createElement('tr');
             tr.style.cursor = 'pointer';
             tr.title = 'Haz clic para ver los detalles';
@@ -948,7 +949,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // **CORREGIDO:** Se eliminó la obtención masiva de precios que causaba errores 404.
         // El "Valor Asignado" ya no se calculará aquí para evitar errores y mejorar el rendimiento.
-        // Para una funcionalidad completa, el backend debería proporcionar esta información.
         
         payments.forEach(p => { 
             if (p.satellite_name && summary[p.satellite_name]) { 
@@ -960,7 +960,8 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.entries(summary).forEach(([name, data]) => {
             const balance = data.assigned - data.paid;
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${name}</td><td>${formatCurrency(data.assigned)}</td><td>${formatCurrency(data.paid)}</td><td style="font-weight: 600; color: ${balance > 0 ? 'var(--danger)' : 'var(--success)'};">${formatCurrency(balance)}</td>`;
+            // El valor 'data.assigned' será 0
+            tr.innerHTML = `<td>${name}</td><td>${formatCurrency(data.assigned)}</td><td>${formatCurrency(data.paid)}</td><td style="font-weight: 600; color: ${balance >= 0 ? 'var(--success)' : 'var(--danger)'};">${formatCurrency(balance)}</td>`;
             dom.summaryTableBody.appendChild(tr);
         });
     }
@@ -983,7 +984,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderFinishedCutsTable();
             renderSelectableProductsForPayment();
             dom.deliveryDateInput.value = new Date().toISOString().split('T')[0];
-        } catch (error) { showToast('Error al cargar los datos iniciales', 'error'); }
+        } catch (error) { console.error('Error fatal al cargar datos:', error); showToast('Error al cargar los datos iniciales. La página puede no funcionar correctamente.', 'error'); }
     }
 
     function handleTabClick(e) {
