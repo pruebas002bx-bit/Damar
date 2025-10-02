@@ -87,7 +87,7 @@
         <h3>Acceso Restringido</h3>
         <p>Por favor, ingrese la contraseña para acceder a la sección de pagos.</p>
         <div class="form-group" style="margin: 1.5rem 0;">
-            <input type="password" id="passwordInput" class="form-input" placeholder="Contraseña">
+            <input type="password" id="passwordInput" class="form-input" placeholder="Contraseña" autocomplete="current-password">
         </div>
         <div style="display: flex; justify-content: center; gap: 1rem;">
             <button id="passwordCancelBtn" class="btn btn-secondary">Cancelar</button>
@@ -234,7 +234,7 @@
                 
                 <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
                     <h4><i class="fa-solid fa-file-csv"></i> Cargar Entregas desde CSV</h4>
-                    <p style="font-size: 0.9rem; margin-bottom: 1rem;">Seleccione el archivo <code>Entrega_satelites.csv</code> para registrar múltiples entregas. El archivo debe contener las columnas: <strong>delivery_date, product_serial, delivered_quantity, satellite_name, observacion, product_lote</strong>.</p>
+                    <p style="font-size: 0.9rem; margin-bottom: 1rem;">Seleccione el archivo <code>Entrega_satelites.csv</code> para registrar múltiples entregas. El archivo debe contener las columnas: <strong>delivery_date; product_serial; delivered_quantity; satellite_name; observacion; product_lote</strong> (separadas por punto y coma).</p>
                     <div class="form-group">
                         <input type="file" id="entregaCsvInput" class="form-input" accept=".csv">
                         <button id="uploadEntregaCsvBtn" class="btn btn-primary" style="margin-top: 1rem;"><i class="fa-solid fa-upload"></i> Cargar Archivo de Entregas</button>
@@ -305,7 +305,7 @@
                     
                     <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
                         <h4><i class="fa-solid fa-file-csv"></i> Cargar Pagos desde CSV</h4>
-                        <p style="font-size: 0.9rem; margin-bottom: 1rem;">Seleccione el archivo <code>Pagos_Satelites.csv</code> para registrar múltiples pagos. El archivo debe contener las columnas: <strong>payment_date, satellite_name, product_serial, payment_amount, payment_method, status, observation</strong>.</p>
+                        <p style="font-size: 0.9rem; margin-bottom: 1rem;">Seleccione el archivo <code>Pagos_Satelites.csv</code> para registrar múltiples pagos. El archivo debe contener las columnas: <strong>payment_date; satellite_name; product_serial; payment_amount; payment_method; status; observation</strong> (separadas por punto y coma).</p>
                         <div class="form-group">
                             <input type="file" id="pagosCsvInput" class="form-input" accept=".csv">
                             <button id="uploadPagosCsvBtn" class="btn btn-primary" style="margin-top: 1rem;"><i class="fa-solid fa-upload"></i> Cargar Archivo de Pagos</button>
@@ -450,16 +450,17 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (lines.length < 2) return [];
 
-        // Obtiene los encabezados y los limpia
-        const headers = lines[0].split(',').map(h => h.trim());
+        // **CORREGIDO:** Cambiado el separador de coma (,) a punto y coma (;)
+        const headers = lines[0].split(';').map(h => h.trim());
         const rows = [];
         
         for (let i = 1; i < lines.length; i++) {
             // Salta líneas vacías
             if (!lines[i].trim()) continue;
 
-            const values = lines[i].split(',').map(v => v.trim());
-            // Solo procesa filas que tienen el mismo número de columnas que los encabezados
+            // **CORREGIDO:** Cambiado el separador de coma (,) a punto y coma (;)
+            const values = lines[i].split(';').map(v => v.trim());
+            
             if (values.length === headers.length) {
                 const rowObject = {};
                 headers.forEach((header, index) => {
@@ -497,6 +498,11 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const record of records) {
                 try {
                     const data = recordMapper(record);
+                    if (!data) { // Skip if mapper returns null/undefined
+                        errorCount++;
+                        console.error('Registro CSV inválido, omitido:', record);
+                        continue;
+                    }
                     await apiRequest(endpoint, 'POST', data);
                     successCount++;
                 } catch (error) {
@@ -507,9 +513,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             showToast(`${successCount} registros procesados. ${errorCount} errores.`, errorCount > 0 ? 'warning' : 'success');
             if (successCount > 0) {
-                await loadData(); // Recargar todos los datos para reflejar los cambios
+                await loadData();
             }
-            fileInput.value = ''; // Limpiar el input
+            fileInput.value = '';
         };
         reader.onerror = () => {
             showToast('Error al leer el archivo.', 'error');
@@ -518,10 +524,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function mapEntregaRecord(record) {
+        const deliveredQuantity = parseFloat(record.delivered_quantity);
+        if (isNaN(deliveredQuantity) || !record.product_serial || !record.delivery_date) {
+            return null; // Dato inválido
+        }
         return {
             delivery_date: record.delivery_date,
             product_serial: record.product_serial,
-            delivered_quantity: parseFloat(record.delivered_quantity) || 0,
+            delivered_quantity: deliveredQuantity,
             satellite_name: record.satellite_name,
             observacion: record.observacion || '',
             product_lote: record.product_lote || ''
@@ -529,16 +539,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function mapPagoRecord(record) {
+        const paymentAmount = parseFloat(record.payment_amount);
+        if (isNaN(paymentAmount) || !record.product_serial || !record.payment_date) {
+            return null; // Dato inválido
+        }
         return {
             payment_date: record.payment_date,
             satellite_name: record.satellite_name,
             product_serial: record.product_serial,
-            payment_amount: parseFloat(record.payment_amount) || 0,
+            payment_amount: paymentAmount,
             payment_method: record.payment_method,
             status: record.status,
             observation: record.observation || 'Cargado desde CSV',
             reference: 'Pago por Confección (CSV)',
-            details: '[]' // Los detalles complejos no se pueden inferir de un CSV simple
+            details: '[]'
         };
     }
     // --- FIN FUNCIONES CSV ---
@@ -824,13 +838,20 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const priceData = await apiRequest(`/payments/reference-price/${encodeURIComponent(product.referencia)}`);
                 product.unit_value = parseFloat(priceData.price) || 0;
-                if (product.unit_value === 0) { showToast(`La referencia '${product.referencia}' no tiene costo de confección. Puede asignarlo manually.`, 'warning'); }
+                if (product.unit_value === 0) { showToast(`La referencia '${product.referencia}' no tiene costo de confección. Puede asignarlo manualmente.`, 'warning'); }
                 selectedProductsForPayment.set(productId, product);
                 unitValueInput.value = product.unit_value.toFixed(2);
                 unitValueInput.disabled = false;
                 const totalValue = product.unit_value * (parseFloat(product.cantidad) || 0);
                 totalValueCell.textContent = formatCurrency(totalValue);
-            } catch (error) { showToast(`No se pudo obtener el precio para la referencia ${product.referencia}.`, 'error'); checkbox.checked = false; }
+            } catch (error) { 
+                showToast(`No se pudo obtener el precio para la referencia ${product.referencia}. Por favor, ingréselo manualmente.`, 'error'); 
+                product.unit_value = 0;
+                selectedProductsForPayment.set(productId, product);
+                unitValueInput.value = product.unit_value.toFixed(2);
+                unitValueInput.disabled = false;
+                totalValueCell.textContent = formatCurrency(0);
+            }
         } else {
             selectedProductsForPayment.delete(productId);
             delete product.unit_value;
@@ -924,24 +945,17 @@ document.addEventListener('DOMContentLoaded', () => {
     async function renderSummaryTable() {
         const summary = {};
         satellites.forEach(s => { summary[s.Usuario] = { assigned: 0, paid: 0 }; });
-        const priceMap = new Map();
-        const uniqueReferences = [...new Set(products.map(p => p.referencia))];
-        for (const ref of uniqueReferences) {
-            if (ref && !priceMap.has(ref)) {
-                try {
-                    const priceData = await apiRequest(`/payments/reference-price/${encodeURIComponent(ref)}`);
-                    priceMap.set(ref, parseFloat(priceData.price) || 0);
-                } catch (e) { priceMap.set(ref, 0); }
-            }
-        }
-        products.forEach(p => {
-            if (p.satellite && summary[p.satellite]) {
-                 const unitPrice = priceMap.get(p.referencia) || 0;
-                 const quantity = parseFloat(p.cantidad) || 0;
-                 summary[p.satellite].assigned += unitPrice * quantity;
-            }
+
+        // **CORREGIDO:** Se eliminó la obtención masiva de precios que causaba errores 404.
+        // El "Valor Asignado" ya no se calculará aquí para evitar errores y mejorar el rendimiento.
+        // Para una funcionalidad completa, el backend debería proporcionar esta información.
+        
+        payments.forEach(p => { 
+            if (p.satellite_name && summary[p.satellite_name]) { 
+                summary[p.satellite_name].paid += parseFloat(p.payment_amount) || 0; 
+            } 
         });
-        payments.forEach(p => { if (p.satellite_name && summary[p.satellite_name]) { summary[p.satellite_name].paid += parseFloat(p.payment_amount) || 0; } });
+
         dom.summaryTableBody.innerHTML = '';
         Object.entries(summary).forEach(([name, data]) => {
             const balance = data.assigned - data.paid;
